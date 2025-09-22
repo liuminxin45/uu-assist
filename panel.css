@@ -1,0 +1,92 @@
+.btn-common {
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .15);
+  transition: transform .2s ease, color .2s ease, box-shadow .2s ease;
+}
+
+.btn-common:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .25);
+}
+#txtContent{
+  font: inherit;          
+  line-height: inherit;
+  white-space: pre-wrap;  
+  min-height: 300px;      
+}
+/* 文本输入框：.input-common 应用于 input[type="text"] */
+.input-common{
+  background:#fff;
+  border:none;
+  outline:none;
+  padding:8px 12px;
+  border-radius:8px;
+  box-shadow:0 1px 3px rgba(0,0,0,.15);
+  transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.input-common:focus{
+  box-shadow:0 2px 6px rgba(0,0,0,.25), 0 0 0 3px rgba(37,99,235,.12);
+}
+.input-common:disabled{
+  opacity:.6; cursor:not-allowed;
+}
+
+/* 下拉框：.select-common 应用于 select */
+.select-common{
+  background:#fff;
+  border:none;
+  outline:none;
+  padding:8px 36px 8px 12px; /* 右侧为下拉箭头留空间 */
+  border-radius:8px;
+  box-shadow:0 1px 3px rgba(0,0,0,.15);
+  appearance:none;            /* 隐藏系统样式 */
+  -webkit-appearance:none;
+  -moz-appearance:none;
+  background-image:
+    linear-gradient(transparent,transparent),      /* for edge */
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5" fill="none" stroke="%236b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+  background-repeat:no-repeat;
+  background-position:right 10px center;
+  background-size:14px 14px;
+  transition:transform .2s ease, box-shadow .2s ease;
+}
+.select-common:focus{
+  box-shadow:0 2px 6px rgba(0,0,0,.25), 0 0 0 3px rgba(37,99,235,.12);
+}
+.select-common:disabled{
+  opacity:.6; cursor:not-allowed;
+}
+
+/* 复选框：.checkbox-common 应用于 input[type="checkbox"] */
+.checkbox-common{
+  width:16px; height:16px;
+  border-radius:4px;
+  border:none;
+  box-shadow:0 1px 3px rgba(0,0,0,.15) inset;
+  appearance:none;            /* 自绘 */
+  -webkit-appearance:none;
+  display:inline-block;
+  background:#fff;
+  cursor:pointer;
+  transition:box-shadow .2s ease, transform .1s ease, background-color .2s ease;
+  vertical-align:middle;
+}
+.checkbox-common:hover{
+  box-shadow:0 2px 6px rgba(0,0,0,.25) inset;
+}
+.checkbox-common:checked{
+  background:
+    radial-gradient(circle at 50% 50%, #2563eb 50%, #2563eb 50%) no-repeat center/70% 70%,
+    #fff;
+  box-shadow:0 2px 6px rgba(0,0,0,.25) inset;
+}
+.checkbox-common:focus{
+  outline:none;
+  box-shadow:0 2px 6px rgba(0,0,0,.25) inset, 0 0 0 3px rgba(37,99,235,.12);
+}
+.checkbox-common:disabled{
+  opacity:.6; cursor:not-allowed;
+}
