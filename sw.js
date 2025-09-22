@@ -58,6 +58,48 @@ function grepIdAndUri(t){
   return { id, uri };
 }
 
+
+// ==== track last active tab id (for sidePanel) ====
+let lastTabId = null;
+
+async function spSetLastTab(tabId){
+  if (!tabId) return;
+  lastTabId = tabId;
+  try{ await chrome.storage.session.set({ __uu_assist_last_tab_id: tabId }); }catch(_){}
+}
+async function spGetLastTabFromSession(){
+  try{
+    const o = await chrome.storage.session.get('__uu_assist_last_tab_id');
+    return o?.__uu_assist_last_tab_id || null;
+  }catch(_){ return null; }
+}
+async function spGetStableTabId(sender){
+  // side panel 页面 sender.tab 为空；content script/图标点击会带
+  if (sender?.tab?.id) { await spSetLastTab(sender.tab.id); return sender.tab.id; }
+  if (lastTabId) return lastTabId;
+  const fromSess = await spGetLastTabFromSession();
+  if (fromSess) { lastTabId = fromSess; return fromSess; }
+  const [tab] = await chrome.tabs.query({ active:true, lastFocusedWindow:true });
+  if (tab?.id){ await spSetLastTab(tab.id); return tab.id; }
+  return null;
+}
+
+// 初始化与持续更新
+chrome.tabs.onActivated.addListener(async ({ tabId }) => { await spSetLastTab(tabId); });
+chrome.windows.onFocusChanged.addListener(async (winId) => {
+  if (winId === chrome.windows.WINDOW_ID_NONE) return;
+  const [tab] = await chrome.tabs.query({ active:true, windowId:winId });
+  if (tab?.id) await spSetLastTab(tab.id);
+});
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+  if (tabId === lastTabId){
+    lastTabId = null;
+    try{ await chrome.storage.session.remove('__uu_assist_last_tab_id'); }catch(_){}
+  }
+});
+
+
+
 chrome.runtime.onInstalled.addListener(() => {
   if (chrome.sidePanel?.setPanelBehavior) {
     chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(()=>{});
@@ -428,39 +470,52 @@ if (msg.type === "sumWorkload") {
   return true;
 });
 
-// 面板路由映射
+// ==== side panel router ====
 const PANEL_PATHS = {
   "pha-panel": "panels/pha/panel.html",
   "settings-panel": "panels/settings/panel.html"
 };
 
-// 工具：获取当前活动 tabId
-async function getActiveTabId() {
-  const [tab] = await chrome.tabs.query({active: true, lastFocusedWindow: true});
-  return tab?.id;
-}
 
-// 打开或切换面板
-async function openPanelByName(name) {
+async function openPanelByName(name, tabId, opts = {}) {
   const path = PANEL_PATHS[name] || PANEL_PATHS["pha-panel"];
-  const tabId = await getActiveTabId();
-  if (!tabId) return { ok: false, err: "no-active-tab" };
+  if (!tabId) return { ok:false, err:"no-active-tab" };
 
+  await chrome.sidePanel.setOptions({ tabId, enabled:true });
   await chrome.sidePanel.setOptions({ tabId, path });
-  await chrome.sidePanel.open({ tabId });
-  return { ok: true, path };
+
+  // 仅非面板来源时才尝试打开，避免“需要用户手势”错误
+  if (!opts.fromSidePanel) {
+    try { await chrome.sidePanel.open({ tabId }); } catch(_) {}
+  }
+  return { ok:true, path };
 }
+
 
 // 点击扩展图标 → 打开默认面板
-chrome.action.onClicked.addListener(async () => { await openPanelByName("pha-panel"); });
+chrome.action.onClicked.addListener(async (tab) => {
+  const tid = tab?.id || await spGetStableTabId();
+  if (tid) await spSetLastTab(tid);
+  await openPanelByName("pha-panel", tid, { fromSidePanel: false });
+});
 
-// 来自面板页面的切换请求
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+
+// 面板请求切换
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async () => {
     if (msg?.type === "switchPanel") {
-      const ret = await openPanelByName(msg.name);
+      const tid = await spGetStableTabId(sender);
+      const ret = await openPanelByName(msg.name, tid, { fromSidePanel: isFromSidePanel(sender) });
       sendResponse(ret);
     }
   })();
-  return true; // 异步响应
+  return true;
 });
+
+
+function isFromSidePanel(sender){
+  try {
+    const base = chrome.runtime.getURL('panels/');
+    return (sender?.url || '').startsWith(base);
+  } catch(_) { return false; }
+}

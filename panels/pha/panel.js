@@ -537,10 +537,10 @@ try{
           let AITitle = "", AIResponse = "";
           if (aiEnabled){
             const ask = { type:"aiSummarize", content: bodyContent, prompt: cfgNow.prompt || "" };
-            setStatus("AI 总结中…");
+            setStatus("AI 预处理中…");
             const ai = await chrome.runtime.sendMessage(ask);
-            if (ai?.ok){ AITitle = ai.title || ""; AIResponse = ai.reply || ""; setStatus("AI 总结完成"); }
-            else { setStatus("AI 总结失败: " + (ai?.error || "")); }
+            if (ai?.ok){ AITitle = ai.title || ""; AIResponse = ai.reply || ""; setStatus("AI 处理完成"); }
+            else { setStatus("AI 处理失败: " + (ai?.error || "")); }
           }
           const tpl = $("tplArea")?.value || "{{timestamp}}\n# {{AITitle}}\n\n{{AIResponse}}\n\n{{正文}}";
           content = substituteTemplate(tpl, { timestamp, AITitle, AIResponse, body: bodyContent });
@@ -623,3 +623,25 @@ async function refreshBindButton(){
 
 // 在 DOMReady 之前的 loadConfig 兜底（若需要）
 if (document.readyState !== "loading"){ loadConfig().catch(()=>{}); }
+
+// 竖条按钮 → 通知 SW 切换到目标 panel.html
+(function(){
+  document.addEventListener('DOMContentLoaded', () => {
+    const rail = document.querySelector('.rail');
+    if (!rail) return;
+    rail.addEventListener('click', (e)=>{
+      const btn = e.target.closest('.railbtn');
+      if (!btn) return;
+      chrome.runtime.sendMessage({ type: "switchPanel", name: btn.getAttribute('data-target') });
+    });
+  });
+})();
+
+// 打开设置页：复用旧的“编辑 AI 配置”按钮
+(function(){
+  document.addEventListener('DOMContentLoaded', ()=>{
+    document.getElementById('btnEditPrompt')?.addEventListener('click', ()=>{
+      chrome.runtime.sendMessage({ type:'switchPanel', name:'settings-panel' });
+    });
+  });
+})();

@@ -1,33 +1,64 @@
 <!doctype html>
-<html>
+<html lang="zh-CN">
 <head>
-<meta charset="utf-8">
-<title>Settings Panel</title>
-<link rel="stylesheet" href="../../panel.css">
-<style>html,body{margin:0;padding:0}</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Settings</title>
+  <link rel="stylesheet" href="../../panel.css">
+  <style>
+    :root{ --bg:#f8fafc; --card:#ffffff; --muted:#6b7280; --text:#0f172a; --accent:#2563eb; --border:#e5e7eb; }
+    html,body{height:100%}
+    body{margin:0;padding:16px 0 16px 16px;;font:13px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto;color:var(--text);background:var(--bg);}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+    .row{margin-top:10px}
+    .split{display:flex;gap:8px;align-items:center}
+    .split > :first-child{flex:1;min-width:0}
+    label{display:block;margin:8px 0 6px;color:var(--muted);font-weight:600}
+    .muted{color:var(--muted)}
+    .section-title{font-weight:700;margin:4px 0 8px}
+    .kv{display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center}
+    .hint{font-size:12px;color:var(--muted);margin-top:6px}
+  </style>
 </head>
 <body>
   <div class="layout">
     <div class="main">
-      <div class="card" style="margin:12px">
-        <h3 style="margin:0 0 8px">设置</h3>
-        <div class="muted">这里放你的全局配置或其他工具。</div>
+      <div class="card">
+        <div class="section-title">常规</div>
+        <div class="kv">
+          <label for="prefAutoOpen">启动时打开 PHA</label>
+          <div class="split"><input id="prefAutoOpen" type="checkbox" class="checkbox-common"><span class="muted">仅在点击扩展图标时生效</span></div>
+        </div>
+
+        <div class="row"><div class="section-title">AI 配置</div></div>
+        <div class="kv">
+          <label for="aiBase">Base URL</label>
+          <input id="aiBase" class="input-common" type="text" value="https://api.deepseek.com/v1">
+
+          <label for="aiModel">Model</label>
+          <input id="aiModel" class="input-common" type="text" value="deepseek-chat">
+
+          <label for="aiKey">API Key</label>
+          <input id="aiKey" class="input-common" type="text" placeholder="sk-24dbbd8a266a463a8706aae3f8f64372">
+
+          <label for="aiPrompt">Prompt</label>
+          <textarea id="aiPrompt" class="input-common" rows="5" placeholder="你是助手。请根据给定正文：1) 生成≤40字的小标题；2) 生成简洁概述。以严格JSON返回：{&quot;title&quot;:&quot;...&quot;, &quot;reply&quot;:&quot;...&quot;}"></textarea>
+        </div>
+
+        <div class="row" style="display:flex;gap:8px;justify-content:flex-end">
+          <button id="btnReset" class="btn-common">重置</button>
+          <button id="btnSave" class="btn-common" style="background:#2563eb;color:#fff;border:none">保存</button>
+        </div>
       </div>
     </div>
+
     <nav class="rail" aria-label="面板切换">
-      <button class="railbtn" data-target="pha-panel" title="PHA">📋</button>
-      <button class="railbtn active" data-target="settings-panel" title="设置">⚙️</button>
+      <button class="railbtn" data-target="pha-panel" title="PHA" aria-label="PHA">📋</button>
+      <button class="railbtn active" data-target="settings-panel" title="设置" aria-label="设置">🛠️</button>
     </nav>
   </div>
 
-  <script>
-  (function(){
-    document.querySelector('.rail').addEventListener('click', (e)=>{
-      const btn = e.target.closest('.railbtn');
-      if (!btn) return;
-      chrome.runtime.sendMessage({ type: "switchPanel", name: btn.getAttribute('data-target') });
-    });
-  })();
-  </script>
+  <script defer src="../../rail.js"></script>
+  <script defer src="settings.js"></script>
 </body>
 </html>
