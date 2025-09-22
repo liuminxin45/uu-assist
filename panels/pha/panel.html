@@ -90,9 +90,9 @@
           </div>
           <div>
             <button id="btnGerrit" class="btn-common" title="插入 Gerrit 提交说明">➕</button>
-            <!-- 原“编辑 AI 配置”改为打开设置页 -->
             <button id="btnTpl" class="btn-common" title="编辑 POST 模板">🖋️</button>
             <button id="btnSumWL" class="btn-common" title="统计该任务的总工作量">✨</button>
+            <button id="btnWeekly" class="btn-common" title="自动生成周报">🗓️</button>
           </div>
         </div>
 
@@ -111,6 +111,34 @@
       <button class="railbtn" data-target="settings-panel" title="设置" aria-label="设置">🛠️</button>
     </nav>
   </div>
+
+<!-- DDDD：工作量选择弹窗 -->
+<dialog id="dlgEffort" style="border:none;border-radius:12px;padding:12px;max-width:320px">
+  <h3 style="margin:0 0 8px">填写工作量</h3>
+  <select id="effortSelect" class="select-common" style="width:100%">
+    <option value="">请选择</option>
+    <option>0.5D</option>
+    <option>1D</option>
+    <option>2D</option>
+    <option>3D</option>
+    <option>5D</option>
+  </select>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+    <button id="effortCancel" class="btn-common">取消</button>
+  </div>
+</dialog>
+
+<!-- POST 模板编辑弹窗 -->
+<dialog id="dlgTpl" style="border:none;border-radius:12px;padding:12px;max-width:640px;width:90vw">
+  <h3 style="margin:0 0 8px">编辑 POST 模板</h3>
+  <textarea id="tplArea" class="input-common" rows="10"
+    placeholder="{{timestamp}}\n# {{AITitle}}\n\n{{AIResponse}}\n\n{{正文}}"></textarea>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+    <button id="tplCancel" class="btn-common">取消</button>
+    <button id="tplSave" class="btn-common">保存</button>
+  </div>
+</dialog>
+
 
   <script defer src="panel.js"></script>
   <script defer src="../../rail.js"></script>

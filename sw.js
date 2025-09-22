@@ -150,28 +150,101 @@ if (msg.type === "guessTaskFromGerrit"){
 if (msg.type === "fetchTaskSummary"){
   try{
     const url = msg.url;
-    const r = await fetch(url, { credentials:"include", cache:"no-cache" });
+    const r = await fetch(url, { credentials: "include", cache: "no-cache" });
     const html = await r.text();
     if (!r.ok){ sendResponse({ ok:false, status:r.status, snippet: snippetOf(html) }); return; }
 
     // 标题
-    let title = ""; {
-      const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-      if (m) title = m[1].replace(/\s+/g," ").trim();
-    }
+    let title = "";
+    const mTitle = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    if (mTitle) title = mTitle[1].replace(/\s+/g," ").trim();
 
-    // 纯文本用于粗提取状态/优先级
-    const text = html
+    const strip = s => String(s||"")
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi,"")
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi,"")
-      .replace(/<[^>]+>/g,"\n")
+      .replace(/<[^>]+>/g," ")
       .replace(/\u00a0/g," ")
-      .replace(/[ \t]+\n/g,"\n");
+      .replace(/\s+/g," ")
+      .trim();
 
-    const status = (text.match(/(?:状态|Status)\s*[:：]\s*([^\n]+)/i)||[])[1] || "";
-    const priority = (text.match(/(?:优先级|Priority)\s*[:：]\s*([^\n]+)/i)||[])[1] || "";
+    let status = "", priority = "";
 
-    // 解析属性列表 <dl class="phui-property-list-properties">…</dl>
+    // ① 页眉副标题（权威）
+    const mSub = html.match(/<div[^>]*class=["'][^"']*phui-header-subheader[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
+    if (mSub){
+      // 取第一个 phui-tag-core 的文本
+      let coreText = "";
+      const coreRe = /<span[^>]*class=["'][^"']*phui-tag-core[^"']*["'][^>]*>([\s\S]*?)<\/span>/ig;
+      let mm;
+      while ((mm = coreRe.exec(mSub[1])) !== null){
+        const t = strip(mm[1]);
+        if (t){ coreText = t; break; }
+      }
+      let headerText = coreText || strip(mSub[1]);
+
+      // 兼容“关闭，已完成(不加入统计)”：取最后一段
+      const parts = headerText.split(/[，,]/).map(s=>s.trim()).filter(Boolean);
+      if (parts.length) headerText = parts[parts.length-1];
+
+      // 提取状态
+      const statusPatterns = [
+        /(已完成(?:\(不加入统计\))?)/,
+        /(进行中(?:\(不加入统计\))?)/,
+        /(暂停)/,
+        /(未开始)/,
+        /(删除\/中止|已取消)/,
+        /(已关闭|closed)/i,
+        /(已解决|resolved)/i,
+        /(开放|open)/i,
+      ];
+      for (const re of statusPatterns){
+        const m = headerText.match(re);
+        if (m){ status = m[1]; break; }
+      }
+      // 提取优先级（如果存在）
+      const mp = headerText.match(/\bP\d\b/i);
+      if (mp) priority = mp[0].toUpperCase();
+    }
+
+    // ② 任务图“只针对当前TID”的兜底（防止误取父/兄弟任务）
+    if (!status){
+      const tidMatch = url.match(/\/T(\d+)\b/i);
+      const tid = tidMatch && tidMatch[1];
+      if (tid){
+        // 找到包含 <span class="object-name">T{tid}</span> 的那一行
+        const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/ig;
+        let tr;
+        while ((tr = trRe.exec(html)) !== null){
+          if (new RegExp(`<span[^>]*class=["'][^"']*object-name[^"']*["'][^>]*>\\s*T${tid}\\s*<\\/span>`, "i").test(tr[1])){
+            const mGraph = tr[1].match(/<td[^>]*class=["'][^"']*graph-status[^"']*["'][^>]*>([\s\S]*?)<\/td>/i);
+            if (mGraph){
+              const t = strip(mGraph[1]);
+              const ms = t.match(/(已完成(?:\(不加入统计\))?|进行中(?:\(不加入统计\))?|暂停|未开始)/);
+              if (ms){ status = ms[1]; }
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    // ③ 时间线兜底：优先找“将此任务关闭为 …”，否则找“修改为 …”的最后一条
+    if (!status){
+      let lastClose = "";
+      const closeRe = /<div[^>]*class=["'][^"']*phui-timeline-title[^"']*["'][^>]*>[\s\S]*?将此任务关闭为[\s\S]*?<span[^>]*class=["'][^"']*phui-timeline-value[^"']*["'][^>]*>([\s\S]*?)<\/span>[\s\S]*?<\/div>/ig;
+      let m;
+      while ((m = closeRe.exec(html)) !== null){ lastClose = strip(m[1]); }
+      if (lastClose) status = lastClose;
+      else {
+        // 最近一次“修改为 …”的目标状态
+        let lastChange = "";
+        const changeRe = /<div[^>]*class=["'][^"']*phui-timeline-title[^"']*["'][^>]*>[\s\S]*?修改为[\s\S]*?<span[^>]*class=["'][^"']*phui-timeline-value[^"']*["'][^>]*>([\s\S]*?)<\/span>[\s\S]*?<\/div>/ig;
+        while ((m = changeRe.exec(html)) !== null){ lastChange = strip(m[1]); }
+        if (lastChange) status = lastChange;
+      }
+    }
+
+    // ④ 解析属性列表 <dl>（补充 details / 末位兜底）
     const details = [];
     const dlRe = /<dl[^>]*class=["'][^"']*phui-property-list-properties[^"']*["'][^>]*>([\s\S]*?)<\/dl>/ig;
     let dlm;
@@ -180,9 +253,21 @@ if (msg.type === "fetchTaskSummary"){
       const kvRe = /<dt[^>]*class=["'][^"']*phui-property-list-key[^"']*["'][^>]*>([\s\S]*?)<\/dt>\s*<dd[^>]*class=["'][^"']*phui-property-list-value[^"']*["'][^>]*>([\s\S]*?)<\/dd>/ig;
       let m;
       while ((m = kvRe.exec(body)) !== null){
-        const k = m[1].replace(/<[^>]+>/g,"").replace(/\s+/g," ").trim();
-        const v = m[2].replace(/<[^>]+>/g,"").replace(/\s+/g," ").trim();
-        if (k) details.push({ k, v });
+        details.push({ k: strip(m[1]), v: strip(m[2]) });
+      }
+    }
+    if (!priority){
+      const kv = details.find(d => /^(优先级|Priority)$/i.test(d.k));
+      if (kv) priority = kv.v;
+      if (!priority){
+        const text = html
+          .replace(/<script[^>]*>[\s\S]*?<\/script>/gi,"")
+          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi,"")
+          .replace(/<[^>]+>/g,"\n")
+          .replace(/\u00a0/g," ")
+          .replace(/[ \t]+\n/g,"\n");
+        const mp = text.match(/(?:^|\n)\s*(P\d)\b/i);
+        if (mp) priority = mp[1].toUpperCase();
       }
     }
 
@@ -195,74 +280,35 @@ if (msg.type === "fetchTaskSummary"){
 
 
 
-      if (msg.type === "fetchTaskSummary"){
-          try{
-            const url = msg.url;
-            const r = await fetch(url, { credentials:"include", cache:"no-cache" });
-            const html = await r.text();
-            if (!r.ok){ sendResponse({ ok:false, status:r.status, snippet: snippetOf(html) }); return; }
-
-            // 取 <title>
-            let title = "";
-            const mTitle = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-            if (mTitle) title = mTitle[1].replace(/\s+/g," ").trim();
-
-            // 去脚本与样式，转纯文本后再匹配“状态/优先级”
-            const text = html
-              .replace(/<script[^>]*>[\s\S]*?<\/script>/gi,"")
-              .replace(/<style[^>]*>[\s\S]*?<\/style>/gi,"")
-              .replace(/<[^>]+>/g,"\n")
-              .replace(/\u00a0/g," ")
-              .replace(/[ \t]+\n/g,"\n");
-
-            function pick(reArr){
-              for (const re of reArr){
-                const m = text.match(re);
-                if (m) return m[1].trim();
-              }
-              return "";
-            }
-            const status = pick([
-              /(?:状态|Status)\s*[:：]\s*([^\n]+)/i,
-              /(?:状态|Status)\s*\n\s*([^\n]+)/i
-            ]);
-            const priority = pick([
-              /(?:优先级|Priority)\s*[:：]\s*([^\n]+)/i,
-              /(?:优先级|Priority)\s*\n\s*([^\n]+)/i
-            ]);
-
-            sendResponse({ ok:true, title, status, priority });
-          }catch(e){
-            sendResponse({ ok:false, error: e?.message || String(e) });
-          }
-          return;
-    }
 
 
-      if (msg.type === "aiSummarize"){
-        const def = { aiCfg:null };
-        const got = await chrome.storage.local.get(def).catch(()=>def);
-        const ai = got.aiCfg || {};
-        const base = (ai.base || "https://api.deepseek.com/v1").replace(/\/+$/,"");
-        const model = ai.model || "deepseek-chat";
-        const key = ai.key || "";
-        const prompt = msg.prompt || ai.prompt || "你是助手。请根据给定正文：1) 生成≤40字的小标题；2) 生成简洁回复。以严格JSON返回：{\"title\":\"...\", \"reply\":\"...\"}";
-        if (!key){ sendResponse({ ok:false, error:"缺少API Key" }); return; }
-        const url = base + "/chat/completions";
-        const payload = { model, messages: [ { role:"system", content: prompt }, { role:"user", content: msg.content || "" } ] };
-        try{
-          const r = await fetch(url, { method:"POST", headers:{ "Content-Type":"application/json", "Authorization":"Bearer " + key }, body: JSON.stringify(payload) });
-          const txt = await r.text();
-          if (!r.ok){ sendResponse({ ok:false, status:r.status, error:"AI接口错误", snippet: snippetOf(txt) }); return; }
-          let data = null; try{ data = JSON.parse(txt); }catch(_){ data = relaxParseJSON(txt); }
-          const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content || "";
-          let jsonText = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "");
-          let obj = null; try{ obj = JSON.parse(jsonText); }catch(_){ obj = relaxParseJSON(jsonText); }
-          const title = obj && obj.title ? String(obj.title) : "";
-          const reply = obj && obj.reply ? String(obj.reply) : "";
-          sendResponse({ ok:true, title, reply }); return;
-        }catch(e){ sendResponse({ ok:false, error:e.message }); return; }
-      }
+  if (msg.type === "aiSummarize"){
+    const def = { aiCfg:null };
+    const got = await chrome.storage.local.get(def).catch(()=>def);
+    const ai = got.aiCfg || {};
+    const base = (ai.base || "https://api.deepseek.com/v1").replace(/\/+$/,"");
+    const model = ai.model || "deepseek-chat";
+    const key = ai.key || "";
+    const prompt = msg.prompt || ai.prompt || "你是助手。请根据给定正文：1) 生成≤40字的小标题；2) 生成简洁回复。以严格JSON返回：{\"title\":\"...\", \"reply\":\"...\"}";
+    if (!key){ sendResponse({ ok:false, error:"缺少API Key" }); return; }
+    const url = base + "/chat/completions";
+    const payload = { model, messages: [ { role:"system", content: prompt }, { role:"user", content: msg.content || "" } ] };
+    try{
+      const r = await fetch(url, { method:"POST", headers:{ "Content-Type":"application/json", "Authorization":"Bearer " + key }, body: JSON.stringify(payload) });
+      const txt = await r.text();
+      if (!r.ok){ sendResponse({ ok:false, status:r.status, error:"AI接口错误", snippet: snippetOf(txt) }); return; }
+      let data = null; try{ data = JSON.parse(txt); }catch(_){ data = relaxParseJSON(txt); }
+      const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content || "";
+      let jsonText = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "");
+      let obj = null; try{ obj = JSON.parse(jsonText); }catch(_){ obj = relaxParseJSON(jsonText); }
+      const title = obj && obj.title ? String(obj.title) : "";
+      const reply = obj && obj.reply ? String(obj.reply) : "";
+      sendResponse({ ok:true, title, reply }); return;
+    }catch(e){ sendResponse({ ok:false, error:e.message }); return; }
+  }
+      
+      
+      
 if (msg.type === "postComment"){
         const g = await fetch(msg.taskUrl, { credentials:"include", cache:"no-cache", redirect:"follow" });
         const html = await g.text();
@@ -461,8 +507,6 @@ if (msg.type === "sumWorkload") {
           sendResponse({ ok:false, error: e.message }); return;
         }
       }
-
-      sendResponse({ ok:false, error:"unknown message" });
     }catch(e){
       sendResponse({ ok:false, error: e.message });
     }
@@ -519,3 +563,216 @@ function isFromSidePanel(sender){
     return (sender?.url || '').startsWith(base);
   } catch(_) { return false; }
 }
+
+
+//  数据库部分
+
+/* ===== post 数据缓存 ===== */
+const DB_NAME = "uu-assist-pha";
+const DB_VER  = 1;
+const STORE   = "posts"; // 记录结构：{id, panel, taskId, time, content}
+
+function idbOpen(){
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = (e)=>{
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)){
+        const os = db.createObjectStore(STORE, { keyPath:"id", autoIncrement:true });
+        // 复合索引，便于倒序/区间查询
+        os.createIndex("panel_time", ["panel","time"], { unique:false });
+        os.createIndex("panel_task_time", ["panel","taskId","time"], { unique:false });
+      }
+    };
+    req.onsuccess = ()=>res(req.result);
+    req.onerror = ()=>rej(req.error);
+  });
+}
+
+async function dbAddPost({ panel, taskId, content, time, aiTitle = "", aiReply = "" }){
+  const db = await idbOpen();
+  return new Promise((res, rej)=>{
+    const tx = db.transaction(STORE, "readwrite");
+    const os = tx.objectStore(STORE);
+    const putReq = os.add({
+      panel: String(panel||""),
+      taskId: String(taskId||""),
+      time: Number(time || Date.now()),
+      content: typeof content === "string" ? content : JSON.stringify(content||""),
+      aiTitle: String(aiTitle||""),      // ← 新增
+      aiReply: String(aiReply||"")       // ← 新增
+    });
+    tx.oncomplete = ()=>res({ ok:true, id: putReq.result });
+    tx.onerror = ()=>rej(tx.error);
+  });
+}
+
+
+async function dbQueryByTask({ panel, taskId, start=0, end=Number.MAX_SAFE_INTEGER, limit=200 }){
+  const db = await idbOpen();
+  return new Promise((res, rej)=>{
+    const tx = db.transaction(STORE, "readonly");
+    const idx = tx.objectStore(STORE).index("panel_task_time");
+    const range = IDBKeyRange.bound([panel, String(taskId), start],[panel, String(taskId), end]);
+    const out = [];
+    idx.openCursor(range, "prev").onsuccess = e=>{
+      const cur = e.target.result;
+      if (!cur || out.length>=limit){ res({ ok:true, items: out }); return; }
+      const v = cur.value;
+      out.push({
+          id: v.id, panel: v.panel,
+          时间: v.time, 任务号: v.taskId, 内容: v.content,
+          aiTitle: v.aiTitle || "", aiReply: v.aiReply || ""   // ← 新增
+        });
+
+      cur.continue();
+    };
+    tx.onerror = ()=>rej(tx.error);
+  });
+}
+
+async function dbQueryByTime({ panel, start=0, end=Number.MAX_SAFE_INTEGER, limit=200 }){
+  const db = await idbOpen();
+  return new Promise((res, rej)=>{
+    const tx = db.transaction(STORE, "readonly");
+    const idx = tx.objectStore(STORE).index("panel_time");
+    const range = IDBKeyRange.bound([panel, start],[panel, end]);
+    const out = [];
+    idx.openCursor(range, "prev").onsuccess = e=>{
+      const cur = e.target.result;
+      if (!cur || out.length>=limit){ res({ ok:true, items: out }); return; }
+      const v = cur.value;
+      out.push({
+        id: v.id, panel: v.panel,
+        时间: v.time, 任务号: v.taskId, 内容: v.content,
+        aiTitle: v.aiTitle||"", aiReply: v.aiReply||""      /* 新增 */
+      });
+      cur.continue();
+    };
+    tx.onerror = ()=>rej(tx.error);
+  });
+}
+
+
+// 消息路由
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  (async()=>{
+    if (msg?.type === "cache:addPost"){
+      try{ const r = await dbAddPost(msg); sendResponse(r); }catch(e){ sendResponse({ ok:false, error:String(e) }); }
+      return;
+    }
+    if (msg?.type === "cache:queryByTask"){
+      try{ const r = await dbQueryByTask(msg); sendResponse(r); }catch(e){ sendResponse({ ok:false, error:String(e) }); }
+      return;
+    }
+    if (msg?.type === "cache:queryByTime"){
+      try{ const r = await dbQueryByTime(msg); sendResponse(r); }catch(e){ sendResponse({ ok:false, error:String(e) }); }
+      return;
+    }
+  })();
+  return true; // 异步
+});
+
+/* ===== 导出 / 导入（posts + storage） ===== */
+async function dbDumpAllPosts(){
+  const db = await idbOpen();
+  return new Promise((res, rej)=>{
+    const out = [];
+    const tx = db.transaction(STORE, "readonly");
+    tx.objectStore(STORE).openCursor().onsuccess = e=>{
+      const cur = e.target.result;
+      if (!cur) return res(out);
+      const v = cur.value || {};
+      out.push({
+        id: v.id ?? null,
+        panel: String(v.panel || ""),
+        时间: Number(v.time || 0),
+        任务号: String(v.taskId || ""),
+        内容: String(v.content || ""),
+        AI标题: String(v.aiTitle || ""),          /* 新增 */
+        AI内容: String(v.aiReply || "")           /* 新增 */
+      });
+      cur.continue();
+    };
+    tx.onerror = ()=>rej(tx.error);
+  });
+}
+
+async function dbBulkImportPosts(items=[]){
+  if (!Array.isArray(items) || !items.length) return { ok:true, count:0 };
+  const db = await idbOpen();
+  return new Promise((res, rej)=>{
+    let count = 0;
+    const tx = db.transaction(STORE, "readwrite");
+    const st = tx.objectStore(STORE);
+    for (const it of items){
+      st.add({
+        panel: String(it.panel || ""),
+        taskId: String(it["任务号"] ?? it.taskId ?? ""),
+        time: Number(it["时间"] ?? it.time ?? Date.now()),
+        content: String(it["内容"] ?? it.content ?? ""),
+        aiTitle: String(it["AI标题"] ?? it.aiTitle ?? ""),   /* 新增 */
+        aiReply: String(it["AI内容"] ?? it.aiReply ?? "")    /* 新增 */
+      });
+      count++;
+    }
+    tx.oncomplete = ()=>res({ ok:true, count });
+    tx.onerror = ()=>rej(tx.error);
+  });
+}
+
+async function exportAllData(){
+  const cfg = await chrome.storage.local.get(null).catch(()=>({}));
+  const posts = await dbDumpAllPosts();
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    extensionId: chrome.runtime.id,
+    data: { ...cfg, posts }
+  };
+}
+async function importAllData(payload){
+  const data = payload?.data || {};
+  const { aiCfg, prefs } = data;
+  if (aiCfg || prefs) await chrome.storage.local.set({ ...(aiCfg?{aiCfg}:{}), ...(prefs?{prefs}:{}) });
+  const posts = Array.isArray(data.posts) ? data.posts : [];
+  const r = await dbBulkImportPosts(posts);
+  return { ok:true, importedPosts: r.count };
+}
+
+
+
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  (async()=>{
+    try{
+      // ……这里是你原有的一堆 if (msg.type === "...") 分支……
+
+      // === 新增：导出 / 导入 ===
+      if (msg?.type === "exportAllData"){
+        try{
+          const blob = await exportAllData();
+          sendResponse({ ok:true, blob });
+        }catch(e){
+          sendResponse({ ok:false, error:String(e) });
+        }
+        return;
+      }
+      if (msg?.type === "importAllData"){
+        try{
+          const r = await importAllData(msg.payload);
+          sendResponse({ ok:true, ...r });
+        }catch(e){
+          sendResponse({ ok:false, error:String(e) });
+        }
+        return;
+      }
+
+      return;
+
+    }catch(e){
+      sendResponse({ ok:false, error: e.message });
+    }
+  })();
+  return true; // 异步
+});

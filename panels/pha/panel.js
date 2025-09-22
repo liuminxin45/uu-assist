@@ -1,3 +1,5 @@
+const PANEL_NAME = "pha-panel";
+
 /* panel.js v0.8.3-clean */
 const $ = id => document.getElementById(id);
 
@@ -529,12 +531,13 @@ try{
         let bodyContent = $("txtContent")?.value || "";
         let content = bodyContent;
 
+        let AITitle = "", AIResponse = "";
+        
         // AI summarize + 模板渲染
         try{
           const cfgNow = await loadAICfg();
           const aiEnabled = !!$("chkAI")?.checked || !!cfgNow?.enabled;
           const timestamp = formatDate("[YYYY-MM-DD HH:mm:ss]");
-          let AITitle = "", AIResponse = "";
           if (aiEnabled){
             const ask = { type:"aiSummarize", content: bodyContent, prompt: cfgNow.prompt || "" };
             setStatus("AI 预处理中…");
@@ -549,7 +552,16 @@ try{
         setStatus("提交评论中…");
         const resp = await chrome.runtime.sendMessage({ type:"postComment", taskId: id, taskUrl: abs, content });
         if (resp?.ok){
-          setStatus("提交成功，状态码 " + resp.status);
+              await chrome.runtime.sendMessage({
+              type: "cache:addPost",
+              panel: PANEL_NAME,
+              taskId: String(id),
+              content: typeof content === "string" ? content : JSON.stringify(content),
+              aiTitle: String(AITitle || ""),         
+              aiReply: String(AIResponse || ""), 
+              time: Date.now()
+            });
+            setStatus("提交成功，状态码 " + resp.status);
         }else{
           setStatus("提交失败: " + (resp?.error || ("HTTP " + (resp?.status||""))) + (resp?.snippet?("\n"+resp.snippet):""));
         }
@@ -637,11 +649,323 @@ if (document.readyState !== "loading"){ loadConfig().catch(()=>{}); }
   });
 })();
 
-// 打开设置页：复用旧的“编辑 AI 配置”按钮
+
+// === 周报（AI 版 + 详细日志） ===
 (function(){
-  document.addEventListener('DOMContentLoaded', ()=>{
-    document.getElementById('btnEditPrompt')?.addEventListener('click', ()=>{
-      chrome.runtime.sendMessage({ type:'switchPanel', name:'settings-panel' });
+  const PANEL_NAME = "pha-panel";
+  const $ = (s)=>document.querySelector(s);
+  const logEl = $("#status");
+
+  // 日志工具
+  function ts(){ const d=new Date(); return d.toISOString().slice(11,19); } // HH:MM:SS
+  function ensureLogArea(){
+    if (!logEl) return;
+    logEl.style.maxHeight = "none";         // 允许完整显示
+    logEl.style.overflowY = "auto";
+  }
+  function logLine(line){
+    if (!logEl) return;
+    logEl.textContent += `[${ts()}] ${line}\n`;
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function logBlock(title, objOrStr){
+    logLine(title);
+    const s = typeof objOrStr === "string" ? objOrStr :
+              JSON.stringify(objOrStr, null, 2);
+    for (const ln of String(s).split(/\r?\n/)) logLine("  " + ln);
+  }
+  function clearLog(){ if (logEl) logEl.textContent = ""; }
+
+  // 时间与工具
+  function ymd(d){ const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),dd=String(d.getDate()).padStart(2,"0"); return `${y}${m}${dd}`; }
+  function lastWorkWeek(now=new Date()){
+    const day = now.getDay();                   // 0..6
+    const diffFri = ((day - 5 + 7) % 7) || 7;   // 上一个周五；周五也回退一周
+    const fri = new Date(now); fri.setHours(23,59,59,999); fri.setDate(fri.getDate()-diffFri);
+    const mon = new Date(fri); mon.setHours(0,0,0,0); mon.setDate(mon.getDate()-4);
+    return { mon, fri };
+  }
+  function normTaskId(x){ return String(x||"").trim().replace(/^T/i,""); }
+  function clip(s, n){ s=String(s||"").replace(/\s+/g," ").trim(); return s.length>n? s.slice(0,n)+"…" : s; }
+
+    function isDone(status){
+      const s = String(status || "").trim();
+      // 中文：必须带“已”，避免把“未完成”命中
+      const zh = /(已完成|已完成(不加入统计))/;
+      // 英文：词边界，避免 "undone"
+      const en = /\b(resolved|closed|done|fixed|merged)\b/i;
+      return zh.test(s) || en.test(s.toLowerCase());
+    }
+
+
+  async function fetchTaskMeta(taskIdNum){
+    const url = `http://pha.tp-link.com.cn/T${taskIdNum}`;
+    try{
+      const r = await chrome.runtime.sendMessage({ type:"fetchTaskSummary", url });
+      logBlock(`任务 T${taskIdNum} 元信息`, { url, title:r?.title||"", status:r?.status||"", priority:r?.priority||"" });
+      return { status: r?.status||"", title: r?.title||"" };
+    }catch(e){
+      logBlock(`任务 T${taskIdNum} 元信息失败`, String(e));
+      return { status:"", title:"" };
+    }
+  }
+
+
+function buildAiPrompt(done){
+  return [
+    "你将获得同一任务在本工作周的多条「AI 标题」（每条为一句话小标题）。",
+    "请：",
+    "1) 以≤22字输出该任务的“简要描述”（不用任务号）。",
+    done
+      ? "2) 根据这些标题提炼2-3条值得关注的细节，短句，动宾结构。"
+      : "2) 用≤40字概述“剩余内容”（仍未完成的部分）。",
+    '只返回严格JSON：{"title":"简要描述","reply":"多行文本"}',
+    done
+      ? '其中 reply 为每行一个“细节”项目，最多3行，不要前缀符号。'
+      : '其中 reply 只包含一行，以“剩余：”开头。'
+  ].join("\n");
+}
+
+
+  function parseAiReplyLines(reply){
+    const lines = String(reply||"").split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+    return lines.slice(0,3);
+  }
+
+
+// --- Conduit：仅 token，无会话 ---
+const PHA_BASE  = "http://pha.tp-link.com.cn";
+const API_TOKEN = "api-e7per7u7ly7oezfc2szb47hbv5vw"; // 你给的
+
+async function conduit(method, params = {}) {
+  const form = new URLSearchParams();
+  form.set("api.token", API_TOKEN);
+  form.set("params", JSON.stringify(params));
+  form.set("output", "json");
+
+  const r = await fetch(`${PHA_BASE}/api/${method}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+      "Accept": "application/json"
+    },
+    credentials: "omit"
+  , body: form.toString() });
+
+  const data = await r.json().catch(() => ({}));
+  if (data.error_info) throw new Error(data.error_info);
+  return data.result;
+}
+
+
+
+// 解析博客 PHID
+async function resolveBlogPHID(blogName) {
+  const res = await conduit("phame.blog.search", { constraints: { names: [blogName] }, limit: 1 });
+  const it = res?.data?.[0];
+  if (!it) throw new Error(`找不到博客：${blogName}`);
+  return it.phid;
+}
+
+// 解析/创建标签（Project）PHID
+async function resolveProjectPHIDs(names = []) {
+  if (!names.length) return [];
+  const res = await conduit("project.search", { constraints: { names }, limit: names.length });
+  const found = new Map((res.data || []).map(d => [d.fields.name, d.phid]));
+  const phids = [];
+  for (const n of names) {
+    if (found.has(n)) { phids.push(found.get(n)); continue; }
+    const cre = await conduit("project.edit", { transactions: [{ type: "name", value: n }] });
+    phids.push(cre.object.phid);
+  }
+  return phids;
+}
+
+// 创建发布 Phame 博文
+async function publishWeeklyToPhame({ blogName, title, body, tags = ["工作周报/日报"], visible = "Published" }) {
+  const blogPHID = await resolveBlogPHID(blogName);
+  const tagPHIDs = await resolveProjectPHIDs(tags);
+
+  const tx = [
+    { type: "blog", value: blogPHID },
+    { type: "title", value: title },
+    { type: "body", value: body },
+    // 大多数实例里：published/draft；个别老版本也叫 visibility
+    { type: "status", value: /^pub/i.test(visible) ? "published" : "draft" },
+  ];
+  if (tagPHIDs.length) tx.push({ type: "projects.set", value: tagPHIDs });
+
+  const res = await conduit("phame.post.edit", { transactions: tx });
+  const postPHID = res.object.phid;
+
+  // 拿可访问链接
+  const q = await conduit("phame.post.search", { constraints: { phids: [postPHID] } });
+  const viewURI = q?.data?.[0]?.fields?.viewURI || q?.data?.[0]?.fields?.uri;
+  return viewURI || `${PHA_BASE}/phame/`;
+}
+
+  async function genWeekly(){
+    ensureLogArea();
+    clearLog();
+    logLine("开始生成周报…");
+
+    const { mon, fri } = lastWorkWeek(new Date());
+    const start = mon.getTime(), end = fri.getTime();
+    const rangeInfo = { 开始: mon.toISOString(), 结束: fri.toISOString(), 开始YMD: ymd(mon), 结束YMD: ymd(fri) };
+    logBlock("时间范围（最近工作周一~周五）", rangeInfo);
+
+    // 取缓存数据
+    logLine("查询缓存数据库…");
+    const q = await chrome.runtime.sendMessage({
+      type:"cache:queryByTime", panel:PANEL_NAME, start, end, limit: 5000
+    }).catch(e=>({ ok:false, error:String(e) }));
+    logBlock("缓存查询结果头", { ok:q?.ok, count: q?.items?.length||0, error:q?.error });
+
+    const rows = Array.isArray(q?.items) ? q.items : [];
+    if (!rows.length){
+      logLine("本周无缓存数据，输出空模板。");
+      const title = `【工作周报】${ymd(mon)}-${ymd(fri)}`;
+      const md = `${title}\n\n### 本周已完成任务\n\n（无）\n\n\n### 本周仍未完成任务\n\n（无）\n`;
+      logBlock("最终周报", md);
+      $("#txtContent").value = md;
+      return;
+    }
+    // 展示原始数据（具体内容）
+    logBlock("本周缓存原始数据（完整）", rows);
+
+    // 按任务归并
+    logLine("按任务归并片段…");
+    const byTask = new Map();
+    for (const it of rows){
+      const idNum = normTaskId(it["任务号"]);
+      if (!idNum) continue;
+      const arr = byTask.get(idNum) || [];
+      arr.push(it);
+      byTask.set(idNum, arr);
+    }
+    const tasks = [...byTask.entries()].map(([idNum, arr])=>({ idNum, posts: arr.sort((a,b)=>a["时间"]-b["时间"]) }));
+    logBlock("任务归并结果（每任务条数）", tasks.map(t=>({ task:`T${t.idNum}`, count:t.posts.length })));
+
+    // 拉取任务元信息
+    logLine("获取任务状态与标题，并按状态分组…");
+    const enriched = await Promise.all(
+      tasks.map(async (t) => {
+        const url  = `http://pha.tp-link.com.cn/T${t.idNum}`;
+        const meta = await fetchTaskMeta(t.idNum); // 会去抓取 url
+        const done = isDone(meta.status);
+        logLine(`T${t.idNum} → ${url} | 状态=${meta.status || "未知"} → ${done ? "已完成" : "未完成"}`);
+        return { ...t, meta: { ...meta, url }, done };
+      })
+    );
+
+
+
+// 仅用每条 post 的 AI 标题（缺失则回退到正文首行）喂给 AI
+async function summarizeTask(t){
+  // 收集并去重 AI 标题；为空时用正文首行片段回退
+  const titlesArr = t.posts.map(p=>{
+    const at = (p.aiTitle ?? p["AI标题"] ?? "").toString().trim();
+    if (at) return at;
+    const raw = (p["内容"] ?? p.content ?? "").toString();
+    const firstLine = raw.split(/\r?\n/).map(s=>s.trim()).find(Boolean) || "";
+    return firstLine ? clip(firstLine, 22) : "";
+  }).filter(Boolean);
+  const uniqTitles = [...new Set(titlesArr)];
+
+  const prompt  = buildAiPrompt(t.done);
+  const content = `任务: T${t.idNum}\n状态: ${t.meta.status||"未知"}\n本周标题:\n- ${uniqTitles.join("\n- ")}`;
+
+  // 日志：仅输出标题清单
+  logBlock(`AI 请求 → T${t.idNum}`, { prompt, titles: uniqTitles });
+
+  // 调 AI
+  let title = "", lines = [];
+  try{
+    const r = await chrome.runtime.sendMessage({ type:"aiSummarize", prompt, content });
+    logBlock(`AI 返回原文 ← T${t.idNum}`, r);
+    title = (r?.title || "").trim();
+    lines = parseAiReplyLines(r?.reply);
+  }catch(e){
+    logBlock(`AI 调用失败 ← T${t.idNum}`, String(e));
+  }
+
+  // 回退策略
+  if (!title && !lines.length){
+    const first = titlesArr[0] || (t.posts[0]?.["内容"] || t.meta.title || "");
+    title = clip(first, 22) || `T${t.idNum}`;
+    lines = t.done ? [clip(first, 40)] : ["剩余：待补充"];
+    logBlock(`AI 回退策略输出 ← T${t.idNum}`, { title, lines });
+  }
+
+  // 结构化返回
+  if (t.done){
+    const bullets = lines.length ? lines : ["无特别风险或阻塞"];
+    return { idNum:t.idNum, done:true, brief:title, highlights:bullets };
+  }else{
+    const remain = lines.find(s=>/^剩余：/.test(s)) || "剩余：待补充";
+    return { idNum:t.idNum, done:false, brief:title, remain };
+  }
+}
+
+
+
+    const summaries = await Promise.all(enriched.map(summarizeTask));
+
+    // 组装周报
+    const doneList = [], todoList = [];
+    for (const s of summaries){
+      if (s.done){
+        doneList.push(
+`- 任务号：T${s.idNum}：${s.brief}
+  - ${s.highlights[0] || "无"}
+  ${s.highlights[1] ? `- ${s.highlights[1]}` : ""}
+  ${s.highlights[2] ? `- ${s.highlights[2]}` : ""}`.replace(/\n\s+\n/g,"\n")
+        );
+      }else{
+        todoList.push(
+`- 任务号：T${s.idNum}：${s.brief}
+  - ${s.remain || "剩余：待补充"}`
+        );
+      }
+    }
+
+    const title = `【工作周报】${ymd(mon)}-${ymd(fri)}`;
+    const md =
+`${title}
+
+### 本周已完成任务
+
+${doneList.length ? doneList.join("\n\n") : "（无）"}
+
+### 本周仍未完成任务
+
+${todoList.length ? todoList.join("\n\n") : "（无）"}
+
+`;
+
+    // 输出
+    logBlock("最终周报", md);
+    $("#txtContent").value = md;
+
+    logLine("周报生成完成。");
+    
+    (async () => {
+  try {
+    const url = await publishWeeklyToPhame({
+      blogName: "刘民心的博客",
+      title,
+      body: md,
+      tags: ["工作周报/日报"],        // 这里放你的自定义标签（可多项）
+      visible: "Published",          // 或 "Draft"
     });
+    logLine(`已发布：${url}`);
+  } catch (e) {
+    logLine(`发布失败：${e.message}`);
+  }
+})();
+  }
+
+  document.addEventListener("DOMContentLoaded", ()=>{
+    document.getElementById("btnWeekly")?.addEventListener("click", genWeekly);
   });
 })();

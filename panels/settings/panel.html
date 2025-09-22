@@ -45,10 +45,20 @@
           <textarea id="aiPrompt" class="input-common" rows="5" placeholder="你是助手。请根据给定正文：1) 生成≤40字的小标题；2) 生成简洁概述。以严格JSON返回：{&quot;title&quot;:&quot;...&quot;, &quot;reply&quot;:&quot;...&quot;}"></textarea>
         </div>
 
-        <div class="row" style="display:flex;gap:8px;justify-content:flex-end">
-          <button id="btnReset" class="btn-common">重置</button>
-          <button id="btnSave" class="btn-common" style="background:#2563eb;color:#fff;border:none">保存</button>
+        <div class="row" style="display:flex;gap:8px;justify-content:space-between;align-items:center">
+          <div style="display:flex;gap:8px">
+            <button id="btnExport" class="btn-common" title="导出配置与历史Post">导出数据</button>
+            <input id="importFile" type="file" accept="application/json" style="display:none">
+            <button id="btnImport" class="btn-common" title="导入配置与历史Post">导入数据</button>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button id="btnReset" class="btn-common">重置</button>
+            <button id="btnSave" class="btn-common" style="background:#2563eb;color:#fff;border:none">保存</button>
+          </div>
         </div>
+
+
+
       </div>
     </div>
 

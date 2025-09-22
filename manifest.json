@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
-  "name": "uu-assist-pha",
+  "name": "uu-assist",
   "version": "1.1.0",
-  "description": "查询→选择任务→粘贴/上传文件→自动加日期→评论到 PHA。侧边栏版。",
+  "description": "uu-assist",
   "permissions": [
     "storage",
     "sidePanel",
     "scripting",
-    "tabs"
+    "tabs",
+    "downloads"
   ],
   "host_permissions": [
     "http://pha.tp-link.com.cn/*",
