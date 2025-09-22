@@ -529,7 +529,9 @@ if (msg.type === "sumWorkload") {
 // ==== side panel router ====
 const PANEL_PATHS = {
   "pha-panel": "panels/pha/panel.html",
-  "settings-panel": "panels/settings/panel.html"
+  "settings-panel": "panels/settings/panel.html",
+  "rocket-panel": "panels/rocket/panel.html"
+  
 };
 
 

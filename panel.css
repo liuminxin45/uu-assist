@@ -83,20 +83,39 @@ html,body{ height:100%; }
 }
 
 .railbtn{
-  width:var(--rail-btn); height:var(--rail-btn);
-  box-sizing:border-box; margin:0; flex-shrink:0;
-  border:none; border-radius:8px;
-  background:#f8fafc;                /* 默认淡灰背景 */
+  width:var(--rail-btn); 
+  height:var(--rail-btn);
+  box-sizing:border-box; 
+  margin:0; 
+  flex-shrink:0;
+  border:none; 
+  border-radius:8px;
+  background:#f8fafc; /* 默认淡灰背景 */
   cursor:pointer;
-  display:flex; align-items:center; justify-content:center;
-  transition:transform .2s ease, box-shadow .2s ease, background-color .2s ease;
+  display:flex; 
+  align-items:center; 
+  justify-content:center;
+  transition:
+    transform .2s ease,
+    box-shadow .2s ease,
+    background-color .2s ease,
+    border-color .2s ease;
 }
-.railbtn:hover{ box-shadow:0 2px 5px rgba(0,0,0,.2); }
-.railbtn:active{ transform:translateY(1px); }
+
+.railbtn:hover{ 
+  box-shadow:0 2px 5px rgba(0,0,0,.2); 
+}
+
+.railbtn:active{ 
+  transform:translateY(1px); 
+}
+
 .railbtn:focus-visible,
 .railbtn.active{
-  background:#ffffff;             /* 选中时白色背景 */
+  background:#ffffff;        /* 选中时白色背景 */
+  border:1px solid #e5e7eb;  /* 新增：淡灰色边框 */
 }
+
 
 /* ===== 对话框遮罩 ===== */
 dialog::backdrop{ background:rgba(0,0,0,.2); }
