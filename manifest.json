@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "uu-assist-pha",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "查询→选择任务→粘贴/上传文件→自动加日期→评论到 PHA。侧边栏版。",
   "permissions": [
     "storage",
@@ -18,29 +18,20 @@
     "service_worker": "sw.js"
   },
   "action": {
-    "default_title": "PHA Helper",
-    "default_popup": "panel.html"
+    "default_title": "PHA Helper"
   },
   "side_panel": {
-    "default_path": "panel.html"
+    "default_path": "panels/pha/panel.html"
   },
   "content_scripts": [
     {
-      "matches": [
-        "http://pha.tp-link.com.cn/*"
-      ],
-      "js": [
-        "cs.js"
-      ],
+      "matches": ["http://pha.tp-link.com.cn/*"],
+      "js": ["cs.js"],
       "run_at": "document_idle"
     },
     {
-      "matches": [
-        "https://review.tp-link.net/*"
-      ],
-      "js": [
-        "content_script.js"
-      ],
+      "matches": ["https://review.tp-link.net/*"],
+      "js": ["content_script.js"],
       "run_at": "document_end",
       "all_frames": true
     }

@@ -427,3 +427,40 @@ if (msg.type === "sumWorkload") {
   })();
   return true;
 });
+
+// 面板路由映射
+const PANEL_PATHS = {
+  "pha-panel": "panels/pha/panel.html",
+  "settings-panel": "panels/settings/panel.html"
+};
+
+// 工具：获取当前活动 tabId
+async function getActiveTabId() {
+  const [tab] = await chrome.tabs.query({active: true, lastFocusedWindow: true});
+  return tab?.id;
+}
+
+// 打开或切换面板
+async function openPanelByName(name) {
+  const path = PANEL_PATHS[name] || PANEL_PATHS["pha-panel"];
+  const tabId = await getActiveTabId();
+  if (!tabId) return { ok: false, err: "no-active-tab" };
+
+  await chrome.sidePanel.setOptions({ tabId, path });
+  await chrome.sidePanel.open({ tabId });
+  return { ok: true, path };
+}
+
+// 点击扩展图标 → 打开默认面板
+chrome.action.onClicked.addListener(async () => { await openPanelByName("pha-panel"); });
+
+// 来自面板页面的切换请求
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  (async () => {
+    if (msg?.type === "switchPanel") {
+      const ret = await openPanelByName(msg.name);
+      sendResponse(ret);
+    }
+  })();
+  return true; // 异步响应
+});

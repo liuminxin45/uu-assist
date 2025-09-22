@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Settings Panel</title>
+<link rel="stylesheet" href="../../panel.css">
+<style>html,body{margin:0;padding:0}</style>
+</head>
+<body>
+  <div class="layout">
+    <div class="main">
+      <div class="card" style="margin:12px">
+        <h3 style="margin:0 0 8px">设置</h3>
+        <div class="muted">这里放你的全局配置或其他工具。</div>
+      </div>
+    </div>
+    <nav class="rail" aria-label="面板切换">
+      <button class="railbtn" data-target="pha-panel" title="PHA">📋</button>
+      <button class="railbtn active" data-target="settings-panel" title="设置">⚙️</button>
+    </nav>
+  </div>
+
+  <script>
+  (function(){
+    document.querySelector('.rail').addEventListener('click', (e)=>{
+      const btn = e.target.closest('.railbtn');
+      if (!btn) return;
+      chrome.runtime.sendMessage({ type: "switchPanel", name: btn.getAttribute('data-target') });
+    });
+  })();
+  </script>
+</body>
+</html>
