@@ -180,31 +180,27 @@ if (msg.type === "fetchTaskSummary"){
         const t = strip(mm[1]);
         if (t){ coreText = t; break; }
       }
-      let headerText = coreText || strip(mSub[1]);
+      const headerText = coreText || strip(mSub[1]);
 
-      // 兼容“关闭，已完成(不加入统计)”：取最后一段
+      // 分段后分别提取状态/优先级
       const parts = headerText.split(/[，,]/).map(s=>s.trim()).filter(Boolean);
-      if (parts.length) headerText = parts[parts.length-1];
+      const statusRe = /(进行中(?:\(不加入统计\))?|已完成(?:\(不加入统计\))?|已解决|已关闭|开放|待办|已指派|已验证|已取消|已暂停|未开始|in\s*progress|open|resolved|closed)/i;
 
-      // 提取状态
-      const statusPatterns = [
-        /(已完成(?:\(不加入统计\))?)/,
-        /(进行中(?:\(不加入统计\))?)/,
-        /(暂停)/,
-        /(未开始)/,
-        /(删除\/中止|已取消)/,
-        /(已关闭|closed)/i,
-        /(已解决|resolved)/i,
-        /(开放|open)/i,
-      ];
-      for (const re of statusPatterns){
-        const m = headerText.match(re);
-        if (m){ status = m[1]; break; }
+      // 状态：从右往左找，优先采用最后出现的状态词
+      for (const seg of parts.slice().reverse()){
+        const m = seg.match(statusRe);
+        if (m){ status = m[1].replace(/\s+/g, ""); break; }
       }
-      // 提取优先级（如果存在）
-      const mp = headerText.match(/\bP\d\b/i);
-      if (mp) priority = mp[0].toUpperCase();
+      // 优先级：找到第一个 P\d
+      if (!priority){
+        for (const seg of parts){
+          const mp = seg.match(/\bP\d\b/i);
+          if (mp){ priority = mp[0].toUpperCase(); break; }
+        }
+      }
     }
+
+
 
     // ② 任务图“只针对当前TID”的兜底（防止误取父/兄弟任务）
     if (!status){
@@ -256,20 +252,36 @@ if (msg.type === "fetchTaskSummary"){
         details.push({ k: strip(m[1]), v: strip(m[2]) });
       }
     }
+
+    // 先从 details 里兜底
+    if (!status){
+      const kv = details.find(d => /^(状态|Status)$/i.test(d.k));
+      if (kv) status = kv.v.replace(/\s+/g, "");
+    }
     if (!priority){
       const kv = details.find(d => /^(优先级|Priority)$/i.test(d.k));
-      if (kv) priority = kv.v;
+      if (kv) priority = (kv.v.match(/\bP\d\b/i)?.[0] || kv.v).toUpperCase();
+    }
+
+    // 最末从纯文本兜底一次（只匹配“状态/优先级：”或独立的 Pn）
+    if (!status || !priority){
+      const text = html
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi,"")
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi,"")
+        .replace(/<[^>]+>/g,"\n")
+        .replace(/\u00a0/g," ")
+        .replace(/[ \t]+\n/g,"\n");
+
+      if (!status){
+        const ms = text.match(/(?:^|\n)\s*(?:状态|Status)\s*[:：]\s*([^\n\r]+)/i);
+        if (ms) status = ms[1].trim().replace(/\s+/g,"");
+      }
       if (!priority){
-        const text = html
-          .replace(/<script[^>]*>[\s\S]*?<\/script>/gi,"")
-          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi,"")
-          .replace(/<[^>]+>/g,"\n")
-          .replace(/\u00a0/g," ")
-          .replace(/[ \t]+\n/g,"\n");
-        const mp = text.match(/(?:^|\n)\s*(P\d)\b/i);
-        if (mp) priority = mp[1].toUpperCase();
+        const mp = text.match(/(?:^|\n)\s*(?:优先级|Priority)\s*[:：]\s*([^\n\r]+)/i) || text.match(/(?:^|\n)\s*(P\d)\b/i);
+        if (mp) priority = (mp[1] || mp[0]).toUpperCase().trim();
       }
     }
+
 
     sendResponse({ ok:true, title, status, priority, details });
   }catch(e){

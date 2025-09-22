@@ -650,7 +650,7 @@ if (document.readyState !== "loading"){ loadConfig().catch(()=>{}); }
 })();
 
 
-// === 周报（AI 版 + 详细日志） ===
+// === 周报 ===
 (function(){
   const PANEL_NAME = "pha-panel";
   const $ = (s)=>document.querySelector(s);
@@ -732,77 +732,6 @@ function buildAiPrompt(done){
     return lines.slice(0,3);
   }
 
-
-// --- Conduit：仅 token，无会话 ---
-const PHA_BASE  = "http://pha.tp-link.com.cn";
-const API_TOKEN = "api-e7per7u7ly7oezfc2szb47hbv5vw"; // 你给的
-
-async function conduit(method, params = {}) {
-  const form = new URLSearchParams();
-  form.set("api.token", API_TOKEN);
-  form.set("params", JSON.stringify(params));
-  form.set("output", "json");
-
-  const r = await fetch(`${PHA_BASE}/api/${method}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-      "Accept": "application/json"
-    },
-    credentials: "omit"
-  , body: form.toString() });
-
-  const data = await r.json().catch(() => ({}));
-  if (data.error_info) throw new Error(data.error_info);
-  return data.result;
-}
-
-
-
-// 解析博客 PHID
-async function resolveBlogPHID(blogName) {
-  const res = await conduit("phame.blog.search", { constraints: { names: [blogName] }, limit: 1 });
-  const it = res?.data?.[0];
-  if (!it) throw new Error(`找不到博客：${blogName}`);
-  return it.phid;
-}
-
-// 解析/创建标签（Project）PHID
-async function resolveProjectPHIDs(names = []) {
-  if (!names.length) return [];
-  const res = await conduit("project.search", { constraints: { names }, limit: names.length });
-  const found = new Map((res.data || []).map(d => [d.fields.name, d.phid]));
-  const phids = [];
-  for (const n of names) {
-    if (found.has(n)) { phids.push(found.get(n)); continue; }
-    const cre = await conduit("project.edit", { transactions: [{ type: "name", value: n }] });
-    phids.push(cre.object.phid);
-  }
-  return phids;
-}
-
-// 创建发布 Phame 博文
-async function publishWeeklyToPhame({ blogName, title, body, tags = ["工作周报/日报"], visible = "Published" }) {
-  const blogPHID = await resolveBlogPHID(blogName);
-  const tagPHIDs = await resolveProjectPHIDs(tags);
-
-  const tx = [
-    { type: "blog", value: blogPHID },
-    { type: "title", value: title },
-    { type: "body", value: body },
-    // 大多数实例里：published/draft；个别老版本也叫 visibility
-    { type: "status", value: /^pub/i.test(visible) ? "published" : "draft" },
-  ];
-  if (tagPHIDs.length) tx.push({ type: "projects.set", value: tagPHIDs });
-
-  const res = await conduit("phame.post.edit", { transactions: tx });
-  const postPHID = res.object.phid;
-
-  // 拿可访问链接
-  const q = await conduit("phame.post.search", { constraints: { phids: [postPHID] } });
-  const viewURI = q?.data?.[0]?.fields?.viewURI || q?.data?.[0]?.fields?.uri;
-  return viewURI || `${PHA_BASE}/phame/`;
-}
 
   async function genWeekly(){
     ensureLogArea();
@@ -916,15 +845,15 @@ async function summarizeTask(t){
     for (const s of summaries){
       if (s.done){
         doneList.push(
-`- 任务号：T${s.idNum}：${s.brief}
-  - ${s.highlights[0] || "无"}
-  ${s.highlights[1] ? `- ${s.highlights[1]}` : ""}
-  ${s.highlights[2] ? `- ${s.highlights[2]}` : ""}`.replace(/\n\s+\n/g,"\n")
-        );
-      }else{
-        todoList.push(
-`- 任务号：T${s.idNum}：${s.brief}
-  - ${s.remain || "剩余：待补充"}`
+        `- 任务号：{T${s.idNum}}：${s.brief}
+          - ${s.highlights[0] || "无"}
+          ${s.highlights[1] ? `- ${s.highlights[1]}` : ""}
+          ${s.highlights[2] ? `- ${s.highlights[2]}` : ""}`.replace(/\n\s+\n/g,"\n")
+                );
+              }else{
+                todoList.push(
+        `- 任务号：{T${s.idNum}}：${s.brief}
+          - ${s.remain || "剩余：待补充"}`
         );
       }
     }
@@ -948,21 +877,6 @@ ${todoList.length ? todoList.join("\n\n") : "（无）"}
     $("#txtContent").value = md;
 
     logLine("周报生成完成。");
-    
-    (async () => {
-  try {
-    const url = await publishWeeklyToPhame({
-      blogName: "刘民心的博客",
-      title,
-      body: md,
-      tags: ["工作周报/日报"],        // 这里放你的自定义标签（可多项）
-      visible: "Published",          // 或 "Draft"
-    });
-    logLine(`已发布：${url}`);
-  } catch (e) {
-    logLine(`发布失败：${e.message}`);
-  }
-})();
   }
 
   document.addEventListener("DOMContentLoaded", ()=>{
