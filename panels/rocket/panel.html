@@ -2,63 +2,73 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
+  <link rel="stylesheet" href="../../panel.css">
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Rocket 工具</title>
-  <link rel="stylesheet" href="../../panel.css">
   <style>
     :root{ --bg:#f8fafc; --card:#ffffff; --muted:#6b7280; --text:#0f172a; --accent:#2563eb; --border:#e5e7eb; }
     html,body{height:100%}
     body{margin:0;padding:16px 0 16px 16px;font:13px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto;color:var(--text);background:var(--bg);}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:0 2px 8px rgba(15,23,42,.04)}
-    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
-    .btn{background:#fff;border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;transition:box-shadow .2s ease,transform .2s ease}
-    .btn:hover{box-shadow:0 2px 6px rgba(0,0,0,.12)}
-    .btn:active{transform:translateY(1px)}
-    .pill{display:inline-block;padding:2px 6px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px;border:1px solid #c7d2fe}
-    .field{display:flex;gap:8px;align-items:center;margin:6px 0}
-    .field label{width:96px;color:var(--muted)}
-    input[type="number"]{width:90px;padding:6px;border:1px solid var(--border);border-radius:8px;background:#fff}
-    textarea{width:100%;min-height:140px;resize:vertical;border:1px solid var(--border);border-radius:8px;padding:10px;background:#fff}
-    #status{height:160px;overflow:auto;border:1px dashed var(--border);border-radius:8px;background:#fff;padding:8px;font-family:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace;white-space:pre-wrap}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+    label{display:block;margin:8px 0 6px;color:var(--muted);font-weight:600}
+    input[type="text"], input[type="number"], textarea{width:100%;background:#fff;border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px 12px}
+    input:focus, textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+    .row{margin-top:10px}
+    .split{display:flex;gap:8px;align-items:center}
+    .split > :first-child{flex:1;min-width:0}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px;border:1px solid #c7d2fe}
+    .status{white-space:pre-wrap;background:#fff;border:1px dashed var(--border);border-radius:10px;padding:8px;min-height:120px;max-height:200px;overflow:auto}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    textarea#prompt{min-height:140px;resize:vertical}
   </style>
 </head>
 <body data-scope="rocket-panel">
   <div class="layout">
-    <div class="main">
-      <div class="card">
-        <div class="row">
-          <strong>Rocket 工具</strong>
+    <main class="main">
+      <section class="card">
+        <div class="row" style="display:flex;justify-content:space-between;align-items:center">
+          <strong style="font-size:14px">Rocket 工具</strong>
           <span id="badge" class="pill">空闲</span>
         </div>
 
-        <div class="field">
-          <label for="msgLimit">参与消息条数</label>
-          <input id="msgLimit" type="number" min="1" max="200" step="1" value="20" />
+        <label for="msgLimit">参与消息条数</label>
+        <input id="msgLimit" type="number" min="1" max="200" step="1" value="20" />
+
+        <label for="autoListen">自动监听</label>
+        <div class="split">
+          <label class="switch">
+            <input id="autoListen" type="checkbox" checked aria-label="自动监听生成开关" />
+            <span class="slider"></span>
+          </label>
+          <span style="color:var(--muted);font-size:12px">开启后将自动抓取最近消息并生成建议</span>
         </div>
 
-        <div class="field" style="align-items:flex-start">
-          <label for="prompt">自定义 Prompt</label>
-          <textarea id="prompt" placeholder="留空则使用预置 Prompt"></textarea>
+        <label for="userName">姓名</label>
+        <input id="userName" type="text" placeholder="默认从页面提取" />
+
+        <label for="prompt">自定义 Prompt</label>
+        <textarea id="prompt" placeholder="留空则使用预置 Prompt"></textarea>
+
+        <div class="actions">
+          <button id="btnSave"  class="btn-common">保存</button>
+          <button id="btnClear" class="btn-common">清空</button>
+          <button id="btnGen"   class="btn-common">AI</button>
         </div>
 
         <div class="row">
-          <button id="btnSave" class="btn">保存配置</button>
-          <button id="btnGen"  class="btn">生成聊天建议</button>
-          <button id="btnClear" class="btn">清空状态</button>
+          <div id="status" class="status" aria-live="polite" aria-label="运行状态日志"></div>
         </div>
+      </section>
+    </main>
 
-        <div id="status" aria-live="polite" aria-label="运行状态日志"></div>
-      </div>
-    </div>
-    
-    <div class="rail">
-      <button class="railbtn" data-target="pha-panel" title="PHA 助手">📝</button>
-      <button class="railbtn active" data-target="rocket-panel" title="rocket" aria-label="rocket">🚀</button>
-      <button class="railbtn" data-target="settings-panel" title="设置">⚙️</button>
-    </div>
+    <nav class="rail" aria-label="面板切换">
+      <button class="railbtn" data-target="pha-panel"     title="PHA">📋</button>
+      <button class="railbtn active" data-target="rocket-panel" title="rocket">🚀</button>
+      <button class="railbtn" data-target="settings-panel" title="设置">🛠️</button>
+    </nav>
   </div>
 
-  <script src="../../rail.js"></script>
-  <script src="./panel.js"></script>
+  <script defer src="./panel.js"></script>
+  <script defer src="../../rail.js"></script>
 </body>
 </html>

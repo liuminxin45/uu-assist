@@ -5,6 +5,8 @@
   const badgeEl  = $('#badge');
   const $limit   = $('#msgLimit');
   const $prompt  = $('#prompt');
+  const $autoListen = $('#autoListen');
+  const $userName = $('#userName');
 
   const ts = () => {
     const d=new Date(); const p=n=>String(n).padStart(2,'0');
@@ -26,12 +28,14 @@
   });
 
   // --- storage keys
-  const K = { limit: 'rocketMsgLimit', prompt: 'rocketPrompt' };
+  const K = { limit: 'rocketMsgLimit', prompt: 'rocketPrompt', autoListen: 'rocketAutoListen', userName: 'rocketUserName' };
 
   // --- load & hydrate
-  chrome.storage.local.get({ [K.limit]: 20, [K.prompt]: '' }, got => {
+  chrome.storage.local.get({ [K.limit]: 20, [K.prompt]: '', [K.autoListen]: true, [K.userName]: '' }, got => {
     $limit.value = Number(got[K.limit] || 20);
     $prompt.value = got[K.prompt] || '';
+    $autoListen.checked = got[K.autoListen] !== false;
+    $userName.value = got[K.userName] || '';
   });
 
   // --- helpers
@@ -44,9 +48,28 @@
   $('#btnSave').addEventListener('click', async () => {
     const limit = Math.max(1, Math.min(200, Number($limit.value || 20)));
     const prompt = $prompt.value || '';
-    await chrome.storage.local.set({ [K.limit]: limit, [K.prompt]: prompt });
-    log(`配置已保存：limit=${limit}，prompt=${prompt ? '自定义' : '预置'}`);
+    const autoListen = $autoListen.checked;
+    const userName = $userName.value || '';
+    
+    await chrome.storage.local.set({ 
+      [K.limit]: limit, 
+      [K.prompt]: prompt, 
+      [K.autoListen]: autoListen,
+      [K.userName]: userName
+    });
+    
+    log(`配置已保存：limit=${limit}，prompt=${prompt ? '自定义' : '预置'}，自动监听=${autoListen ? '开启' : '关闭'}，姓名=${userName || '自动提取'}`);
     setBadge('已保存', true);
+    
+    // 通知内容脚本更新配置
+    try {
+      const tab = await getActiveTab();
+      if (tab && /^https:\/\/.+?tp\-link\.com\.cn\//i.test(tab.url || '')) {
+        chrome.tabs.sendMessage(tab.id, { type: 'rocket:updateConfig' });
+      }
+    } catch (e) {
+      // 忽略错误
+    }
   });
 
   // --- clear status

@@ -144,20 +144,96 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse)=>{
     try {
       // 检查扩展上下文是否有效
       if (chrome.runtime && chrome.runtime.id) {
-        chrome.storage.local.get({ rocketMsgLimit: 20, rocketPrompt: '' }, (got) => {
-          res({ limit: Number(got.rocketMsgLimit || 20), prompt: got.rocketPrompt || '' });
+        chrome.storage.local.get({ rocketMsgLimit: 20, rocketPrompt: '', rocketAutoListen: true, rocketUserName: '' }, (got) => {
+          res({ 
+            limit: Number(got.rocketMsgLimit || 20), 
+            prompt: got.rocketPrompt || '',
+            autoListen: got.rocketAutoListen !== false,
+            userName: got.rocketUserName || ''
+          });
         });
       } else {
         // 上下文无效，返回默认配置
-        res({ limit: 20, prompt: '' });
+        res({ limit: 20, prompt: '', autoListen: true, userName: '' });
       }
     } catch (error) {
       // 捕获Extension context invalidated等错误
       console.warn('无法访问存储，扩展上下文可能已失效:', error);
-      res({ limit: 20, prompt: '' });
+      res({ limit: 20, prompt: '', autoListen: true, userName: '' });
     }
   });
 }
+
+  // 从页面提取用户名
+  async function extractUserNameFromPage() {
+    try {
+      // 尝试从页面提取用户名
+      // 1. 查找所有带有data-username属性的元素
+      const elements = document.querySelectorAll('[data-username]');
+      if (elements.length > 0) {
+        for (const el of elements) {
+          const username = el.getAttribute('data-username');
+          if (username && username.trim()) {
+            return username.trim();
+          }
+        }
+      }
+      
+      // 2. 尝试从特定的头像按钮中提取（根据用户提供的示例HTML）
+      const avatarButton = document.querySelector('div[data-qa="sidebar-avatar-button"]');
+      if (avatarButton) {
+        // 先查找figure元素
+        const figure = avatarButton.querySelector('figure[data-username]');
+        if (figure) {
+          const username = figure.getAttribute('data-username');
+          if (username && username.trim()) {
+            return username.trim();
+          }
+        }
+        
+        // 尝试从aria-label中提取
+        const ariaLabel = avatarButton.getAttribute('aria-label');
+        if (ariaLabel && ariaLabel.trim()) {
+          return ariaLabel.trim();
+        }
+      }
+      
+      // 3. 尝试从特定的用户菜单中提取
+      const currentUserElements = document.querySelectorAll('.rcx-user-menu__user-info .rcx-user-menu__user-name');
+      if (currentUserElements.length > 0) {
+        const username = currentUserElements[0].textContent?.trim();
+        if (username) {
+          return username;
+        }
+      }
+      
+      // 4. 尝试从侧边栏用户信息中提取
+      const sidebarUserElements = document.querySelectorAll('.rcx-sidebar__user-info .rcx-sidebar__user-name');
+      if (sidebarUserElements.length > 0) {
+        const username = sidebarUserElements[0].textContent?.trim();
+        if (username) {
+          return username;
+        }
+      }
+      
+      // 5. 尝试从全局搜索中查找用户头像相关元素
+      const globalAvatarElements = document.querySelectorAll('figure[aria-label][data-username]');
+      if (globalAvatarElements.length > 0) {
+        for (const el of globalAvatarElements) {
+          const username = el.getAttribute('data-username') || el.getAttribute('aria-label');
+          if (username && username.trim()) {
+            return username.trim();
+          }
+        }
+      }
+      
+      // 6. 添加额外的日志信息，帮助调试
+      console.log('未能提取用户名，尝试了多种选择器但未找到匹配元素');
+    } catch (e) {
+      console.warn('提取用户名出错:', e);
+    }
+    return '';
+  }
 
   const $ = (s, root=document)=>root.querySelector(s);
   const $$ = (s, root=document)=>Array.from(root.querySelectorAll(s));
@@ -197,17 +273,43 @@ async function genSuggestionWithDeepSeek(messages, promptOverride){
   if (!ai || !ai.base || !ai.model || !ai.key) return { text:'', tokens:0 };
 
   const rocketCfg = await loadRocketCfg();
-  const finalPrompt =
+  // 检查是否需要添加视角信息
+  const userName = rocketCfg.userName || '';
+  let perspectiveText = '';
+  
+  // 检查聊天内容中是否包含该用户
+  if (userName) {
+    // 将用户名转为小写进行比较
+    const lowerUserName = userName.toLowerCase();
+    // 检查最近消息中是否包含该用户名
+    const containsUser = messages.some(msg => 
+      msg.user.toLowerCase().includes(lowerUserName) || 
+      msg.message.toLowerCase().includes(lowerUserName) ||
+      // 也检查中文名称（假设姓和名可能分开）
+      (msg.user.includes('刘') && msg.user.includes('民心'))
+    );
+    
+    if (containsUser) {
+      perspectiveText = `请从"${userName}"的视角和立场来生成回复，保持符合该用户的说话风格和身份。`;
+    }
+  }
+  
+  // 先确定基础Prompt（可以是自定义的或预置的）
+  let basePrompt = 
     (promptOverride && promptOverride.trim()) ||
     (rocketCfg.prompt && rocketCfg.prompt.trim()) ||
-    // 预置 Prompt：要求 1) 主题 2) 意图 3) 回复建议（不回传到面板，仅用于生成候选）
+    // 预置 Prompt：生成可直接回复的文案
     [
-      "你是群聊助手。基于最近消息：",
-      "1) 归纳当前讨论主题；",
-      "2) 分析参与者的主要意图与诉求；",
-      "3) 生成一条可直接发送的中文回复建议（≤120字，避免寒暄和自我描述）。",
-      "输出以三段中文句子形式返回，无需 Markdown。"
-    ].join('\n');
+      "你是群聊助手，任务是根据最近的聊天内容，生成一条可直接作为回复发送的中文消息。",
+      "请仔细阅读聊天记录，理解上下文，生成一条符合对话情境、自然流畅的回复。",
+      "回复应当简洁明了，避免多余的解释和自我介绍，直接针对讨论内容给出回应。",
+      "请只输出回复内容本身，不要包含任何前缀或后缀说明。"
+    ].filter(line => line.trim()).join('\n'); // 过滤掉空行
+  
+  // 构建最终Prompt，确保无论使用哪种Prompt，视角信息都会被添加
+  const finalPrompt = perspectiveText ? 
+    `${basePrompt}\n${perspectiveText}` : 
+    basePrompt;
 
   const convText = messages.map(m => `${m.user}: ${m.message}`).join('\n');
   const url = `${ai.base.replace(/\/+$/,'')}/chat/completions`;
@@ -223,6 +325,9 @@ async function genSuggestionWithDeepSeek(messages, promptOverride){
   };
 
   try{
+    // 将AI请求内容打印到status区域
+    sendStatusLog(`发送AI请求：\n- 提示词：${finalPrompt}\n- 聊天内容摘要：${convText.substring(0, 100)}${convText.length > 100 ? '...' : ''}`);
+    
     const resp = await fetch(url, {
       method:'POST',
       headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${ai.key}` },
@@ -249,10 +354,18 @@ function sendStatusLog(message) {
   }
 }
 
-// 新增：面板主动触发生成
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  (async () => {
-    if (msg?.type !== 'rocket:generate') return;
+// 新增：面板主动触发生成和配置更新
+  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    (async () => {
+      // 配置更新消息
+      if (msg?.type === 'rocket:updateConfig') {
+        sendResponse({ ok: true });
+        // 重新加载配置
+        rocketCfg = await loadRocketCfg();
+        return;
+      }
+      
+      if (msg?.type !== 'rocket:generate') return;
     try{
       // 读取消息上限
       const limit = Math.max(1, Math.min(200, Number(msg.limit || (await loadRocketCfg()).limit || 20)));
@@ -538,11 +651,22 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
 
 
+  // 全局配置变量
+  let rocketCfg = { limit: 20, prompt: '', autoListen: true, userName: '' };
+  
+  // 加载初始配置
+  (async () => {
+    rocketCfg = await loadRocketCfg();
+  })();
+  
   const trigger = (() => {
     // 用于比较消息签名的变量，避免重复触发 - 定义在闭包中
     let lastSig = '';
     
     return debounce(async ()=>{
+    // 检查是否启用了自动监听
+    if (!rocketCfg.autoListen) return;
+    
     if (!ensureSuggestionContainer()) return;
     const msgs = extractMessagesInOrder(40);
     if (msgs.length===0) return;
@@ -566,9 +690,32 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     }, 400);
   })();
 
-  (async function bootstrap(){
-    // 注入必要的CSS样式
+  (async function bootstrap(){    // 注入必要的CSS样式
     injectSuggestionCSS();
+    
+    // 尝试提取用户名并更新配置
+    try {
+      const currentCfg = await loadRocketCfg();
+      
+      // 即使配置中已有用户名，也尝试从页面提取，以确保使用最新的信息
+      const extractedUserName = await extractUserNameFromPage();
+      
+      if (extractedUserName && extractedUserName !== currentCfg.userName) {
+        // 保存提取的用户名
+        chrome.storage.local.set({ rocketUserName: extractedUserName });
+        // 更新本地配置
+        rocketCfg.userName = extractedUserName;
+        console.log('已提取并保存用户名:', extractedUserName);
+      } else if (extractedUserName) {
+        console.log('用户名与配置一致，无需更新:', extractedUserName);
+      } else if (currentCfg.userName) {
+        console.log('使用配置中的用户名:', currentCfg.userName);
+      } else {
+        console.log('未能提取用户名，将使用空值');
+      }
+    } catch (e) {
+      console.warn('自动提取用户名并保存失败:', e);
+    }
     
     // 等待并确保找到输入框
     for(let i=0;i<60;i++){ if (ensureSuggestionContainer()) break; await sleep(250); }
