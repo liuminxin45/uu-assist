@@ -8,7 +8,7 @@
   <style>
     :root{ --bg:#f8fafc; --card:#ffffff; --muted:#6b7280; --text:#0f172a; --accent:#2563eb; --border:#e5e7eb; }
     html,body{height:100%}
-    body{margin:0;padding:16px;font:13px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto;color:var(--text);background:var(--bg);}
+    body{margin:0;padding:16px 0 16px 16px;font:13px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto;color:var(--text);background:var(--bg);}
     .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:0 2px 8px rgba(15,23,42,.04)}
     .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
     .btn{background:#fff;border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;transition:box-shadow .2s ease,transform .2s ease}
@@ -22,32 +22,43 @@
     #status{height:160px;overflow:auto;border:1px dashed var(--border);border-radius:8px;background:#fff;padding:8px;font-family:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace;white-space:pre-wrap}
   </style>
 </head>
-<body>
-  <div class="card">
-    <div class="row">
-      <strong>Rocket 工具</strong>
-      <span id="badge" class="pill">空闲</span>
-    </div>
+<body data-scope="rocket-panel">
+  <div class="layout">
+    <div class="main">
+      <div class="card">
+        <div class="row">
+          <strong>Rocket 工具</strong>
+          <span id="badge" class="pill">空闲</span>
+        </div>
 
-    <div class="field">
-      <label for="msgLimit">参与消息条数</label>
-      <input id="msgLimit" type="number" min="1" max="200" step="1" value="20" />
-    </div>
+        <div class="field">
+          <label for="msgLimit">参与消息条数</label>
+          <input id="msgLimit" type="number" min="1" max="200" step="1" value="20" />
+        </div>
 
-    <div class="field" style="align-items:flex-start">
-      <label for="prompt">自定义 Prompt</label>
-      <textarea id="prompt" placeholder="留空则使用预置 Prompt"></textarea>
-    </div>
+        <div class="field" style="align-items:flex-start">
+          <label for="prompt">自定义 Prompt</label>
+          <textarea id="prompt" placeholder="留空则使用预置 Prompt"></textarea>
+        </div>
 
-    <div class="row">
-      <button id="btnSave" class="btn">保存配置</button>
-      <button id="btnGen"  class="btn">生成聊天建议</button>
-      <button id="btnClear" class="btn">清空状态</button>
-    </div>
+        <div class="row">
+          <button id="btnSave" class="btn">保存配置</button>
+          <button id="btnGen"  class="btn">生成聊天建议</button>
+          <button id="btnClear" class="btn">清空状态</button>
+        </div>
 
-    <div id="status" aria-live="polite" aria-label="运行状态日志"></div>
+        <div id="status" aria-live="polite" aria-label="运行状态日志"></div>
+      </div>
+    </div>
+    
+    <div class="rail">
+      <button class="railbtn" data-target="pha-panel" title="PHA 助手">📝</button>
+      <button class="railbtn active" data-target="rocket-panel" title="rocket" aria-label="rocket">🚀</button>
+      <button class="railbtn" data-target="settings-panel" title="设置">⚙️</button>
+    </div>
   </div>
 
+  <script src="../../rail.js"></script>
   <script src="./panel.js"></script>
 </body>
 </html>
