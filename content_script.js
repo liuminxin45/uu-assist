@@ -266,24 +266,18 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
       // 将 AI 建议写入“灰色候选”
       try{
-        sendStatusLog('开始更新AI建议到候选区');
         // 确保建议容器存在
         if (ensureSuggestionContainer()) {
           // 先清空旧的候选区文案
-          sendStatusLog('1. 清空旧的候选区文案');
           window.rocketSuggestion.suggestion = '';
           // 然后设置新的建议
-          sendStatusLog('2. 设置新的建议内容');
           window.rocketSuggestion.suggestion = text;
-          sendStatusLog('3. 建议更新完成');
         } else {
-        sendStatusLog('警告: 未能找到或创建建议容器');
         // 尝试直接设置suggestion值，看是否能显示
-        sendStatusLog('尝试直接设置suggestion变量...');
         suggestion = text;
         renderSuggestion();
       }
-      }catch(e){ sendStatusLog('错误: 更新建议失败 - ' + e?.message); }
+      }catch(e){ }
 
       sendResponse({ ok:true, tokens });
     }catch(e){
@@ -297,33 +291,28 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   // —— 锁定输入框
   // 查找聊天输入框
   function findTextarea(){
-    sendStatusLog('findTextarea: 开始查找聊天输入框');
     try {
       // 首先尝试查找Rocket.Chat特定的textarea
       const specificTa = $('textarea.rc-message-box__textarea[name="msg"]');
       if (specificTa) {
-        sendStatusLog('findTextarea: 找到Rocket.Chat特定的textarea');
         return specificTa;
       }
       
       // 然后尝试查找通用的textarea
       const generalTa = $('textarea[name="msg"]');
       if (generalTa) {
-        sendStatusLog('findTextarea: 找到通用的textarea');
         return generalTa;
       }
       
       // 如果都没找到，尝试使用document.querySelector
       const queryTa = document.querySelector('textarea[name="msg"]');
       if (queryTa) {
-        sendStatusLog('findTextarea: 找到querySelector的textarea');
         return queryTa;
       }
       
-      sendStatusLog('findTextarea: 未找到任何textarea元素');
       return null;
     } catch (e) {
-      sendStatusLog('findTextarea: 查找过程中出错 - ' + e?.message);
+      console.error('findTextarea: 查找过程中出错 - ' + e?.message);
       return null;
     }
   }
@@ -333,56 +322,44 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   // 将suggestion暴露到全局，以便从消息处理器访问
   window.rocketSuggestion = { 
     get suggestion() { 
-      sendStatusLog('获取suggestion值');
       return suggestion; 
     }, 
     set suggestion(val) { 
-      sendStatusLog('设置suggestion值');
       suggestion = val; 
       if (ta) { 
-        sendStatusLog('textarea存在，调用renderSuggestion');
         renderSuggestion(); 
-      } else { 
-        sendStatusLog('textarea不存在，无法渲染建议');
-      }
+      } 
     } 
   };
   window.renderRocketGhost = () => renderSuggestion();
 
   // 查找或准备建议容器（改为使用placeholder方式）
   function ensureSuggestionContainer() {
-    sendStatusLog('ensureSuggestionContainer: 开始执行');
-    
     // 重置ta变量
     ta = null;
     
     // 查找textarea
     const foundTa = findTextarea();
     if (!foundTa) {
-      sendStatusLog('ensureSuggestionContainer: 没有找到textarea，无法创建建议容器');
       return false;
     }
     
     // 保存找到的textarea
     ta = foundTa;
-    sendStatusLog('ensureSuggestionContainer: 成功找到textarea，继续处理');
     
     // 保存原始placeholder以便恢复
     if (!originalPlaceholder) {
       originalPlaceholder = ta.placeholder || '';
-      sendStatusLog('ensureSuggestionContainer: 保存原始placeholder');
     }
     
     // 移除之前可能存在的ghost元素
     const existingGhost = ta.nextElementSibling;
     if (existingGhost && existingGhost.classList.contains('suggestion-ghost')) {
-      sendStatusLog('ensureSuggestionContainer: 移除旧的ghost元素');
       existingGhost.remove();
     }
     
     // 恢复textarea的默认样式
     if (ta.parentElement && ta.parentElement.classList.contains('suggestion-wrapper')) {
-      sendStatusLog('ensureSuggestionContainer: 移除不必要的wrapper样式');
       Object.assign(ta.style, {
         background: '',
         position: '',
@@ -395,32 +372,21 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   
   // 渲染建议（使用placeholder方式）
   function renderSuggestion() {
-    sendStatusLog('renderSuggestion调用开始');
-    
     if (!ta) {
-      sendStatusLog('错误: textarea元素不存在');
       return;
     }
-    sendStatusLog('textarea元素存在');
-    
-    sendStatusLog('当前textarea值: ' + (ta.value ? '有内容' : '空'));
-    sendStatusLog('当前suggestion值: ' + (suggestion ? '有内容' : '空'));
     
     // 如果textarea为空且有建议，设置建议为placeholder
     if (ta.value.trim() === '' && suggestion) {
-      sendStatusLog('条件满足，设置建议文本到placeholder');
       ta.placeholder = suggestion;
       // 自动调整textarea高度以适应多行placeholder
       adjustTextareaHeight();
     } else {
       // 否则恢复原始placeholder
-      sendStatusLog('条件不满足，恢复原始placeholder');
       ta.placeholder = originalPlaceholder;
       // 恢复默认高度
       resetTextareaHeight();
     }
-    
-    sendStatusLog('renderSuggestion调用结束');
   }
   
   // 自动调整textarea高度以适应placeholder内容
@@ -459,15 +425,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     
     // 移除临时div
     document.body.removeChild(tempDiv);
-    
-    sendStatusLog('自动调整textarea高度: ' + ta.style.height);
   }
   
   // 重置textarea高度为默认值
   function resetTextareaHeight() {
     if (!ta) return;
     ta.style.height = '';
-    sendStatusLog('重置textarea高度为默认值');
   }
   
   // 绑定Tab接受建议和Esc清除建议的快捷键
@@ -505,7 +468,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         // 清空建议但不调用renderSuggestion，避免重置高度
         suggestion = '';
         
-        sendStatusLog('应用建议并保持textarea高度: ' + ta.style.height);
         ta.focus();
       } else if (e.key === 'Escape' && suggestion) {
         suggestion = '';
@@ -615,6 +577,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     bindKeys(); trigger();
 
     // 监听DOM变化，确保能够找到新的输入框
+    // 改进的MutationObserver，添加节流控制
+    let lastTriggerTime = 0;
+    const TRIGGER_INTERVAL = 2000; // 2秒内最多触发一次
+    let isTextareaFocused = false;
+    
     const obs = new MutationObserver(()=>{      
       const cur = findTextarea();      
       if (cur && cur!==ta){        
@@ -625,12 +592,36 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         if (suggestion) {
           renderSuggestion();
         }
+        // 仅在textarea获得焦点时触发
+        if (isTextareaFocused) {
+          trigger();
+        }
+      } else if (isTextareaFocused) {
+        // 添加时间间隔限制，避免过于频繁触发
+        const now = Date.now();
+        if (now - lastTriggerTime > TRIGGER_INTERVAL) {
+          lastTriggerTime = now;
+          trigger();
+        }
       }
-      trigger();    });    
+    });    
     
     obs.observe(document.documentElement,{ childList:true, subtree:true });    
+    
+    // 监听textarea焦点事件，控制是否自动触发建议
     ta?.addEventListener('focus', ()=>{
+      isTextareaFocused = true;
       renderSuggestion();
       trigger();
+    });
+    
+    ta?.addEventListener('blur', ()=>{
+      isTextareaFocused = false;
+      // 失焦时保存当前建议状态
+      setTimeout(() => {
+        if (ta && ta.value.trim() === '' && suggestion) {
+          renderSuggestion();
+        }
+      }, 100);
     });  })();
 })();
