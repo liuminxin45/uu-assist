@@ -478,8 +478,34 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       if (e.key === 'Tab' && suggestion && ta.value.trim() === '') {
         e.preventDefault();
         ta.value = suggestion;
+        // 创建一个临时div来测量设置值后的文本高度
+        const tempDiv = document.createElement('div');
+        tempDiv.style.visibility = 'hidden';
+        tempDiv.style.position = 'absolute';
+        tempDiv.style.left = '-9999px';
+        tempDiv.style.top = '0';
+        tempDiv.style.width = ta.clientWidth + 'px';
+        tempDiv.style.fontFamily = window.getComputedStyle(ta).fontFamily;
+        tempDiv.style.fontSize = window.getComputedStyle(ta).fontSize;
+        tempDiv.style.lineHeight = window.getComputedStyle(ta).lineHeight;
+        tempDiv.style.whiteSpace = 'pre-wrap';
+        tempDiv.style.wordWrap = 'break-word';
+        tempDiv.textContent = suggestion;
+        
+        document.body.appendChild(tempDiv);
+        
+        // 设置textarea高度为测量的高度，但至少保留一行高度
+        const measuredHeight = tempDiv.offsetHeight;
+        const minHeight = parseInt(window.getComputedStyle(ta).lineHeight) || 20;
+        ta.style.height = Math.max(measuredHeight, minHeight) + 'px';
+        
+        // 移除临时div
+        document.body.removeChild(tempDiv);
+        
+        // 清空建议但不调用renderSuggestion，避免重置高度
         suggestion = '';
-        renderSuggestion();
+        
+        sendStatusLog('应用建议并保持textarea高度: ' + ta.style.height);
         ta.focus();
       } else if (e.key === 'Escape' && suggestion) {
         suggestion = '';
@@ -548,23 +574,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       }
     });
   }
-  async function genSuggestion(messages){
-    const ai = await loadAiCfg();
-    if (!ai || !ai.base || !ai.model || !ai.key) return '';
-    const system = (ai.prompt||'').trim() || '你是消息助手。基于最近的聊天上下文生成一句到三句以内、可直接发送的中文回复。避免寒暄和自我描述，直接切题。';
-    const conv = messages.map(m=>`${m.user}: ${m.message}`).join('\n');
-    const user = `对话内容如下：\n${conv}\n\n请给出对最新一条消息的简洁、可直接发送的中文回复。不要 Markdown 或表情。不超过120字。`;
-    const url = `${ai.base.replace(/\/+$/,'')}/chat/completions`;
-    try{
-      const resp = await fetch(url,{
-        method:'POST',
-        headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${ai.key}` },
-        body: JSON.stringify({ model: ai.model, messages:[{role:'system',content:system},{role:'user',content:user}], temperature:0.3, max_tokens:180 })
-      });
-      if (!resp.ok) return '';
-      const data = await resp.json();
-      return (data?.choices?.[0]?.message?.content||'').replace(/```[\s\S]*?```/g,'').trim();
-    } catch(_){ return ''; }  }
+
 
   const trigger = (() => {
     // 用于比较消息签名的变量，避免重复触发 - 定义在闭包中
@@ -577,10 +587,19 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     const sig = msgs.slice(-8).map(m=>m.user+'|'+m.message).join('\n');
     if (sig===lastSig) return;
     lastSig = sig;
-    const txt = await genSuggestion(msgs);
-    if (txt){
-      const cur = (ta?.value||'').trim();
-      if (!cur || cur.length<6){ suggestion = txt; renderSuggestion(); }
+    
+    try {
+      sendStatusLog('开始生成AI建议');
+      const { text } = await genSuggestionWithDeepSeek(msgs, '');
+      if (text){
+        sendStatusLog('AI建议生成成功');
+        const cur = (ta?.value||'').trim();
+        if (!cur || cur.length<6){ suggestion = text; renderSuggestion(); }
+      } else {
+        sendStatusLog('AI未返回内容');
+      }
+    } catch (e) {
+      sendStatusLog('错误: AI建议生成失败 - ' + (e?.message || String(e)));
     }
     }, 400);
   })();

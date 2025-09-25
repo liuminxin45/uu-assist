@@ -20,7 +20,7 @@
 
   // 监听来自service worker的日志消息
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-    if (msg?.type === 'rocket:displayLog') {
+    if (msg?.type === 'rocket:displayLog' || msg?.type === 'rocket:statusLog') {
       log(msg.message);
     }
   });
