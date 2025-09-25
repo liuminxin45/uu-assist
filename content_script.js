@@ -141,9 +141,21 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse)=>{
 
   function loadRocketCfg() {
   return new Promise(res => {
-    chrome.storage.local.get({ rocketMsgLimit: 20, rocketPrompt: '' }, (got) => {
-      res({ limit: Number(got.rocketMsgLimit || 20), prompt: got.rocketPrompt || '' });
-    });
+    try {
+      // 检查扩展上下文是否有效
+      if (chrome.runtime && chrome.runtime.id) {
+        chrome.storage.local.get({ rocketMsgLimit: 20, rocketPrompt: '' }, (got) => {
+          res({ limit: Number(got.rocketMsgLimit || 20), prompt: got.rocketPrompt || '' });
+        });
+      } else {
+        // 上下文无效，返回默认配置
+        res({ limit: 20, prompt: '' });
+      }
+    } catch (error) {
+      // 捕获Extension context invalidated等错误
+      console.warn('无法访问存储，扩展上下文可能已失效:', error);
+      res({ limit: 20, prompt: '' });
+    }
   });
 }
 
@@ -167,7 +179,21 @@ function extractMessagesInOrder(limit){
 }
 
 async function genSuggestionWithDeepSeek(messages, promptOverride){
-  const ai = await new Promise(res => chrome.storage.local.get({ aiCfg:null }, r => res(r.aiCfg || null)));
+  const ai = await new Promise(res => {
+    try {
+      // 检查扩展上下文是否有效
+      if (chrome.runtime && chrome.runtime.id) {
+        chrome.storage.local.get({ aiCfg:null }, r => res(r.aiCfg || null));
+      } else {
+        // 上下文无效，直接返回null
+        res(null);
+      }
+    } catch (error) {
+      // 捕获Extension context invalidated等错误
+      console.warn('无法访问存储，扩展上下文可能已失效:', error);
+      res(null);
+    }
+  });
   if (!ai || !ai.base || !ai.model || !ai.key) return { text:'', tokens:0 };
 
   const rocketCfg = await loadRocketCfg();
@@ -210,6 +236,19 @@ async function genSuggestionWithDeepSeek(messages, promptOverride){
   }catch(_){ return { text:'', tokens:0 }; }
 }
 
+// 发送日志到面板
+function sendStatusLog(message) {
+  try {
+    chrome.runtime.sendMessage({
+      type: 'rocket:statusLog',
+      message: message
+    });
+  } catch (e) {
+    // 如果消息发送失败，回退到console
+    console.log('[STATUS]', message);
+  }
+}
+
 // 新增：面板主动触发生成
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   (async () => {
@@ -225,19 +264,30 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       const { text, tokens } = await genSuggestionWithDeepSeek(msgs, msg.promptOverride || '');
       if (!text) { sendResponse({ ok:false, error:'AI 未返回内容' }); return; }
 
-      // 将 AI 建议写入“灰色候选”，不回传正文到面板
-      if (window.__UU_ROCKET__) {
-        // 若你在前面的实现中有全局对象承载，可直接复用
-      }
-      // 直接覆盖为新的候选
+      // 将 AI 建议写入“灰色候选”
       try{
-        // 下面两行需与你现有变量名对齐（如果不同，请替换为你的变量）
-        window.suggestion = text;                          // 你的候选变量名
-        (typeof window.renderGhost === 'function') && window.renderGhost();
-      }catch(_){ /* 忽略渲染异常 */ }
+        sendStatusLog('开始更新AI建议到候选区');
+        // 确保建议容器存在
+        if (ensureSuggestionContainer()) {
+          // 先清空旧的候选区文案
+          sendStatusLog('1. 清空旧的候选区文案');
+          window.rocketSuggestion.suggestion = '';
+          // 然后设置新的建议
+          sendStatusLog('2. 设置新的建议内容');
+          window.rocketSuggestion.suggestion = text;
+          sendStatusLog('3. 建议更新完成');
+        } else {
+        sendStatusLog('警告: 未能找到或创建建议容器');
+        // 尝试直接设置suggestion值，看是否能显示
+        sendStatusLog('尝试直接设置suggestion变量...');
+        suggestion = text;
+        renderSuggestion();
+      }
+      }catch(e){ sendStatusLog('错误: 更新建议失败 - ' + e?.message); }
 
       sendResponse({ ok:true, tokens });
     }catch(e){
+      sendStatusLog('错误: 生成失败 - ' + (e?.message || String(e)));
       sendResponse({ ok:false, error: e?.message || String(e) });
     }
   })();
@@ -245,65 +295,212 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 });
 
   // —— 锁定输入框
+  // 查找聊天输入框
   function findTextarea(){
-    return $('textarea.rc-message-box__textarea[name="msg"]') || $('textarea[name="msg"]');
+    sendStatusLog('findTextarea: 开始查找聊天输入框');
+    try {
+      // 首先尝试查找Rocket.Chat特定的textarea
+      const specificTa = $('textarea.rc-message-box__textarea[name="msg"]');
+      if (specificTa) {
+        sendStatusLog('findTextarea: 找到Rocket.Chat特定的textarea');
+        return specificTa;
+      }
+      
+      // 然后尝试查找通用的textarea
+      const generalTa = $('textarea[name="msg"]');
+      if (generalTa) {
+        sendStatusLog('findTextarea: 找到通用的textarea');
+        return generalTa;
+      }
+      
+      // 如果都没找到，尝试使用document.querySelector
+      const queryTa = document.querySelector('textarea[name="msg"]');
+      if (queryTa) {
+        sendStatusLog('findTextarea: 找到querySelector的textarea');
+        return queryTa;
+      }
+      
+      sendStatusLog('findTextarea: 未找到任何textarea元素');
+      return null;
+    } catch (e) {
+      sendStatusLog('findTextarea: 查找过程中出错 - ' + e?.message);
+      return null;
+    }
   }
 
-  // —— 覆盖层
-  let ta=null, ghost=null, suggestion='', lastSig='';
-  function ensureGhost(){
-    ta = findTextarea();
-    if (!ta) return false;
-    const host = ta.parentElement || ta;
-    if (getComputedStyle(host).position === 'static'){ host.style.position='relative'; }
-    if (!ghost){
-      ghost = document.createElement('div');
-      ghost.className='uu-ghost-suggest';
-      const cs = getComputedStyle(ta);
-      Object.assign(ghost.style,{
-        position:'absolute', left: ta.offsetLeft+'px', top: ta.offsetTop+'px', right:'0',
-        pointerEvents:'none', color:'#9ca3af', whiteSpace:'pre-wrap', overflowWrap:'break-word',
-        wordBreak:'normal', padding: cs.padding, lineHeight: cs.lineHeight,
-        fontFamily: cs.fontFamily, fontSize: cs.fontSize, width: cs.width, minHeight: cs.height,
-      });
-      host.appendChild(ghost);
-      ta.addEventListener('scroll', ()=>{ ghost.scrollTop = ta.scrollTop; }, { passive:true });
-      const sync = ()=>{ const c=getComputedStyle(ta);
-        ghost.style.left=ta.offsetLeft+'px'; ghost.style.top=ta.offsetTop+'px';
-        ghost.style.width=c.width; ghost.style.minHeight=c.height;
-        ghost.style.padding=c.padding; ghost.style.lineHeight=c.lineHeight;
-        ghost.style.fontFamily=c.fontFamily; ghost.style.fontSize=c.fontSize;
-      };
-      window.addEventListener('resize', debounce(sync,100));
-      new ResizeObserver(debounce(sync,60)).observe(ta);
+  // —— 使用Rocket自带的方式显示建议
+  let ta=null, suggestion='', originalPlaceholder='';
+  // 将suggestion暴露到全局，以便从消息处理器访问
+  window.rocketSuggestion = { 
+    get suggestion() { 
+      sendStatusLog('获取suggestion值');
+      return suggestion; 
+    }, 
+    set suggestion(val) { 
+      sendStatusLog('设置suggestion值');
+      suggestion = val; 
+      if (ta) { 
+        sendStatusLog('textarea存在，调用renderSuggestion');
+        renderSuggestion(); 
+      } else { 
+        sendStatusLog('textarea不存在，无法渲染建议');
+      }
+    } 
+  };
+  window.renderRocketGhost = () => renderSuggestion();
+
+  // 查找或准备建议容器（改为使用placeholder方式）
+  function ensureSuggestionContainer() {
+    sendStatusLog('ensureSuggestionContainer: 开始执行');
+    
+    // 重置ta变量
+    ta = null;
+    
+    // 查找textarea
+    const foundTa = findTextarea();
+    if (!foundTa) {
+      sendStatusLog('ensureSuggestionContainer: 没有找到textarea，无法创建建议容器');
+      return false;
     }
+    
+    // 保存找到的textarea
+    ta = foundTa;
+    sendStatusLog('ensureSuggestionContainer: 成功找到textarea，继续处理');
+    
+    // 保存原始placeholder以便恢复
+    if (!originalPlaceholder) {
+      originalPlaceholder = ta.placeholder || '';
+      sendStatusLog('ensureSuggestionContainer: 保存原始placeholder');
+    }
+    
+    // 移除之前可能存在的ghost元素
+    const existingGhost = ta.nextElementSibling;
+    if (existingGhost && existingGhost.classList.contains('suggestion-ghost')) {
+      sendStatusLog('ensureSuggestionContainer: 移除旧的ghost元素');
+      existingGhost.remove();
+    }
+    
+    // 恢复textarea的默认样式
+    if (ta.parentElement && ta.parentElement.classList.contains('suggestion-wrapper')) {
+      sendStatusLog('ensureSuggestionContainer: 移除不必要的wrapper样式');
+      Object.assign(ta.style, {
+        background: '',
+        position: '',
+        zIndex: ''
+      });
+    }
+    
     return true;
   }
-  function renderGhost(){
-    if (!ta || !ghost) return;
-    const base = escHTML(ta.value||'');
-    const sug  = escHTML(suggestion||'');
-    ghost.innerHTML = (base + (sug?`<span style="color:#9ca3af">${sug}</span>`:'' )).replace(/\n/g,'<br>');
+  
+  // 渲染建议（使用placeholder方式）
+  function renderSuggestion() {
+    sendStatusLog('renderSuggestion调用开始');
+    
+    if (!ta) {
+      sendStatusLog('错误: textarea元素不存在');
+      return;
+    }
+    sendStatusLog('textarea元素存在');
+    
+    sendStatusLog('当前textarea值: ' + (ta.value ? '有内容' : '空'));
+    sendStatusLog('当前suggestion值: ' + (suggestion ? '有内容' : '空'));
+    
+    // 如果textarea为空且有建议，设置建议为placeholder
+    if (ta.value.trim() === '' && suggestion) {
+      sendStatusLog('条件满足，设置建议文本到placeholder');
+      ta.placeholder = suggestion;
+    } else {
+      // 否则恢复原始placeholder
+      sendStatusLog('条件不满足，恢复原始placeholder');
+      ta.placeholder = originalPlaceholder;
+    }
+    
+    sendStatusLog('renderSuggestion调用结束');
   }
-  function bindKeys(){
+  
+  // 绑定Tab接受建议和Esc清除建议的快捷键
+  function bindKeys() {
     if (!ta) return;
-    ta.addEventListener('keydown', (e)=>{
-      if (e.key === 'Tab' && suggestion){
+    
+    ta.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab' && suggestion && ta.value.trim() === '') {
         e.preventDefault();
-        ta.value = (ta.value||'') + suggestion;
-        suggestion=''; renderGhost();
-      } else if (e.key === 'Escape' && suggestion){
-        suggestion=''; renderGhost();
+        ta.value = suggestion;
+        suggestion = '';
+        renderSuggestion();
+        ta.focus();
+      } else if (e.key === 'Escape' && suggestion) {
+        suggestion = '';
+        renderSuggestion();
       }
     });
-    ta.addEventListener('input', ()=>renderGhost());
-    ta.addEventListener('focus', ()=>renderGhost());
+    
+    // 监听输入事件，当用户开始输入时清除建议
+    ta.addEventListener('input', () => {
+      if (suggestion && ta.value.trim() !== '') {
+        suggestion = '';
+        renderSuggestion();
+      }
+    });
+    
+    ta.addEventListener('focus', renderSuggestion);
+    ta.addEventListener('blur', () => {
+      // 失焦时保存当前建议状态
+      setTimeout(() => {
+        if (ta && ta.value.trim() === '' && suggestion) {
+          renderSuggestion();
+        }
+      }, 100);
+    });
+  }
+  
+  // 添加必要的CSS样式
+  function injectSuggestionCSS() {
+    // 检查是否已经注入了CSS
+    if (document.getElementById('rocket-suggestion-css')) return;
+    
+    const style = document.createElement('style');
+    style.id = 'rocket-suggestion-css';
+    style.textContent = `
+      /* 使用原生方式实现建议显示 */
+      .suggestion-wrapper {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+      }
+      
+      .suggestion-wrapper textarea {
+        position: relative;
+        z-index: 2;
+        background: transparent;
+      }
+      
+      /* 不再需要suggestion-ghost样式，改为使用placeholder */
+        word-break: normal;
+        resize: none;
+        z-index: 1;
+      }
+    `;
+    document.head.appendChild(style);
   }
 
   // —— DeepSeek
   function loadAiCfg(){
     return new Promise(res=>{
-      chrome.storage.local.get({ aiCfg:null }, got=>res(got.aiCfg||null));
+      try {
+        // 检查扩展上下文是否有效
+        if (chrome.runtime && chrome.runtime.id) {
+          chrome.storage.local.get({ aiCfg:null }, got=>res(got.aiCfg||null));
+        } else {
+          // 上下文无效，直接返回null
+          res(null);
+        }
+      } catch (error) {
+        // 捕获Extension context invalidated等错误
+        console.warn('无法访问存储，扩展上下文可能已失效:', error);
+        res(null);
+      }
     });
   }
   async function genSuggestion(messages){
@@ -322,11 +519,14 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       if (!resp.ok) return '';
       const data = await resp.json();
       return (data?.choices?.[0]?.message?.content||'').replace(/```[\s\S]*?```/g,'').trim();
-    }catch(_){ return ''; }
-  }
+    } catch(_){ return ''; }  }
 
-  const trigger = debounce(async ()=>{
-    if (!ensureGhost()) return;
+  const trigger = (() => {
+    // 用于比较消息签名的变量，避免重复触发 - 定义在闭包中
+    let lastSig = '';
+    
+    return debounce(async ()=>{
+    if (!ensureSuggestionContainer()) return;
     const msgs = extractMessagesInOrder(40);
     if (msgs.length===0) return;
     const sig = msgs.slice(-8).map(m=>m.user+'|'+m.message).join('\n');
@@ -335,24 +535,38 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     const txt = await genSuggestion(msgs);
     if (txt){
       const cur = (ta?.value||'').trim();
-      if (!cur || cur.length<6){ suggestion = txt; renderGhost(); }
+      if (!cur || cur.length<6){ suggestion = txt; renderSuggestion(); }
     }
-  }, 400);
+    }, 400);
+  })();
 
   (async function bootstrap(){
-    for(let i=0;i<60;i++){ if (ensureGhost()) break; await sleep(250); }
-    if (!ensureGhost()) return;
-    bindKeys(); renderGhost(); trigger();
+    // 注入必要的CSS样式
+    injectSuggestionCSS();
+    
+    // 等待并确保找到输入框
+    for(let i=0;i<60;i++){ if (ensureSuggestionContainer()) break; await sleep(250); }
+    if (!ensureSuggestionContainer()) return;
+    
+    bindKeys(); trigger();
 
-    const obs = new MutationObserver(()=>{
-      const cur = findTextarea();
-      if (cur && cur!==ta){
-        ta = cur; ghost?.remove(); ghost=null;
-        ensureGhost(); bindKeys();
+    // 监听DOM变化，确保能够找到新的输入框
+    const obs = new MutationObserver(()=>{      
+      const cur = findTextarea();      
+      if (cur && cur!==ta){        
+        ta = cur;        
+        ensureSuggestionContainer(); 
+        bindKeys();
+        // 如果有建议，重新渲染
+        if (suggestion) {
+          renderSuggestion();
+        }
       }
+      trigger();    });    
+    
+    obs.observe(document.documentElement,{ childList:true, subtree:true });    
+    ta?.addEventListener('focus', ()=>{
+      renderSuggestion();
       trigger();
-    });
-    obs.observe(document.documentElement,{ childList:true, subtree:true });
-    ta?.addEventListener('focus', ()=>trigger());
-  })();
+    });  })();
 })();

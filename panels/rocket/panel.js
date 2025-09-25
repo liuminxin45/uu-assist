@@ -18,6 +18,13 @@
     badgeEl.style.borderColor = ok ? '#a7f3d0' : '#c7d2fe';
   };
 
+  // 监听来自service worker的日志消息
+  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg?.type === 'rocket:displayLog') {
+      log(msg.message);
+    }
+  });
+
   // --- storage keys
   const K = { limit: 'rocketMsgLimit', prompt: 'rocketPrompt' };
 

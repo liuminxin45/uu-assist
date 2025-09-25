@@ -122,9 +122,35 @@ async function fetchText(url){
   return { ok:r.ok, status:r.status, text:t };
 }
 
+// 查找所有打开的rocket-panel的标签页
+async function findRocketPanelTabs() {
+  const rocketPanelPath = chrome.runtime.getURL('panels/rocket/panel.html');
+  const tabs = await chrome.tabs.query({});
+  return tabs.filter(tab => tab.url === rocketPanelPath);
+}
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async()=>{
     try{
+      // 处理rocket:statusLog消息
+      if (msg.type === "rocket:statusLog") {
+        // 查找所有打开的rocket-panel标签页
+        const rocketTabs = await findRocketPanelTabs();
+        if (rocketTabs.length > 0) {
+          // 向所有打开的rocket-panel发送日志消息
+          rocketTabs.forEach(tab => {
+            chrome.tabs.sendMessage(
+              tab.id,
+              { type: 'rocket:displayLog', message: msg.message }
+            ).catch(() => {
+              // 忽略错误，因为标签页可能已关闭或未准备好
+            });
+          });
+        }
+        sendResponse({ ok: true });
+        return;
+      }
+
       if (msg.type === "fetchListPage"){
         const { ok, status, text } = await fetchText(msg.url);
         sendResponse({ ok, status, text, snippet: snippetOf(text) });
