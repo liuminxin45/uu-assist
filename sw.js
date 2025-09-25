@@ -294,30 +294,62 @@ if (msg.type === "fetchTaskSummary"){
 
 
 
-  if (msg.type === "aiSummarize"){
+if (msg.type === "aiSummarize") {
+  (async () => {
     const def = { aiCfg:null };
     const got = await chrome.storage.local.get(def).catch(()=>def);
     const ai = got.aiCfg || {};
     const base = (ai.base || "https://api.deepseek.com/v1").replace(/\/+$/,"");
     const model = ai.model || "deepseek-chat";
-    const key = ai.key || "";
-    const prompt = msg.prompt || ai.prompt || "你是助手。请根据给定正文：1) 生成≤40字的小标题；2) 生成简洁回复。以严格JSON返回：{\"title\":\"...\", \"reply\":\"...\"}";
+    const key   = ai.key   || "";
+    const sysPrompt = msg.prompt || ai.prompt || "你是助手。请根据给定正文：1) 生成≤40字的小标题；2) 生成简洁回复。以严格JSON返回：{\"title\":\"...\", \"reply\":\"...\"}";
+    const userContent = msg.content || "";
+
     if (!key){ sendResponse({ ok:false, error:"缺少API Key" }); return; }
     const url = base + "/chat/completions";
-    const payload = { model, messages: [ { role:"system", content: prompt }, { role:"user", content: msg.content || "" } ] };
+    const payload = {
+      model,
+      messages: [
+        { role:"system", content: sysPrompt },
+        { role:"user",   content: userContent }
+      ]
+    };
+
     try{
-      const r = await fetch(url, { method:"POST", headers:{ "Content-Type":"application/json", "Authorization":"Bearer " + key }, body: JSON.stringify(payload) });
+      const r = await fetch(url, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json", "Authorization":"Bearer " + key },
+        body: JSON.stringify(payload)
+      });
       const txt = await r.text();
-      if (!r.ok){ sendResponse({ ok:false, status:r.status, error:"AI接口错误", snippet: snippetOf(txt) }); return; }
-      let data = null; try{ data = JSON.parse(txt); }catch(_){ data = relaxParseJSON(txt); }
-      const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content || "";
-      let jsonText = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "");
-      let obj = null; try{ obj = JSON.parse(jsonText); }catch(_){ obj = relaxParseJSON(jsonText); }
-      const title = obj && obj.title ? String(obj.title) : "";
-      const reply = obj && obj.reply ? String(obj.reply) : "";
-      sendResponse({ ok:true, title, reply }); return;
-    }catch(e){ sendResponse({ ok:false, error:e.message }); return; }
-  }
+
+      if (!r.ok){
+        const snip = (typeof snippetOf === "function") ? snippetOf(txt) : (txt || "").slice(0,400);
+        sendResponse({ ok:false, status:r.status, error:"AI接口错误", snippet: snip });
+        return;
+      }
+
+      let data = null; try{ data = JSON.parse(txt); }catch(_){ if (typeof relaxParseJSON === "function") data = relaxParseJSON(txt); }
+      const content = data?.choices?.[0]?.message?.content || "";
+      const jsonText = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "");
+      let obj = null; try{ obj = JSON.parse(jsonText); }catch(_){ if (typeof relaxParseJSON === "function") obj = relaxParseJSON(jsonText); }
+
+      const title = obj?.title ? String(obj.title) : "";
+      const reply = obj?.reply ? String(obj.reply) : "";
+
+      // usage 与 model 回传，便于面板统计
+      const usage = data?.usage || null;           // {prompt_tokens, completion_tokens, total_tokens}
+      const usedModel = data?.model || model;
+
+      sendResponse({ ok:true, title, reply, usage, model: usedModel });
+      return;
+    }catch(e){
+      sendResponse({ ok:false, error: e?.message || String(e) });
+      return;
+    }
+  })();
+  return true; // 关键：保持消息通道，等待异步 sendResponse
+}
       
       
       

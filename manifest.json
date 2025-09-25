@@ -1,29 +1,20 @@
 {
   "manifest_version": 3,
   "name": "uu-assist",
-  "version": "1.1.0",
-  "description": "uu-assist",
-  "permissions": [
-    "storage",
-    "sidePanel",
-    "scripting",
-    "tabs",
-    "downloads"
-  ],
+  "version": "1.1.1",
+  "description": "uu-assist with Rocket Copilot",
+  "permissions": ["storage", "sidePanel", "scripting", "tabs", "downloads"],
   "host_permissions": [
     "http://pha.tp-link.com.cn/*",
+    "https://llmapp.tp-link.com.cn/*",
     "https://api.deepseek.com/*",
-    "https://review.tp-link.net/*"
+    "https://review.tp-link.net/*",
+    "https://chat.rd.tp-link.com.cn/*",
+    "https://*.rocket.chat/*"
   ],
-  "background": {
-    "service_worker": "sw.js"
-  },
-  "action": {
-    "default_title": "PHA Helper"
-  },
-  "side_panel": {
-    "default_path": "panels/pha/panel.html"
-  },
+  "background": { "service_worker": "sw.js" },
+  "action": { "default_title": "PHA Helper" },
+  "side_panel": { "default_path": "panels/pha/panel.html" },
   "content_scripts": [
     {
       "matches": ["http://pha.tp-link.com.cn/*"],
@@ -31,7 +22,10 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://review.tp-link.net/*"],
+      "matches": [
+        "https://review.tp-link.net/*",
+        "https://chat.rd.tp-link.com.cn/*"
+      ],
       "js": ["content_script.js"],
       "run_at": "document_end",
       "all_frames": true

@@ -3,45 +3,51 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>rocket</title>
+  <title>Rocket 工具</title>
   <link rel="stylesheet" href="../../panel.css">
   <style>
-    :root{ --bg:#f8fafc; --card:#ffffff; --muted:#6b7280; --text:#0f172a; --border:#e5e7eb; }
+    :root{ --bg:#f8fafc; --card:#ffffff; --muted:#6b7280; --text:#0f172a; --accent:#2563eb; --border:#e5e7eb; }
     html,body{height:100%}
-    body{margin:0;padding:16px 0 16px 16px;font:13px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto;color:var(--text);background:var(--bg);}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:0 1px 6px rgba(0,0,0,.06)}
-    .row{margin-top:10px}
-    .section-title{font-weight:700;margin:4px 0 8px}
-    label{display:block;margin:8px 0 6px;color:var(--muted);font-weight:600}
+    body{margin:0;padding:16px;font:13px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto;color:var(--text);background:var(--bg);}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:0 2px 8px rgba(15,23,42,.04)}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+    .btn{background:#fff;border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;transition:box-shadow .2s ease,transform .2s ease}
+    .btn:hover{box-shadow:0 2px 6px rgba(0,0,0,.12)}
+    .btn:active{transform:translateY(1px)}
+    .pill{display:inline-block;padding:2px 6px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px;border:1px solid #c7d2fe}
+    .field{display:flex;gap:8px;align-items:center;margin:6px 0}
+    .field label{width:96px;color:var(--muted)}
+    input[type="number"]{width:90px;padding:6px;border:1px solid var(--border);border-radius:8px;background:#fff}
+    textarea{width:100%;min-height:140px;resize:vertical;border:1px solid var(--border);border-radius:8px;padding:10px;background:#fff}
+    #status{height:160px;overflow:auto;border:1px dashed var(--border);border-radius:8px;background:#fff;padding:8px;font-family:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace;white-space:pre-wrap}
   </style>
 </head>
-<body data-scope="rocket-panel">
-  <div class="layout">
-    <div class="main">
-      <div class="card">
-        <div class="section-title">Rocket 工具</div>
-
-        <label for="txtRocket">输入</label>
-        <textarea id="txtRocket" class="input-common" style="height:400px" placeholder="在此输入…"></textarea>
-
-        <div class="row" style="display:flex;gap:8px;flex-wrap:wrap">
-          <button id="btnFormat" class="btn-common">格式化</button>
-          <button id="btnCopy"   class="btn-common">复制</button>
-          <button id="btnClear"  class="btn-common">清空</button>
-          <button id="btnRun"    class="btn-common">运行</button>
-        </div>
-      </div>
+<body>
+  <div class="card">
+    <div class="row">
+      <strong>Rocket 工具</strong>
+      <span id="badge" class="pill">空闲</span>
     </div>
 
-    <nav class="rail" aria-label="面板切换">
-      <button class="railbtn" data-target="pha-panel" title="PHA" aria-label="PHA">📋</button>
-      <button class="railbtn active" data-target="rocket-panel" title="rocket" aria-label="rocket">🚀</button>
-      <button class="railbtn" data-target="settings-panel" title="设置" aria-label="设置">🛠️</button>
-    </nav>
+    <div class="field">
+      <label for="msgLimit">参与消息条数</label>
+      <input id="msgLimit" type="number" min="1" max="200" step="1" value="20" />
+    </div>
+
+    <div class="field" style="align-items:flex-start">
+      <label for="prompt">自定义 Prompt</label>
+      <textarea id="prompt" placeholder="留空则使用预置 Prompt"></textarea>
+    </div>
+
+    <div class="row">
+      <button id="btnSave" class="btn">保存配置</button>
+      <button id="btnGen"  class="btn">生成聊天建议</button>
+      <button id="btnClear" class="btn">清空状态</button>
+    </div>
+
+    <div id="status" aria-live="polite" aria-label="运行状态日志"></div>
   </div>
 
-  <script defer src="../../rail.js"></script>
-  <script defer src="panel.js"></script>
-  <script type="module" src="../persist-init.js"></script>
+  <script src="./panel.js"></script>
 </body>
 </html>
