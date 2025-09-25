@@ -410,13 +410,64 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (ta.value.trim() === '' && suggestion) {
       sendStatusLog('条件满足，设置建议文本到placeholder');
       ta.placeholder = suggestion;
+      // 自动调整textarea高度以适应多行placeholder
+      adjustTextareaHeight();
     } else {
       // 否则恢复原始placeholder
       sendStatusLog('条件不满足，恢复原始placeholder');
       ta.placeholder = originalPlaceholder;
+      // 恢复默认高度
+      resetTextareaHeight();
     }
     
     sendStatusLog('renderSuggestion调用结束');
+  }
+  
+  // 自动调整textarea高度以适应placeholder内容
+  function adjustTextareaHeight() {
+    if (!ta || !suggestion) return;
+    
+    // 保存当前样式
+    const currentHeight = ta.style.height;
+    const currentOverflow = ta.style.overflow;
+    const currentResize = ta.style.resize;
+    
+    // 设置临时样式以测量内容高度
+    ta.style.overflow = 'hidden';
+    ta.style.resize = 'none';
+    
+    // 创建一个隐藏的div来测量文本高度
+    const tempDiv = document.createElement('div');
+    tempDiv.style.visibility = 'hidden';
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.left = '-9999px';
+    tempDiv.style.top = '0';
+    tempDiv.style.width = ta.clientWidth + 'px';
+    tempDiv.style.fontFamily = window.getComputedStyle(ta).fontFamily;
+    tempDiv.style.fontSize = window.getComputedStyle(ta).fontSize;
+    tempDiv.style.lineHeight = window.getComputedStyle(ta).lineHeight;
+    tempDiv.style.whiteSpace = 'pre-wrap';
+    tempDiv.style.wordWrap = 'break-word';
+    tempDiv.textContent = suggestion;
+    
+    document.body.appendChild(tempDiv);
+    
+    // 设置textarea高度为测量的高度，但至少保留一行高度
+    const measuredHeight = tempDiv.offsetHeight;
+    const minHeight = parseInt(window.getComputedStyle(ta).lineHeight) || 20;
+    ta.style.height = Math.max(measuredHeight, minHeight) + 'px';
+    
+    // 移除临时div
+    document.body.removeChild(tempDiv);
+    
+    sendStatusLog('自动调整textarea高度: ' + ta.style.height);
+  }
+  
+  // 重置textarea高度为默认值
+  function resetTextareaHeight() {
+    if (!ta) return;
+    ta.style.height = '';
+    sendStatusLog('重置textarea高度为默认值');
   }
   
   // 绑定Tab接受建议和Esc清除建议的快捷键
@@ -463,23 +514,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     const style = document.createElement('style');
     style.id = 'rocket-suggestion-css';
     style.textContent = `
-      /* 使用原生方式实现建议显示 */
-      .suggestion-wrapper {
-        position: relative;
-        display: inline-block;
-        width: 100%;
+      /* 确保textarea能够自动调整高度显示多行placeholder */
+      .js-input-message[placeholder] {
+        overflow-y: hidden !important;
+        resize: none !important;
+        transition: height 0.2s ease-in-out;
       }
       
-      .suggestion-wrapper textarea {
-        position: relative;
-        z-index: 2;
-        background: transparent;
-      }
-      
-      /* 不再需要suggestion-ghost样式，改为使用placeholder */
-        word-break: normal;
-        resize: none;
-        z-index: 1;
+      /* 增强placeholder的可读性 */
+      .js-input-message::placeholder {
+        color: #9ca3af;
+        opacity: 1;
       }
     `;
     document.head.appendChild(style);
