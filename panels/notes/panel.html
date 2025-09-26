@@ -353,10 +353,7 @@
             <div class="notes-wrapper">
                 <div class="header">
                     <div class="header-top">
-                        <h2>笔记收集</h2>
-                        <div class="search-container">
-                            <input type="text" id="search-input" class="search-input" placeholder="搜索笔记...">
-                        </div>
+                        <h2>Notes</h2>
                     </div>
                 </div>
 
@@ -369,6 +366,13 @@
                         </div>
                     </div>
                     <button id="add-note-btn">添加</button>
+                </div>
+                
+                <!-- 搜索控件移到这里 -->
+                <div style="padding: 12px;">
+                    <div class="search-container">
+                        <input type="text" id="search-input" class="search-input" placeholder="搜索笔记...">
+                    </div>
                 </div>
 
                 <div id="notes-container" class="notes-list">
@@ -395,7 +399,7 @@
         <img id="fullscreen-image" class="fullscreen-image" src="" alt="全屏预览">
     </div>
 
-    <script src="notes.js"></script>
+    <script src="panel.js"></script>
     <script src="../../rail.js" type="module"></script>
 </body>
 </html>
