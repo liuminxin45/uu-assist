@@ -5,6 +5,13 @@ const noteInput = document.getElementById('note-input');
 const addNoteBtn = document.getElementById('add-note-btn');
 const notesContainer = document.getElementById('notes-container');
 const emptyState = document.getElementById('empty-state');
+const searchInput = document.getElementById('search-input');
+const searchResultsInfo = document.getElementById('search-results-info');
+const noSearchResults = document.getElementById('no-search-results');
+
+// 搜索状态
+let currentSearchTerm = '';
+let allNotes = [];
 
 // 面板标识
 const PANEL_NAME = 'notes';
@@ -20,6 +27,9 @@ function initEvents() {
     // 输入框事件
     noteInput.addEventListener('input', handleInputChange);
     noteInput.addEventListener('keydown', handleKeyDown);
+    
+    // 搜索框事件
+    searchInput.addEventListener('input', handleSearchChange);
     
     // 按钮点击事件
     addNoteBtn.addEventListener('click', addNote);
@@ -114,7 +124,11 @@ async function loadNotes() {
     try {
         const result = await queryNotesFromDB();
         if (result.ok) {
-            renderNotes(result.items);
+            // 存储所有笔记
+            allNotes = result.items;
+            
+            // 应用搜索过滤
+            filterAndRenderNotes();
         } else {
             console.error('加载笔记失败:', result.error);
             showEmptyState();
@@ -122,6 +136,73 @@ async function loadNotes() {
     } catch (error) {
         console.error('加载笔记错误:', error);
         showEmptyState();
+    }
+}
+
+// 处理搜索输入变化
+function handleSearchChange() {
+    currentSearchTerm = searchInput.value.trim().toLowerCase();
+    filterAndRenderNotes();
+}
+
+// 根据当前搜索词过滤并渲染笔记
+function filterAndRenderNotes() {
+    // 清空容器
+    notesContainer.innerHTML = '';
+    
+    // 隐藏所有状态消息
+    hideAllStates();
+    
+    if (!allNotes || allNotes.length === 0) {
+        showEmptyState();
+        return;
+    }
+    
+    let filteredNotes = allNotes;
+    
+    // 如果有搜索词，则过滤笔记
+    if (currentSearchTerm) {
+        filteredNotes = allNotes.filter(note => 
+            note.内容.toLowerCase().includes(currentSearchTerm)
+        );
+        
+        // 显示搜索结果信息
+        searchResultsInfo.textContent = `找到 ${filteredNotes.length} 条匹配的笔记（共 ${allNotes.length} 条）`;
+        searchResultsInfo.style.display = 'block';
+        
+        if (filteredNotes.length === 0) {
+            // 没有找到匹配的笔记
+            notesContainer.appendChild(noSearchResults);
+            noSearchResults.style.display = 'flex';
+            return;
+        }
+    } else {
+        // 没有搜索词，隐藏搜索结果信息
+        searchResultsInfo.style.display = 'none';
+    }
+    
+    // 按时间倒序排列（最新的在前面）
+    const sortedNotes = [...filteredNotes].sort((a, b) => b.时间 - a.时间);
+    
+    // 创建并添加笔记卡片
+    sortedNotes.forEach(note => {
+        const card = createNoteCard(note);
+        notesContainer.appendChild(card);
+    });
+}
+
+// 隐藏所有状态消息
+function hideAllStates() {
+    emptyState.style.display = 'none';
+    noSearchResults.style.display = 'none';
+    
+    // 确保状态元素存在于容器中
+    if (!document.contains(emptyState)) {
+        notesContainer.appendChild(emptyState);
+    }
+    
+    if (!document.contains(noSearchResults)) {
+        notesContainer.appendChild(noSearchResults);
     }
 }
 
@@ -142,27 +223,10 @@ function queryNotesFromDB() {
     });
 }
 
-// 渲染笔记列表
+// 渲染笔记列表（保留向后兼容性，内部调用新的过滤渲染函数）
 function renderNotes(notes) {
-    // 清空容器
-    notesContainer.innerHTML = '';
-    
-    if (!notes || notes.length === 0) {
-        showEmptyState();
-        return;
-    }
-    
-    // 隐藏空状态
-    emptyState.remove();
-    
-    // 按时间倒序排列（最新的在前面）
-    const sortedNotes = [...notes].sort((a, b) => b.时间 - a.时间);
-    
-    // 创建并添加笔记卡片
-    sortedNotes.forEach(note => {
-        const card = createNoteCard(note);
-        notesContainer.appendChild(card);
-    });
+    allNotes = notes;
+    filterAndRenderNotes();
 }
 
 // 创建笔记卡片
@@ -257,17 +321,8 @@ function deleteNote(noteId) {
     
     deleteNoteFromDB(noteId).then((result) => {
         if (result.ok) {
-            // 从DOM中移除
-            const card = document.querySelector(`.note-card[data-id="${noteId}"]`);
-            if (card) {
-                card.remove();
-            }
-            
-            // 检查是否还有笔记，如果没有则显示空状态
-            const remainingCards = document.querySelectorAll('.note-card');
-            if (remainingCards.length === 0) {
-                showEmptyState();
-            }
+            // 重新加载笔记列表以应用搜索过滤
+            loadNotes();
         } else {
             console.error('删除笔记失败:', result.error);
             alert('删除笔记失败，请重试');

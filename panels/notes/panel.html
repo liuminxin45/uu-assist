@@ -9,10 +9,10 @@
         :root{ --bg:#f8fafc; --card:#ffffff; --muted:#6b7280; --text:#0f172a; --accent:#2563eb; --border:#e5e7eb; }
         html,body{height:100%}
         body{margin:0;padding:16px 0 16px 16px;font:13px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto;color:var(--text);background:var(--bg);}
-        .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+        .card{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 1px 6px rgba(0,0,0,.06)}
         label{display:block;margin:8px 0 6px;color:var(--muted);font-weight:600}
-        input[type="text"], textarea{width:100%;background:#fff;border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px 12px}
-        input:focus, textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+        input[type="text"], textarea{width:100%;background:#fff;border-radius:10px;color:var(--text);padding:10px 12px}
+        input:focus, textarea:focus{outline:none;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
         .row{margin-top:10px}
         .split{display:flex;gap:8px;align-items:center}
         .split > :first-child{flex:1;min-width:0}
@@ -20,21 +20,74 @@
             display: flex;
             flex-direction: column;
             height: 100%;
+            min-height: 0;
         }
         .header {
             padding: 12px;
             background-color: #fff;
-            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: stretch;
+            border-radius: 12px 12px 0 0;
+        }
+        .header-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-radius: 12px 12px 0 0;
         }
         .header h2 {
             font-size: 18px;
             font-weight: 600;
             color: #333;
             margin: 0;
+        }
+        .search-container {
+            position: relative;
+            width: 100%;
+        }
+        .search-input {
+            width: 100%;
+            padding: 8px 36px 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            background-color: #f1f5f9;
+            transition: all 0.2s ease;
+        }
+        .search-input:focus {
+            background-color: #fff;
+        }
+        .search-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            font-size: 16px;
+            pointer-events: none;
+        }
+        .search-results-info {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+        .no-search-results {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #999;
+            text-align: center;
+            padding: 60px 20px;
+        }
+        .no-search-results-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+        .no-search-results-text {
+            font-size: 14px;
         }
         .notes-container {
             flex: 1;
@@ -44,8 +97,8 @@
             flex-direction: column;
             gap: 12px;
             background-color: #fff;
-            border-left: 1px solid #e0e0e0;
-            border-right: 1px solid #e0e0e0;
+            min-height: 0;
+            max-height: calc(100vh - 200px);
         }
         .note-card {
             background-color: #f8fafc;
@@ -80,7 +133,6 @@
         }
         .action-btn {
             padding: 4px 8px;
-            border: 1px solid #ddd;
             background-color: #fff;
             border-radius: 4px;
             font-size: 12px;
@@ -92,7 +144,6 @@
         }
         .action-btn.delete {
             color: #e74c3c;
-            border-color: #e74c3c;
         }
         .action-btn.delete:hover {
             background-color: #e74c3c;
@@ -101,10 +152,6 @@
         .input-area {
             padding: 12px;
             background-color: #fff;
-            border-top: 1px solid #e0e0e0;
-            border-bottom: 1px solid #e0e0e0;
-            border-left: 1px solid #e0e0e0;
-            border-right: 1px solid #e0e0e0;
             border-radius: 0 0 12px 12px;
             display: flex;
             gap: 8px;
@@ -113,7 +160,6 @@
         #note-input {
             flex: 1;
             padding: 8px 12px;
-            border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 14px;
             line-height: 1.4;
@@ -156,6 +202,12 @@
         .empty-state-text {
             font-size: 14px;
         }
+        
+        .railbtn:focus-visible,
+        .railbtn.active{
+            border:none !important;
+            transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease;
+        }
     </style>
 </head>
 <body data-scope="notes-panel">
@@ -163,12 +215,23 @@
         <div class="main">
             <div class="notes-wrapper">
                 <div class="header">
-                    <h2>笔记收集</h2>
+                    <div class="header-top">
+                        <h2>笔记收集</h2>
+                    </div>
+                    <div class="search-container">
+                        <input type="text" id="search-input" class="search-input" placeholder="搜索笔记内容...">
+                        <span class="search-icon">🔍</span>
+                    </div>
+                    <div class="search-results-info" id="search-results-info" style="display: none;"></div>
                 </div>
                 <div class="notes-container" id="notes-container">
                     <div class="empty-state" id="empty-state">
                         <div class="empty-state-icon">📝</div>
                         <div class="empty-state-text">暂无笔记，在下方添加你的第一条笔记吧！</div>
+                    </div>
+                    <div class="no-search-results" id="no-search-results" style="display: none;">
+                        <div class="no-search-results-icon">🔍</div>
+                        <div class="no-search-results-text">没有找到匹配的笔记</div>
                     </div>
                 </div>
                 <div class="input-area">
