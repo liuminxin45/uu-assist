@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>笔记收集面板</title>
+    <style>
+        /* 全局样式 */
+        :root {
+            --primary-color: #4A84FF;
+            --secondary-color: #6B7280;
+            --border-color: #E5E7EB;
+            --bg-color: #FFFFFF;
+            --hover-bg: #F9FAFB;
+            --error-color: #EF4444;
+            --success-color: #10B981;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            color: #374151;
+            background-color: #F3F4F6;
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        /* 主容器 */
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: var(--bg-color);
+            border-radius: 8px;
+            box-shadow: var(--shadow-md);
+            margin-top: 20px;
+        }
+
+        /* 头部 */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        /* 搜索框 */
+        .search-container {
+            position: relative;
+            flex: 1;
+            max-width: 300px;
+            margin-left: 20px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        /* 输入区域 */
+        .input-section {
+            margin-bottom: 20px;
+        }
+
+        .note-input-wrapper {
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .note-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 60px;
+            max-height: 120px;
+            transition: border-color 0.2s;
+        }
+
+        .note-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        /* 图片预览 */
+        .image-preview-container-input {
+            position: relative;
+            margin-top: 10px;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px dashed var(--border-color);
+        }
+
+        .image-preview-input {
+            width: 100%;
+            height: auto;
+            display: block;
+            max-height: 300px;
+            object-fit: contain;
+        }
+
+        .remove-image-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 50%;
+            color: var(--error-color);
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            transition: background-color 0.2s;
+        }
+
+        .remove-image-btn:hover {
+            background-color: white;
+        }
+
+        /* 添加按钮 */
+        .add-note-btn {
+            padding: 8px 16px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .add-note-btn:hover:not(:disabled) {
+            background-color: #3B7AE0;
+        }
+
+        .add-note-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 笔记列表 */
+        .notes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* 笔记卡片 */
+        .note-card {
+            padding: 12px;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+
+        .note-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
+        }
+
+        .note-content {
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+
+        .note-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .note-image:hover {
+            opacity: 0.9;
+        }
+
+        .note-time {
+            font-size: 12px;
+            color: var(--secondary-color);
+            margin-bottom: 8px;
+        }
+
+        .note-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            padding: 4px 8px;
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+
+        .action-btn:hover {
+            background-color: var(--hover-bg);
+            border-color: var(--primary-color);
+        }
+
+        .action-btn.delete {
+            border-color: var(--error-color);
+            color: var(--error-color);
+        }
+
+        .action-btn.delete:hover {
+            background-color: rgba(239, 68, 68, 0.1);
+        }
+
+        /* 状态消息 */
+        .empty-state,
+        .no-results {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--secondary-color);
+        }
+
+        .empty-state p,
+        .no-results p {
+            margin-bottom: 8px;
+        }
+
+        /* 全屏图片预览 */
+        .fullscreen-preview {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            cursor: pointer;
+        }
+
+        .fullscreen-image {
+            max-width: 90%;
+            max-height: 90vh;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>笔记收集面板</h1>
+            <div class="search-container">
+                <input type="text" id="search-input" class="search-input" placeholder="搜索笔记...">
+            </div>
+        </div>
+
+        <div class="input-section">
+            <div class="note-input-wrapper">
+                <textarea id="note-input" class="note-input" placeholder="输入笔记内容，按回车发送，或粘贴图片..." rows="1"></textarea>
+                <div id="image-preview-container" class="image-preview-container-input" style="display: none;">
+                    <img id="image-preview" class="image-preview-input" src="" alt="预览图片">
+                    <button id="remove-image-btn" class="remove-image-btn">×</button>
+                </div>
+            </div>
+            <button id="add-note-btn" class="add-note-btn">添加</button>
+        </div>
+
+        <div id="notes-container" class="notes-list">
+            <!-- 笔记列表将在这里动态生成 -->
+        </div>
+
+        <div id="empty-state" class="empty-state" style="display: none;">
+            <p>暂无笔记</p>
+            <p style="font-size: 12px;">输入内容或粘贴图片添加第一条笔记吧！</p>
+        </div>
+    </div>
+
+    <!-- 全屏图片预览容器 -->
+    <div id="fullscreen-preview" class="fullscreen-preview" style="display: none;">
+        <img id="fullscreen-image" class="fullscreen-image" src="" alt="全屏预览">
+    </div>
+
+    <script>
+        // 笔记收集面板 - 独立版本，专注于图片粘贴和拖入功能
+
+        // DOM 元素
+        const noteInput = document.getElementById('note-input');
+        const addNoteBtn = document.getElementById('add-note-btn');
+        const notesContainer = document.getElementById('notes-container');
+        const emptyState = document.getElementById('empty-state');
+        const searchInput = document.getElementById('search-input');
+        const previewContainer = document.getElementById('image-preview-container');
+        const previewImage = document.getElementById('image-preview');
+        const removeImageBtn = document.getElementById('remove-image-btn');
+        const fullscreenPreview = document.getElementById('fullscreen-preview');
+        const fullscreenImage = document.getElementById('fullscreen-image');
+
+        // 状态变量
+        let currentSearchTerm = '';
+        let allNotes = [];
+
+        // 内存存储的笔记数据
+        let notes = [
+            {
+                id: 'note_1',
+                content: '这是一条测试笔记',
+                timestamp: Date.now() - 3600000,
+                isImage: false
+            },
+            {
+                id: 'note_2',
+                content: '这是另一条测试笔记',
+                timestamp: Date.now() - 1800000,
+                isImage: false
+            }
+        ];
+
+        // 初始化应用
+        function initApp() {
+            // 绑定事件
+            if (noteInput) {
+                noteInput.addEventListener('input', updateButtonState);
+                noteInput.addEventListener('keydown', handleKeyDown);
+                noteInput.addEventListener('paste', handlePaste);
+                noteInput.addEventListener('dragover', handleDragOver);
+                noteInput.addEventListener('drop', handleDrop);
+            }
+            
+            if (addNoteBtn) {
+                addNoteBtn.addEventListener('click', addNote);
+                // 初始禁用按钮
+                updateButtonState();
+            }
+            
+            if (removeImageBtn) {
+                removeImageBtn.addEventListener('click', removeImagePreview);
+            }
+
+            if (searchInput) {
+                searchInput.addEventListener('input', handleSearchChange);
+            }
+
+            if (fullscreenPreview) {
+                fullscreenPreview.addEventListener('click', hideFullscreenPreview);
+            }
+            
+            // 渲染笔记列表
+            renderNotes();
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', initApp);
+
+        // 处理输入变化
+        function updateButtonState() {
+            if (!noteInput || !addNoteBtn) return;
+            const hasContent = noteInput.value.trim().length > 0 || noteInput.dataset.imageData;
+            addNoteBtn.disabled = !hasContent;
+        }
+
+        // 处理键盘事件
+        function handleKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                addNote();
+            }
+        }
+
+        // 调整文本框高度
+        function adjustTextareaHeight() {
+            if (!noteInput) return;
+            noteInput.style.height = 'auto';
+            const scrollHeight = noteInput.scrollHeight;
+            const maxHeight = 120;
+            noteInput.style.height = Math.min(scrollHeight, maxHeight) + 'px';
+        }
+
+        // 处理粘贴事件
+        function handlePaste(e) {
+            e.preventDefault(); // 阻止默认粘贴行为，避免显示base64文本
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const file = items[i].getAsFile();
+                    handleImageFile(file);
+                    break;
+                }
+            }
+        }
+
+        // 处理拖拽悬停
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            noteInput.style.borderColor = '#4A84FF';
+        }
+
+        // 处理拖拽离开
+        function handleDragLeave(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            noteInput.style.borderColor = '';
+        }
+
+        // 处理拖拽释放
+        function handleDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            noteInput.style.borderColor = '';
+            
+            if (e.dataTransfer.files.length > 0) {
+                const file = e.dataTransfer.files[0];
+                if (file.type.indexOf('image') !== -1) {
+                    handleImageFile(file);
+                }
+            }
+        }
+
+        // 处理图片文件
+        function handleImageFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const imageData = event.target.result;
+                noteInput.dataset.imageData = imageData; // 存储图片数据但不显示在输入框
+                noteInput.value = '';
+                showImagePreview(imageData);
+                updateButtonState();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 显示图片预览
+        function showImagePreview(imageData) {
+            if (!previewContainer || !previewImage) return;
+            previewImage.src = imageData;
+            previewContainer.style.display = 'block';
+        }
+
+        // 移除图片预览
+        function removeImagePreview() {
+            if (!noteInput || !previewContainer) return;
+            noteInput.removeAttribute('data-image-data');
+            previewContainer.style.display = 'none';
+            updateButtonState();
+        }
+
+        // 添加笔记
+        function addNote() {
+            if (!noteInput) return;
+            
+            let content = noteInput.value.trim();
+            const imageData = noteInput.dataset.imageData;
+            
+            // 如果有图片数据，优先使用图片数据
+            if (imageData) {
+                content = imageData;
+            }
+            
+            if (!content) return;
+            
+            // 创建新笔记
+            const newNote = {
+                id: `note_${Date.now()}`,
+                content: content,
+                timestamp: Date.now(),
+                isImage: content.startsWith('data:image/')
+            };
+            
+            // 添加到笔记列表
+            notes.unshift(newNote);
+            
+            // 清空输入框和预览
+            resetInput();
+            
+            // 重新渲染笔记列表
+            renderNotes();
+        }
+
+        // 重置输入区域
+        function resetInput() {
+            if (!noteInput || !previewContainer) return;
+            noteInput.value = '';
+            noteInput.removeAttribute('data-image-data');
+            previewContainer.style.display = 'none';
+            
+            // 重置输入区域高度
+            const inputWrapper = document.querySelector('.note-input-wrapper');
+            if (inputWrapper) {
+                inputWrapper.style.minHeight = 'auto';
+            }
+            
+            updateButtonState();
+            adjustTextareaHeight();
+        }
+
+        // 处理搜索输入变化
+        function handleSearchChange() {
+            if (!searchInput) return;
+            currentSearchTerm = searchInput.value.trim().toLowerCase();
+            renderNotes();
+        }
+
+        // 渲染笔记列表
+        function renderNotes() {
+            if (!notesContainer || !emptyState) return;
+            
+            // 清空容器
+            notesContainer.innerHTML = '';
+            
+            if (notes.length === 0) {
+                showEmptyState();
+                return;
+            }
+            
+            // 隐藏空状态
+            emptyState.style.display = 'none';
+            
+            let filteredNotes = notes;
+            
+            // 如果有搜索词，则过滤笔记
+            if (currentSearchTerm) {
+                filteredNotes = notes.filter(note => 
+                    note.content.toLowerCase().includes(currentSearchTerm)
+                );
+                
+                if (filteredNotes.length === 0) {
+                    showNoSearchResults();
+                    return;
+                }
+            }
+            
+            // 渲染每条笔记
+            filteredNotes.forEach(note => {
+                const card = createNoteCard(note);
+                notesContainer.appendChild(card);
+            });
+        }
+
+        // 创建笔记卡片
+        function createNoteCard(note) {
+            const card = document.createElement('div');
+            card.className = 'note-card';
+            card.dataset.id = note.id;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'note-content';
+            
+            // 检查内容是否为图片
+            if (note.isImage) {
+                // 如果是图片，创建img元素
+                const img = document.createElement('img');
+                img.src = note.content;
+                img.className = 'note-image';
+                img.alt = '笔记图片';
+                img.onclick = () => previewFullImage(note.content);
+                contentDiv.appendChild(img);
+            } else {
+                // 否则显示文本内容
+                contentDiv.textContent = note.content;
+            }
+            
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'note-time';
+            timeDiv.textContent = formatTime(note.timestamp);
+            
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'note-actions';
+            
+            const editBtn = document.createElement('button');
+            editBtn.className = 'action-btn';
+            editBtn.textContent = '编辑';
+            editBtn.addEventListener('click', () => editNote(note));
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'action-btn delete';
+            deleteBtn.textContent = '删除';
+            deleteBtn.addEventListener('click', () => deleteNote(note.id));
+            
+            actionsDiv.appendChild(editBtn);
+            actionsDiv.appendChild(deleteBtn);
+            
+            card.appendChild(contentDiv);
+            card.appendChild(timeDiv);
+            card.appendChild(actionsDiv);
+            
+            return card;
+        }
+
+        // 预览全屏图片
+        function previewFullImage(imageData) {
+            if (!fullscreenPreview || !fullscreenImage) return;
+            fullscreenImage.src = imageData;
+            fullscreenPreview.style.display = 'flex';
+        }
+
+        // 隐藏全屏预览
+        function hideFullscreenPreview() {
+            if (!fullscreenPreview) return;
+            fullscreenPreview.style.display = 'none';
+        }
+
+        // 编辑笔记
+        function editNote(note) {
+            if (!noteInput) return;
+            
+            // 如果是图片笔记
+            if (note.isImage) {
+                // 显示图片预览
+                noteInput.dataset.imageData = note.content;
+                noteInput.value = '';
+                showImagePreview(note.content);
+            } else {
+                // 填充文本内容
+                noteInput.value = note.content;
+            }
+            
+            // 更新按钮状态
+            updateButtonState();
+            adjustTextareaHeight();
+            
+            // 滚动到输入框
+            noteInput.scrollIntoView({ behavior: 'smooth' });
+            
+            // 聚焦输入框
+            noteInput.focus();
+            
+            // 删除旧笔记
+            deleteNote(note.id);
+        }
+
+        // 删除笔记
+        function deleteNote(noteId) {
+            // 从笔记列表中删除
+            notes = notes.filter(note => note.id !== noteId);
+            
+            // 重新渲染笔记列表
+            renderNotes();
+        }
+
+        // 显示空状态
+        function showEmptyState() {
+            if (!notesContainer || !emptyState) return;
+            notesContainer.innerHTML = '';
+            emptyState.style.display = 'block';
+        }
+
+        // 显示无搜索结果状态
+        function showNoSearchResults() {
+            if (!notesContainer) return;
+            notesContainer.innerHTML = '';
+            
+            // 创建无搜索结果信息
+            const noResultsMsg = document.createElement('div');
+            noResultsMsg.className = 'no-results';
+            noResultsMsg.innerHTML = `<p>没有找到包含 "${currentSearchTerm}" 的笔记</p>`;
+            notesContainer.appendChild(noResultsMsg);
+        }
+
+        // 格式化时间
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / (1000 * 60));
+            const diffHours = Math.floor(diffMins / 60);
+            const diffDays = Math.floor(diffHours / 24);
+            
+            if (diffMins < 1) {
+                return '刚刚';
+            } else if (diffMins < 60) {
+                return `${diffMins}分钟前`;
+            } else if (diffHours < 24) {
+                return `${diffHours}小时前`;
+            } else if (diffDays < 7) {
+                return `${diffDays}天前`;
+            } else {
+                const month = date.getMonth() + 1;
+                const day = date.getDate();
+                return `${month}月${day}日`;
+            }
+        }
+    </script>
+</body>
+</html>
