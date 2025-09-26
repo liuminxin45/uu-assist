@@ -326,7 +326,7 @@ async function genSuggestionWithDeepSeek(messages, promptOverride){
 
   try{
     // 将AI请求内容打印到status区域
-    sendStatusLog(`发送AI请求：\n- 提示词：${finalPrompt}\n- 聊天内容摘要：${convText.substring(0, 100)}${convText.length > 100 ? '...' : ''}`);
+    sendStatusLog(`发送AI请求：\n- 提示词：${finalPrompt}\n- 聊天内容：${convText}`);
     
     const resp = await fetch(url, {
       method:'POST',
@@ -344,6 +344,10 @@ async function genSuggestionWithDeepSeek(messages, promptOverride){
 // 发送日志到面板
 function sendStatusLog(message) {
   try {
+    // 打印完整消息到控制台，用于调试
+    console.log('[ROCKET STATUS FULL]', message);
+    
+    // 直接发送完整消息，不做任何截断处理
     chrome.runtime.sendMessage({
       type: 'rocket:statusLog',
       message: message

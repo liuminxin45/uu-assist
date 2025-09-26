@@ -14,7 +14,11 @@ import { persistField } from '../../shared/persist.js';
     const d=new Date(); const p=n=>String(n).padStart(2,'0');
     return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
   };
-  const log = (line) => { statusEl.textContent += `[${ts()}] ${line}\n`; statusEl.scrollTop = statusEl.scrollHeight; };
+  const log = (line) => { 
+    // 确保完整显示所有内容，不做任何截断
+    statusEl.textContent += `[${ts()}] ${line}\n`; 
+    statusEl.scrollTop = statusEl.scrollHeight; 
+  };
   const setBadge = (t, ok) => {
     badgeEl.textContent = t;
     badgeEl.style.background = ok ? '#ecfdf5' : '#eef2ff';
