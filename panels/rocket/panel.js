@@ -1,4 +1,6 @@
 /* panels/rocket/panel.js — 只记录运行状态，不记录聊天文本 */
+import { persistField } from '../../shared/persist.js';
+
 (async () => {
   const $ = s => document.querySelector(s);
   const statusEl = $('#status');
@@ -27,41 +29,16 @@
     }
   });
 
-  // --- storage keys
-  const K = { limit: 'rocketMsgLimit', prompt: 'rocketPrompt', autoListen: 'rocketAutoListen', userName: 'rocketUserName' };
 
-  // --- load & hydrate
-  chrome.storage.local.get({ [K.limit]: 20, [K.prompt]: '', [K.autoListen]: true, [K.userName]: '' }, got => {
-    $limit.value = Number(got[K.limit] || 20);
-    $prompt.value = got[K.prompt] || '';
-    $autoListen.checked = got[K.autoListen] !== false;
-    $userName.value = got[K.userName] || '';
-  });
 
   // --- helpers
   async function getActiveTab() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     return tab;
   }
-
-  // --- save config function
-  async function saveConfig() {
-    const limit = Math.max(1, Math.min(200, Number($limit.value || 20)));
-    const prompt = $prompt?.value || '';
-    const autoListen = $autoListen.checked;
-    const userName = $userName.value || '';
-    
-    await chrome.storage.local.set({ 
-      [K.limit]: limit, 
-      [K.prompt]: prompt, 
-      [K.autoListen]: autoListen,
-      [K.userName]: userName
-    });
-    
-    log(`配置已保存：limit=${limit}，自动监听=${autoListen ? '开启' : '关闭'}，姓名=${userName || '自动提取'}`);
-    setBadge('已保存', true);
-    
-    // 通知内容脚本更新配置
+  
+  // --- 通知内容脚本更新配置
+  async function notifyContentScript() {
     try {
       const tab = await getActiveTab();
       if (tab && /^https:\/\/.+?tp\-link\.com\.cn\//i.test(tab.url || '')) {
@@ -72,21 +49,25 @@
     }
   }
 
-  // --- 添加自动保存功能
-  $limit.addEventListener('change', saveConfig);
-  $autoListen.addEventListener('change', saveConfig);
-  $userName.addEventListener('change', saveConfig);
-  // 为输入框添加防抖的输入事件监听
-  let saveTimeout;
-  $limit.addEventListener('input', () => {
-    clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(saveConfig, 300);
-  });
-  $userName.addEventListener('input', () => {
-    clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(saveConfig, 300);
-  });
 
+
+  // --- 监听配置变更并通知内容脚本
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      notifyContentScript();
+    }
+  });
+  
+  // 为各个输入元素实现持久化
+  persistField($limit, 'rocketMsgLimit');
+  persistField($autoListen, 'rocketAutoListen');
+  persistField($userName, 'rocketUserName');
+  
+  // 为需要持久化的元素添加变更监听以通知内容脚本
+  $limit.addEventListener('change', notifyContentScript);
+  $autoListen.addEventListener('change', notifyContentScript);
+  $userName.addEventListener('change', notifyContentScript);
+  
   // --- trigger generation
   $('#btnGen').addEventListener('click', async () => {
     const tab = await getActiveTab();
@@ -97,9 +78,9 @@
     if (!ok) { log('当前页不在 Rocket 域名，忽略'); return; }
 
     // 读配置（确保已落库）
-    const got = await chrome.storage.local.get({ [K.limit]: 20, [K.prompt]: '' });
-    const limit = Math.max(1, Math.min(200, Number(got[K.limit] || 20)));
-    const prompt = got[K.prompt] || '';
+    const got = await chrome.storage.local.get({ 'rocketMsgLimit': 20, 'rocketPrompt': '' });
+    const limit = Math.max(1, Math.min(200, Number(got['rocketMsgLimit'] || 20)));
+    const prompt = got['rocketPrompt'] || '';
 
     setBadge('请求中', false);
     log(`开始生成：limit=${limit}，prompt=${prompt ? '自定义' : '预置'}`);
