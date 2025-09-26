@@ -588,7 +588,8 @@ if (msg.type === "sumWorkload") {
 const PANEL_PATHS = {
   "pha-panel": "panels/pha/panel.html",
   "settings-panel": "panels/settings/panel.html",
-  "rocket-panel": "panels/rocket/panel.html"
+  "rocket-panel": "panels/rocket/panel.html",
+  "notes-panel": "panels/notes/panel.html"
   
 };
 
@@ -726,6 +727,18 @@ async function dbQueryByTime({ panel, start=0, end=Number.MAX_SAFE_INTEGER, limi
 }
 
 
+// 从数据库删除笔记
+async function dbDeletePost(id){
+  const db = await idbOpen();
+  return new Promise((res, rej)=>{
+    const tx = db.transaction(STORE, "readwrite");
+    const os = tx.objectStore(STORE);
+    const deleteReq = os.delete(Number(id));
+    tx.oncomplete = ()=>res({ ok:true });
+    tx.onerror = ()=>rej(tx.error);
+  });
+}
+
 // 消息路由
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async()=>{
@@ -739,6 +752,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
     if (msg?.type === "cache:queryByTime"){
       try{ const r = await dbQueryByTime(msg); sendResponse(r); }catch(e){ sendResponse({ ok:false, error:String(e) }); }
+      return;
+    }
+    if (msg?.type === "cache:deletePost"){
+      try{ const r = await dbDeletePost(msg.id); sendResponse(r); }catch(e){ sendResponse({ ok:false, error:String(e) }); }
       return;
     }
   })();

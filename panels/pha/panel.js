@@ -102,7 +102,31 @@ function renderTaskSummary(meta){
   box.style.display = "block";
 }
 
-// DOMContentLoaded 里追加一次性绑定
+// 从其他面板切回pha面板后恢复任务绑定
+  async function restoreTaskBinding() {
+    try {
+      const selectedResult = await chrome.storage.local.get('phaPanelSelectedItem');
+      const selectedHref = selectedResult.phaPanelSelectedItem;
+      const sel = $("selItems");
+      
+      if (selectedHref && sel) {
+        // 直接设置任务链接，不依赖onchange事件
+        const abs = new URL("http://pha.tp-link.com.cn" + selectedHref).href;
+        setTaskLink(abs);
+      }
+    } catch (e) {
+      console.warn("恢复任务绑定失败:", e);
+    }
+  }
+  
+  // 在页面显示时调用恢复函数（处理面板切换场景）
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      restoreTaskBinding().catch(e => console.warn("恢复任务绑定过程中的错误:", e));
+    }
+  });
+  
+  // DOMContentLoaded 里追加一次性绑定
 (function bindMetaToggle(){
   const btn = $("metaToggle");
   const more = $("taskMetaMore");
