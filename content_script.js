@@ -718,7 +718,7 @@ function sendStatusLog(message) {
     
     bindKeys(); trigger();
 
-    // 监听DOM变化，确保能够找到新的输入框
+    // 监听DOM变化，确保能够找到新的输入框和检测新消息
     // 改进的MutationObserver，添加节流控制
     let lastTriggerTime = 0;
     const TRIGGER_INTERVAL = 2000; // 2秒内最多触发一次
@@ -734,11 +734,12 @@ function sendStatusLog(message) {
         if (suggestion) {
           renderSuggestion();
         }
-        // 仅在textarea获得焦点时触发
-        if (isTextareaFocused) {
+        // 自动监听模式下，即使没有焦点也触发一次
+        if (rocketCfg.autoListen) {
           trigger();
         }
-      } else if (isTextareaFocused) {
+      } else if (rocketCfg.autoListen) {
+        // 自动监听模式下，检测到新消息就触发AI请求，不依赖于textarea焦点状态
         // 添加时间间隔限制，避免过于频繁触发
         const now = Date.now();
         if (now - lastTriggerTime > TRIGGER_INTERVAL) {
@@ -750,10 +751,11 @@ function sendStatusLog(message) {
     
     obs.observe(document.documentElement,{ childList:true, subtree:true });    
     
-    // 监听textarea焦点事件，控制是否自动触发建议
+    // 监听textarea焦点事件，确保点击输入框时自动触发AI请求
     ta?.addEventListener('focus', ()=>{
       isTextareaFocused = true;
       renderSuggestion();
+      // 强制触发一次AI请求，不依赖于任何条件
       trigger();
     });
     
