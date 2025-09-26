@@ -215,6 +215,13 @@ function fillSelect(items){
   if (items.length){
     const href = new URL("http://pha.tp-link.com.cn" + items[0].href).href;
     setTaskLink(href);
+    
+    // 保存下拉框选项到localStorage，用于面板切换后恢复
+    try {
+      chrome.storage.local.set({ 'phaPanelSelectItems': items });
+    } catch (e) {
+      console.warn("保存下拉框选项失败:", e);
+    }
   }
 }
 async function fetchList(url){
@@ -281,6 +288,42 @@ function bindMarkdownBar(){
 document.addEventListener("DOMContentLoaded", async ()=>{
   // 初始配置
   try{ await loadConfig(); }catch(e){ setStatus("配置加载失败: " + (e?.message||e)); }
+  
+  // 尝试从localStorage恢复下拉框选项
+  try {
+    const result = await chrome.storage.local.get('phaPanelSelectItems');
+    const savedItems = result.phaPanelSelectItems;
+    if (savedItems && Array.isArray(savedItems) && savedItems.length > 0) {
+      // 只在当前下拉框为空时恢复选项，避免覆盖已有的数据
+      const sel = $("selItems");
+      if (sel && sel.options.length === 0) {
+        fillSelect(savedItems);
+        
+        // 尝试恢复之前选中的项
+        try {
+          const selectedResult = await chrome.storage.local.get('phaPanelSelectedItem');
+          const selectedHref = selectedResult.phaPanelSelectedItem;
+          if (selectedHref) {
+            // 查找并选中之前选中的项
+            for (let i = 0; i < sel.options.length; i++) {
+              if (sel.options[i].value === selectedHref) {
+                sel.selectedIndex = i;
+                // 触发onchange事件以更新任务链接
+                if (sel.onchange) {
+                  sel.onchange();
+                }
+                break;
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("恢复选中项失败:", e);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("恢复下拉框选项失败:", e);
+  }
 
   // 抓取 + 清空 + 下拉变化
   try{
@@ -316,6 +359,13 @@ document.addEventListener("DOMContentLoaded", async ()=>{
         const href = sel.value;
         const abs = href ? new URL("http://pha.tp-link.com.cn" + href).href : "";
         setTaskLink(abs || "");
+        
+        // 保存选中的项到localStorage
+        try {
+          chrome.storage.local.set({ 'phaPanelSelectedItem': href });
+        } catch (e) {
+          console.warn("保存选中项失败:", e);
+        }
       };
     }
   }catch(e){ console.warn("list binds fail:", e); }
