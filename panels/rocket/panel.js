@@ -91,10 +91,10 @@ import { persistField } from '../../shared/persist.js';
     if (!ok) { log('当前页不在 Rocket 域名，忽略'); return; }
 
     // 读配置（确保已落库）
-    const got = await chrome.storage.local.get({ 'rocketMsgLimit': 20, 'rocketPrompt': '', 'rocketUserName': '' });
+    const got = await chrome.storage.local.get({ 'rocketMsgLimit': 20, 'rocketPrompt': '', 'rocketUserName': '刘民心' });
     const limit = Math.max(1, Math.min(200, Number(got['rocketMsgLimit'] || 20)));
     const prompt = got['rocketPrompt'] || '';
-    const userName = got['rocketUserName'] || '';
+    const userName = got['rocketUserName'] || '刘民心';
 
     // 设置请求状态为进行中
     isRequestInProgress = true;

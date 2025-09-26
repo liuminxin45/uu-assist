@@ -31,17 +31,12 @@
           <span id="badge" class="pill">空闲</span>
         </div>
 
-        <label for="msgLimit">参与消息条数</label>
-        <input id="msgLimit" type="number" min="1" max="200" step="1" value="20" />
-
-        <label for="autoListen">自动监听</label>
-        <div class="split">
-          <div class="switch-ai" style="display:flex; align-items:center;"><input id="autoListen" type="checkbox" checked title="自动监听生成开关" style="border: 1px solid #e5e7eb; width:16px; height:16px; opacity:1;"><label for="autoListen" style="margin:0; margin-left:8px;">👂</label></div>
-          <span style="color:var(--muted);font-size:12px">开启后将自动抓取最近消息并生成建议</span>
+        <div class="row split">
+          <input id="msgLimit" type="number" min="1" max="200" step="1" value="20" />
+            <div class="switch-ai" style="display:flex; align-items:center;"><input id="autoListen" type="checkbox" checked title="自动监听生成开关" style="border: 1px solid #e5e7eb; width:16px; height:16px; opacity:1;"><label for="autoListen" style="margin:0; margin-left:8px;">👂</label></div>
+          <input id="userName" type="text" value="刘民心" style="display: none;" />
         </div>
 
-        <label for="userName">姓名</label>
-        <input id="userName" type="text" placeholder="默认从页面提取" />
 
         <!-- 自定义 Prompt UI，暂隐藏
         <label for="prompt">自定义 Prompt</label>
