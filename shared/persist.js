@@ -1,8 +1,22 @@
 // shared/persist.js
-function debounce(fn, wait=300){ let t; return Object.assign(
-  (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), wait); },
-  { flush:()=>{ clearTimeout(t); fn(); } }
-);}
+function debounce(fn, wait=300){ 
+  let t; 
+  return Object.assign(
+    (...a)=>{ 
+      clearTimeout(t); 
+      t=setTimeout(()=>fn(...a), wait); 
+    },
+    { 
+      flush:()=>{ 
+        clearTimeout(t); 
+        // 安全调用fn函数
+        if (typeof fn === 'function') { 
+          fn(); 
+        } 
+      } 
+    }
+  );
+}
 
 function getVal(el){
   if (el.dataset?.persistAttr) return el.getAttribute(el.dataset.persistAttr) ?? "";
@@ -26,16 +40,59 @@ function setVal(el, v){
 
 export function persistField(el, key){
   if (!el || !key) return;
-  chrome.storage.local.get(key, obj => setVal(el, obj?.[key]));
-  const save = debounce(()=> chrome.storage.local.set({ [key]: getVal(el) }), 250);
-  const evs = el.isContentEditable ? ["input","blur","keyup"] : ["input","change","blur","keyup"];
-  evs.forEach(e=> el.addEventListener(e, save));
-  document.addEventListener("visibilitychange", ()=>{ if (document.hidden) save.flush(); });
+  
+  let save;
+  
+  // 检查是否在Chrome扩展环境中
+  if (typeof chrome !== 'undefined' && chrome.storage) {
+    chrome.storage.local.get(key, obj => setVal(el, obj?.[key]));
+    save = debounce(()=> chrome.storage.local.set({ [key]: getVal(el) }), 250);
+  } else {
+    // 如果不是Chrome扩展环境，尝试使用localStorage
+    try {
+      const savedValue = localStorage.getItem(key);
+      if (savedValue) {
+        try {
+          setVal(el, JSON.parse(savedValue));
+        } catch (e) {
+          setVal(el, savedValue);
+        }
+      }
+      save = debounce(() => {
+        try {
+          localStorage.setItem(key, JSON.stringify(getVal(el)));
+        } catch (error) {
+          console.warn('保存数据失败:', error);
+        }
+      }, 250);
+    } catch (error) {
+      console.warn('加载数据失败:', error);
+      // 创建一个空的save函数作为回退
+      save = debounce(() => {}, 250);
+    }
+  }
+  
+  if (save) {
+    const evs = el.isContentEditable ? ["input","blur","keyup"] : ["input","change","blur","keyup"];
+    evs.forEach(e=> el.addEventListener(e, save));
+    document.addEventListener("visibilitychange", ()=>{ if (document.hidden && save.flush) save.flush(); });
+  }
 }
 
 export function setAndPersist(el, key, value){
   setVal(el, value);
-  chrome.storage.local.set({ [key]: getVal(el) });
+  
+  // 检查是否在Chrome扩展环境中
+  if (typeof chrome !== 'undefined' && chrome.storage) {
+    chrome.storage.local.set({ [key]: getVal(el) });
+  } else {
+    // 如果不是Chrome扩展环境，尝试使用localStorage
+    try {
+      localStorage.setItem(key, JSON.stringify(getVal(el)));
+    } catch (error) {
+      console.warn('保存数据失败:', error);
+    }
+  }
 }
 
 function cssPath(el){
@@ -56,10 +113,29 @@ export async function autoPersistEverything(opts = {}) {
   const selector = opts.selector ||
   'input, textarea, select, [contenteditable="true"], [contenteditable=""], [data-persist]';
 
-  // 兼容 MV2/MV3 的 storage.get
+  // 兼容 MV2/MV3 的 storage.get 以及非Chrome环境
   const storageGet = (key) => new Promise(res => {
     try {
-      chrome.storage.local.get(key, obj => res(obj || {}));
+      // 检查是否在Chrome扩展环境中
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        chrome.storage.local.get(key, obj => res(obj || {}));
+      } else {
+        // 如果不是Chrome扩展环境，尝试使用localStorage
+        const result = {};
+        try {
+          const savedValue = localStorage.getItem(key);
+          if (savedValue !== null) {
+            try {
+              result[key] = JSON.parse(savedValue);
+            } catch (e) {
+              result[key] = savedValue;
+            }
+          }
+        } catch (error) {
+          console.warn('加载数据失败:', error);
+        }
+        res(result);
+      }
     } catch {
       res({});
     }
@@ -90,14 +166,25 @@ export async function autoPersistEverything(opts = {}) {
     const save = debounce(() => {
       // 单选：只在当前按钮被选中时写入，避免写入 null 覆盖
       if (el.type === "radio" && !el.checked) return;
-      chrome.storage.local.set({ [key]: getVal(el) });
+      
+      // 检查是否在Chrome扩展环境中
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        chrome.storage.local.set({ [key]: getVal(el) });
+      } else {
+        // 如果不是Chrome扩展环境，尝试使用localStorage
+        try {
+          localStorage.setItem(key, JSON.stringify(getVal(el)));
+        } catch (error) {
+          console.warn('保存数据失败:', error);
+        }
+      }
     }, 250);
 
     const evs = el.isContentEditable ? ["input", "keyup", "blur"] : ["input", "change", "blur", "keyup"];
     evs.forEach(e => el.addEventListener(e, save));
 
-    // 失焦/页面隐藏/关闭时冲刷
-    document.addEventListener("visibilitychange", () => { if (document.hidden) save.flush(); });
-    window.addEventListener("beforeunload", () => save.flush());
+    // 失焦/页面隐藏/关闭时冲刷 - 安全调用flush
+    document.addEventListener("visibilitychange", () => { if (document.hidden && save && typeof save.flush === 'function') save.flush(); });
+    window.addEventListener("beforeunload", () => { if (save && typeof save.flush === 'function') save.flush(); });
   }
 }

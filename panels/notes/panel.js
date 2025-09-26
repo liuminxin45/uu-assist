@@ -15,21 +15,48 @@ const fullscreenImage = document.getElementById('fullscreen-image');
 // 状态变量
 let currentSearchTerm = '';
 
-// 内存存储的笔记数据
-let notes = [
-    {
-        id: 'note_1',
-        content: '这是一条测试笔记',
-        timestamp: Date.now() - 3600000,
-        isImage: false
-    },
-    {
-        id: 'note_2',
-        content: '这是另一条测试笔记',
-        timestamp: Date.now() - 1800000,
-        isImage: false
+// 笔记数据
+let notes = [];
+
+// 从存储中加载笔记数据
+function loadNotesFromStorage() {
+    try {
+        // 尝试从Chrome存储加载数据
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+            chrome.storage.local.get('notes_data', (result) => {
+                if (result && result.notes_data) {
+                    notes = result.notes_data;
+                }
+                renderNotes();
+            });
+        } else {
+            // 如果没有Chrome API，尝试从localStorage加载
+            const savedNotes = localStorage.getItem('notes_data');
+            if (savedNotes) {
+                notes = JSON.parse(savedNotes);
+            }
+            renderNotes();
+        }
+    } catch (error) {
+        console.error('加载笔记数据失败:', error);
+        renderNotes();
     }
-];
+}
+
+// 保存笔记数据到存储
+function saveNotesToStorage() {
+    try {
+        // 尝试保存到Chrome存储
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+            chrome.storage.local.set({ 'notes_data': notes });
+        } else {
+            // 如果没有Chrome API，保存到localStorage
+            localStorage.setItem('notes_data', JSON.stringify(notes));
+        }
+    } catch (error) {
+        console.error('保存笔记数据失败:', error);
+    }
+}
 
 // 初始化应用
 function initApp() {
@@ -60,8 +87,8 @@ function initApp() {
         fullscreenPreview.addEventListener('click', hideFullscreenPreview);
     }
     
-    // 渲染笔记列表
-    renderNotes();
+    // 从存储中加载笔记数据
+    loadNotesFromStorage();
 }
 
 // 初始化
@@ -165,26 +192,40 @@ function removeImagePreview() {
 function addNote() {
     if (!noteInput) return;
     
-    let content = noteInput.value.trim();
+    const textContent = noteInput.value.trim();
     const imageData = noteInput.dataset.imageData;
     
-    // 如果有图片数据，优先使用图片数据
-    if (imageData) {
-        content = imageData;
-    }
+    // 如果没有内容，则不创建笔记
+    if (!textContent && !imageData) return;
     
-    if (!content) return;
-    
-    // 创建新笔记
+    // 创建新笔记对象
     const newNote = {
         id: `note_${Date.now()}`,
-        content: content,
-        timestamp: Date.now(),
-        isImage: content.startsWith('data:image/')
+        timestamp: Date.now()
+    };
+    
+    // 根据内容类型设置属性
+    if (imageData && textContent) {
+        // 如果同时有图片和文字，保存两种内容
+        newNote.content = textContent;
+        newNote.imageData = imageData;
+        newNote.hasImage = true;
+        newNote.isImage = false; // 不是纯图片笔记
+    } else if (imageData) {
+        // 如果只有图片
+        newNote.content = imageData;
+        newNote.isImage = true;
+    } else {
+        // 如果只有文字
+        newNote.content = textContent;
+        newNote.isImage = false;
     };
     
     // 添加到笔记列表
     notes.unshift(newNote);
+    
+    // 保存到存储
+    saveNotesToStorage();
     
     // 清空输入框和预览
     resetInput();
@@ -236,9 +277,20 @@ function renderNotes() {
     
     // 如果有搜索词，则过滤笔记
     if (currentSearchTerm) {
-        filteredNotes = notes.filter(note => 
-            note.content.toLowerCase().includes(currentSearchTerm)
-        );
+        filteredNotes = notes.filter(note => {
+            // 对于同时有图片和文字的笔记，搜索文字部分
+            if (note.hasImage && note.content) {
+                return note.content.toLowerCase().includes(currentSearchTerm);
+            }
+            // 对于纯图片笔记，不进行搜索（因为图片数据是base64，搜索没有意义）
+            else if (note.isImage) {
+                return false;
+            }
+            // 对于纯文字笔记，搜索文字内容
+            else {
+                return note.content.toLowerCase().includes(currentSearchTerm);
+            }
+        });
         
         if (filteredNotes.length === 0) {
             showNoSearchResults();
@@ -259,12 +311,33 @@ function createNoteCard(note) {
     card.className = 'note-card';
     card.dataset.id = note.id;
     
+    // 先创建时间元素，放在卡片最上方
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'note-time';
+    timeDiv.textContent = formatTime(note.timestamp);
+    
     const contentDiv = document.createElement('div');
     contentDiv.className = 'note-content';
     
-    // 检查内容是否为图片
-    if (note.isImage) {
-        // 如果是图片，创建img元素
+    // 检查是否同时包含图片和文字
+    if (note.hasImage && note.imageData) {
+        // 先添加图片
+        const img = document.createElement('img');
+        img.src = note.imageData;
+        img.className = 'note-image';
+        img.alt = '笔记图片';
+        img.onclick = () => previewFullImage(note.imageData);
+        contentDiv.appendChild(img);
+        
+        // 再添加文字（如果有）
+        if (note.content && note.content.trim()) {
+            const textDiv = document.createElement('div');
+            textDiv.className = 'note-text';
+            textDiv.textContent = note.content;
+            contentDiv.appendChild(textDiv);
+        }
+    } else if (note.isImage) {
+        // 如果只有图片，创建img元素
         const img = document.createElement('img');
         img.src = note.content;
         img.className = 'note-image';
@@ -272,13 +345,9 @@ function createNoteCard(note) {
         img.onclick = () => previewFullImage(note.content);
         contentDiv.appendChild(img);
     } else {
-        // 否则显示文本内容
+        // 如果只有文字，显示文本内容
         contentDiv.textContent = note.content;
     }
-    
-    const timeDiv = document.createElement('div');
-    timeDiv.className = 'note-time';
-    timeDiv.textContent = formatTime(note.timestamp);
     
     const actionsDiv = document.createElement('div');
     actionsDiv.className = 'note-actions';
@@ -296,8 +365,9 @@ function createNoteCard(note) {
     actionsDiv.appendChild(editBtn);
     actionsDiv.appendChild(deleteBtn);
     
-    card.appendChild(contentDiv);
+    // 调整元素顺序：时间 -> 内容 -> 操作按钮
     card.appendChild(timeDiv);
+    card.appendChild(contentDiv);
     card.appendChild(actionsDiv);
     
     return card;
@@ -320,15 +390,26 @@ function hideFullscreenPreview() {
 function editNote(note) {
     if (!noteInput) return;
     
-    // 如果是图片笔记
-    if (note.isImage) {
+    // 先清空输入框和预览
+    noteInput.value = '';
+    noteInput.removeAttribute('data-image-data');
+    previewContainer.style.display = 'none';
+    
+    // 检查是否同时包含图片和文字
+    if (note.hasImage && note.imageData) {
         // 显示图片预览
+        noteInput.dataset.imageData = note.imageData;
+        showImagePreview(note.imageData);
+        
+        // 填充文本内容
+        noteInput.value = note.content || '';
+    } else if (note.isImage) {
+        // 如果只有图片
         noteInput.dataset.imageData = note.content;
-        noteInput.value = '';
         showImagePreview(note.content);
     } else {
-        // 填充文本内容
-        noteInput.value = note.content;
+        // 如果只有文字
+        noteInput.value = note.content || '';
     }
     
     // 更新按钮状态
@@ -349,6 +430,9 @@ function editNote(note) {
 function deleteNote(noteId) {
     // 从笔记列表中删除
     notes = notes.filter(note => note.id !== noteId);
+    
+    // 保存到存储
+    saveNotesToStorage();
     
     // 重新渲染笔记列表
     renderNotes();
@@ -373,26 +457,15 @@ function showNoSearchResults() {
     notesContainer.appendChild(noResultsMsg);
 }
 
-// 格式化时间
+// 格式化时间 - 显示完整的日期和时间
 function formatTime(timestamp) {
     const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
     
-    if (diffMins < 1) {
-        return '刚刚';
-    } else if (diffMins < 60) {
-        return `${diffMins}分钟前`;
-    } else if (diffHours < 24) {
-        return `${diffHours}小时前`;
-    } else if (diffDays < 7) {
-        return `${diffDays}天前`;
-    } else {
-        const month = date.getMonth() + 1;
-        const day = date.getDate();
-        return `${month}月${day}日`;
-    }
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
