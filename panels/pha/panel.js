@@ -135,16 +135,23 @@ async function loadConfig(){
   // 返回 {}，避免解构或属性访问报错
   const got = await chrome.storage.local.get(null).catch(()=> ({}));
 
-  // 安全读取 listUrl
+  // 安全读取配置
   let url = "";
+  let userName = "";
   if (got && typeof got === "object" && got.cfg && typeof got.cfg === "object") {
     const v = got.cfg.listUrl;
     if (typeof v === "string" && v.trim() !== "") url = v.trim();
+    
+    const un = got.cfg.userName;
+    if (typeof un === "string") userName = un;
   }
 
   // 安全写 DOM
   const elUrl = document.getElementById("listUrl");
   if (elUrl && url) elUrl.value = url;
+  
+  const elUserName = document.getElementById("userName");
+  if (elUserName) elUserName.value = userName;
 }
 
   
@@ -464,8 +471,10 @@ try{
     };
     const listUrl = $("listUrl");
     const tplArea = $("tplArea");
+    const userName = $("userName");
     listUrl?.addEventListener("input", ()=> saveCfg("listUrl", listUrl.value.trim()));
     tplArea?.addEventListener("input", ()=> saveCfg("tmpl", tplArea.value));
+    userName?.addEventListener("input", ()=> saveCfg("userName", userName.value.trim()));
   }catch(e){ console.warn("autosave bind fail:", e); }
 
   // AI 配置与预设

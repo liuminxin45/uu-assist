@@ -44,10 +44,10 @@
     return tab;
   }
 
-  // --- save config
-  $('#btnSave').addEventListener('click', async () => {
+  // --- save config function
+  async function saveConfig() {
     const limit = Math.max(1, Math.min(200, Number($limit.value || 20)));
-    const prompt = $prompt.value || '';
+    const prompt = $prompt?.value || '';
     const autoListen = $autoListen.checked;
     const userName = $userName.value || '';
     
@@ -58,7 +58,7 @@
       [K.userName]: userName
     });
     
-    log(`配置已保存：limit=${limit}，prompt=${prompt ? '自定义' : '预置'}，自动监听=${autoListen ? '开启' : '关闭'}，姓名=${userName || '自动提取'}`);
+    log(`配置已保存：limit=${limit}，自动监听=${autoListen ? '开启' : '关闭'}，姓名=${userName || '自动提取'}`);
     setBadge('已保存', true);
     
     // 通知内容脚本更新配置
@@ -70,10 +70,22 @@
     } catch (e) {
       // 忽略错误
     }
-  });
+  }
 
-  // --- clear status
-  $('#btnClear').addEventListener('click', () => { statusEl.textContent = ''; setBadge('空闲', false); });
+  // --- 添加自动保存功能
+  $limit.addEventListener('change', saveConfig);
+  $autoListen.addEventListener('change', saveConfig);
+  $userName.addEventListener('change', saveConfig);
+  // 为输入框添加防抖的输入事件监听
+  let saveTimeout;
+  $limit.addEventListener('input', () => {
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(saveConfig, 300);
+  });
+  $userName.addEventListener('input', () => {
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(saveConfig, 300);
+  });
 
   // --- trigger generation
   $('#btnGen').addEventListener('click', async () => {
