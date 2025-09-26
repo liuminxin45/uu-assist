@@ -529,10 +529,26 @@ try{
 
   // AI 配置与预设
   try{
-    const cfg = await loadAICfg().catch(()=>({enabled:false}));
+    const cfg = await loadAICfg().catch(err => {
+      console.warn("加载AI配置失败:", err);
+      return {enabled:false};
+    });
     const chk = $("chkAI");
     const tpl = $("tplArea");
-    if (chk) chk.checked = !!cfg.enabled;
+    if (chk) {
+      chk.checked = !!cfg.enabled;
+      
+      // 勾选变化即存
+      chk.addEventListener("change", async ()=>{
+        try {
+          const cur = await loadAICfg().catch(()=>({}));
+          cur.enabled = !!chk.checked;
+          await saveAICfg(cur);
+        } catch (e) {
+          console.warn("保存AI启用状态失败:", e);
+        }
+      });
+    }
     if (tpl && !tpl.value.trim()) tpl.value = "{{timestamp}}\n# {{AITitle}}\n\n{{AIResponse}}\n\n{{正文}}";
 
     const btnEdit = $("btnEditPrompt");
@@ -563,12 +579,7 @@ try{
         await saveAICfg(updated);
         closeDlg();
       });
-      // 勾选变化即存
-      chk?.addEventListener("change", async ()=>{
-        const cur = await loadAICfg().catch(()=>({}));
-        cur.enabled = !!chk.checked;
-        await saveAICfg(cur);
-      });
+      // 事件监听器已在前面添加，这里不再重复绑定
     }
   }catch(e){
     console.warn("AI init fail:", e);

@@ -254,7 +254,7 @@ function extractMessagesInOrder(limit){
   return limit ? list.slice(-limit) : list;
 }
 
-async function genSuggestionWithDeepSeek(messages, promptOverride){
+async function genSuggestionWithDeepSeek(messages, promptOverride, userNameParam){
   const ai = await new Promise(res => {
     try {
       // 检查扩展上下文是否有效
@@ -273,25 +273,13 @@ async function genSuggestionWithDeepSeek(messages, promptOverride){
   if (!ai || !ai.base || !ai.model || !ai.key) return { text:'', tokens:0 };
 
   const rocketCfg = await loadRocketCfg();
-  // 检查是否需要添加视角信息
-  const userName = rocketCfg.userName || '';
+  // 检查是否需要添加视角信息，优先使用传入的参数
+  const userName = userNameParam || rocketCfg.userName || '';
   let perspectiveText = '';
   
-  // 检查聊天内容中是否包含该用户
+  // 检查是否提供了用户名
   if (userName) {
-    // 将用户名转为小写进行比较
-    const lowerUserName = userName.toLowerCase();
-    // 检查最近消息中是否包含该用户名
-    const containsUser = messages.some(msg => 
-      msg.user.toLowerCase().includes(lowerUserName) || 
-      msg.message.toLowerCase().includes(lowerUserName) ||
-      // 也检查中文名称（假设姓和名可能分开）
-      (msg.user.includes('刘') && msg.user.includes('民心'))
-    );
-    
-    if (containsUser) {
-      perspectiveText = `请从"${userName}"的视角和立场来生成回复，保持符合该用户的说话风格和身份。`;
-    }
+    perspectiveText = `请从"${userName}"的视角和立场来生成回复，保持符合该用户的说话风格和身份。`;
   }
   
   // 先确定基础Prompt（可以是自定义的或预置的）
@@ -377,8 +365,11 @@ function sendStatusLog(message) {
       const msgs = extractMessagesInOrder(limit);
       if (!msgs.length) { sendResponse({ ok:false, error:'未检测到聊天消息' }); return; }
 
+      // 获取用户名（优先使用面板传递的值）
+      const userName = msg.userName || (await loadRocketCfg()).userName || '';
+      
       // 生成
-      const { text, tokens } = await genSuggestionWithDeepSeek(msgs, msg.promptOverride || '');
+      const { text, tokens } = await genSuggestionWithDeepSeek(msgs, msg.promptOverride || '', userName);
       if (!text) { sendResponse({ ok:false, error:'AI 未返回内容' }); return; }
 
       // 将 AI 建议写入“灰色候选”
