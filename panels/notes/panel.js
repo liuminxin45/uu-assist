@@ -333,7 +333,8 @@ function createNoteCard(note) {
         if (note.content && note.content.trim()) {
             const textDiv = document.createElement('div');
             textDiv.className = 'note-text';
-            textDiv.textContent = note.content;
+            // 处理#标签
+            textDiv.innerHTML = formatNoteContent(note.content);
             contentDiv.appendChild(textDiv);
         }
     } else if (note.isImage) {
@@ -345,33 +346,75 @@ function createNoteCard(note) {
         img.onclick = () => previewFullImage(note.content);
         contentDiv.appendChild(img);
     } else {
-        // 如果只有文字，显示文本内容
-        contentDiv.textContent = note.content;
+        // 如果只有文字，显示文本内容（带#标签处理）
+        contentDiv.innerHTML = formatNoteContent(note.content);
     }
     
-    const actionsDiv = document.createElement('div');
-    actionsDiv.className = 'note-actions';
+    // 创建右上角的更多按钮容器
+    const moreMenuContainer = document.createElement('div');
+    moreMenuContainer.className = 'more-menu-container';
     
-    const editBtn = document.createElement('button');
-    editBtn.className = 'action-btn';
-    editBtn.textContent = '编辑';
-    editBtn.addEventListener('click', () => editNote(note));
+    // 创建更多按钮
+    const moreBtn = document.createElement('button');
+    moreBtn.className = 'more-btn';
+    moreBtn.textContent = '...';
+    moreBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const menu = moreBtn.nextElementSibling;
+        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    });
     
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'action-btn delete';
-    deleteBtn.textContent = '删除';
-    deleteBtn.addEventListener('click', () => deleteNote(note.id));
+    // 创建下拉菜单
+    const dropMenu = document.createElement('div');
+    dropMenu.className = 'drop-menu';
+    dropMenu.style.display = 'none';
     
-    actionsDiv.appendChild(editBtn);
-    actionsDiv.appendChild(deleteBtn);
+    // 创建编辑选项
+    const editOption = document.createElement('div');
+    editOption.className = 'menu-option';
+    editOption.textContent = '编辑';
+    editOption.addEventListener('click', () => {
+        editNote(note);
+        dropMenu.style.display = 'none';
+    });
     
-    // 调整元素顺序：时间 -> 内容 -> 操作按钮
+    // 创建删除选项
+    const deleteOption = document.createElement('div');
+    deleteOption.className = 'menu-option delete';
+    deleteOption.textContent = '删除';
+    deleteOption.addEventListener('click', () => {
+        deleteNote(note.id);
+        dropMenu.style.display = 'none';
+    });
+    
+    // 组装下拉菜单
+    dropMenu.appendChild(editOption);
+    dropMenu.appendChild(deleteOption);
+    
+    // 将更多按钮和下拉菜单添加到容器
+    moreMenuContainer.appendChild(moreBtn);
+    moreMenuContainer.appendChild(dropMenu);
+    
+    // 调整元素顺序：时间 -> 内容 -> 更多菜单
     card.appendChild(timeDiv);
     card.appendChild(contentDiv);
-    card.appendChild(actionsDiv);
+    card.appendChild(moreMenuContainer);
+    
+    // 点击卡片其他区域关闭下拉菜单
+    card.addEventListener('click', () => {
+        dropMenu.style.display = 'none';
+    });
     
     return card;
 }
+
+// 点击页面其他区域关闭所有下拉菜单
+document.addEventListener('click', () => {
+    const allDropMenus = document.querySelectorAll('.drop-menu');
+    allDropMenus.forEach(menu => {
+        menu.style.display = 'none';
+    });
+});
 
 // 预览全屏图片
 function previewFullImage(imageData) {
@@ -468,4 +511,31 @@ function formatTime(timestamp) {
     const seconds = String(date.getSeconds()).padStart(2, '0');
     
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+// 格式化笔记内容，处理#标签
+function formatNoteContent(content) {
+    if (!content) return '';
+    
+    // 转义HTML特殊字符，避免XSS
+    const escapeHtml = (text) => {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    };
+    
+    // 先转义，再替换#标签
+    const escapedContent = escapeHtml(content);
+    
+    // 匹配#标签（#后面跟字母、数字、下划线）
+    return escapedContent.replace(/#([a-zA-Z0-9_]+)/g, '<span class="note-tag" onclick="handleTagClick(event, \'$1\')">#$1</span>');
+}
+
+// 处理标签点击事件
+function handleTagClick(event, tagName) {
+    event.preventDefault();
+    event.stopPropagation();
+    // 这里可以实现点击标签后的逻辑，例如搜索该标签的所有笔记
+    console.log('点击标签:', tagName);
+    // 可以添加搜索功能，或者高亮显示该标签的所有笔记等
 }

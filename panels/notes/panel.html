@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -24,7 +25,8 @@
             box-sizing: border-box;
         }
 
-        html, body {
+        html,
+        body {
             height: 100%;
         }
 
@@ -69,10 +71,6 @@
         .header {
             padding: 12px;
             background-color: #fff;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            align-items: stretch;
             border-bottom: 1px solid var(--border-color);
         }
 
@@ -80,6 +78,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 12px;
         }
 
         .header h2 {
@@ -124,7 +123,8 @@
 
         .note-input {
             width: 100%;
-            padding: 12px;
+            padding: 12px 80px 12px 12px;
+            /* 右侧留出按钮空间 */
             border: 1px solid var(--border-color);
             border-radius: 6px;
             font-size: 14px;
@@ -180,21 +180,28 @@
             background-color: white;
         }
 
-        /* 添加按钮 */
-        .add-note-btn {
-            padding: 8px 16px;
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background-color 0.2s;
+        /* 添加按钮 - 定位在输入框内右下角 */
+        .add-note-wrapper {
+            position: relative;
         }
 
-        .add-note-btn:hover:not(:disabled) {
-            background-color: #3B7AE0;
+        .add-note-btn {
+            position: absolute;
+            right: 4px;
+            bottom: 4px;
+            padding: 8px 12px;
+            background-color: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 1;
+        }
+
+        .add-note-btn:hover {
+            background-color: var(--hover-bg);
+            border-color: var(--primary-color);
         }
 
         .add-note-btn:disabled {
@@ -249,32 +256,88 @@
             margin-bottom: 8px;
         }
 
-        .note-actions {
-            display: flex;
-            gap: 8px;
+        /* 笔记标签样式 */
+        .note-tag {
+            background-color: #3B82F6;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background-color 0.2s;
+            margin: 0 2px;
         }
 
-        .action-btn {
-            padding: 4px 8px;
+        .note-tag:hover {
+            background-color: #2563EB;
+        }
+
+        /* 更多按钮和下拉菜单样式 */
+        .more-menu-container {
+            position: relative;
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 8px;
+        }
+
+        .more-btn {
+            width: 24px;
+            height: 24px;
+            padding: 0;
             background-color: transparent;
             border: 1px solid var(--border-color);
             border-radius: 4px;
-            font-size: 12px;
+            font-size: 16px;
+            font-weight: bold;
             cursor: pointer;
-            transition: background-color 0.2s, border-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            opacity: 0;
         }
 
-        .action-btn:hover {
+        /* 卡片悬浮时显示更多按钮 */
+        .note-card:hover .more-btn {
+            opacity: 1;
+        }
+
+        .more-btn:hover {
             background-color: var(--hover-bg);
             border-color: var(--primary-color);
         }
 
-        .action-btn.delete {
-            border-color: var(--error-color);
+        .drop-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 4px;
+            background-color: white;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            min-width: 80px;
+            z-index: 10;
+            overflow: hidden;
+        }
+
+        .menu-option {
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-size: 14px;
+        }
+
+        .menu-option:hover {
+            background-color: var(--hover-bg);
+        }
+
+        .menu-option.delete {
             color: var(--error-color);
         }
 
-        .action-btn.delete:hover {
+        .menu-option.delete:hover {
             background-color: rgba(239, 68, 68, 0.1);
         }
 
@@ -347,6 +410,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="content-wrapper">
@@ -354,24 +418,21 @@
                 <div class="header">
                     <div class="header-top">
                         <h2>Notes</h2>
+                        <div class="search-container">
+                            <input type="text" id="search-input" class="search-input" placeholder="搜索笔记...">
+                        </div>
                     </div>
                 </div>
 
                 <div class="input-section">
                     <div class="note-input-wrapper">
-                        <textarea id="note-input" class="note-input" placeholder="输入笔记内容，按回车发送，或粘贴图片..." rows="1"></textarea>
+                        <div class="add-note-wrapper">
+                            <textarea id="note-input" class="note-input" placeholder="" rows="1"></textarea>
+                        </div>
                         <div id="image-preview-container" class="image-preview-container-input" style="display: none;">
                             <img id="image-preview" class="image-preview-input" src="" alt="预览图片">
                             <button id="remove-image-btn" class="remove-image-btn">×</button>
                         </div>
-                    </div>
-                    <button id="add-note-btn">添加</button>
-                </div>
-                
-                <!-- 搜索控件移到这里 -->
-                <div style="padding: 12px;">
-                    <div class="search-container">
-                        <input type="text" id="search-input" class="search-input" placeholder="搜索笔记...">
                     </div>
                 </div>
 
@@ -385,7 +446,7 @@
                 </div>
             </div>
         </div>
-        
+
         <nav class="rail" aria-label="面板切换">
             <button class="railbtn" data-target="pha-panel" title="PHA" aria-label="PHA">👁️</button>
             <button class="railbtn" data-target="rocket-panel" title="Rocket" aria-label="Rocket">🚀</button>
@@ -403,4 +464,5 @@
     <script src="panel.js"></script>
     <script src="../../rail.js" type="module"></script>
 </body>
+
 </html>

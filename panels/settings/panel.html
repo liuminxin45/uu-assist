@@ -1,5 +1,7 @@
+
 <!doctype html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -24,7 +26,8 @@
             box-sizing: border-box;
         }
 
-        html, body {
+        html,
+        body {
             height: 100%;
         }
 
@@ -90,15 +93,50 @@
         }
 
         /* Settings特有样式 */
-        .row { margin-top: 10px; }
-        .split { display: flex; gap: 8px; align-items: center; }
-        .split > :first-child { flex: 1; min-width: 0; }
-        label { display: block; margin: 8px 0 6px; color: var(--secondary-color); font-weight: 600; }
-        .muted { color: var(--secondary-color); }
-        .section-title { font-weight: 700; margin: 4px 0 8px; }
-        .kv { display: grid; grid-template-columns: 120px 1fr; gap: 8px; align-items: center; }
-        .hint { font-size: 12px; color: var(--secondary-color); margin-top: 6px; }
-        
+        .row {
+            margin-top: 10px;
+        }
+
+        .split {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .split> :first-child {
+            flex: 1;
+            min-width: 0;
+        }
+
+        label {
+            display: block;
+            margin: 8px 0 6px;
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .muted {
+            color: var(--secondary-color);
+        }
+
+        .section-title {
+            font-weight: 700;
+            margin: 4px 0 8px;
+        }
+
+        .kv {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: var(--secondary-color);
+            margin-top: 6px;
+        }
+
         /* 输入框样式 - 与notes面板保持一致 */
         .input-common,
         input[type="text"],
@@ -156,7 +194,7 @@
             border-radius: 12px;
             margin: 16px 8px 16px 0;
         }
-        
+
         .railbtn {
             width: 40px;
             height: 40px;
@@ -170,17 +208,18 @@
             align-items: center;
             justify-content: center;
         }
-        
+
         .railbtn:hover {
             background-color: #f0f0f0;
         }
-        
+
         .railbtn.active {
             background-color: #e3f2fd;
             color: #1976d2;
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="content-wrapper">
@@ -190,88 +229,50 @@
                         <h2>Settings</h2>
                     </div>
                 </div>
-                
+
                 <div style="padding: 16px;">
                     <div class="row">
                         <div style="margin-bottom: 16px;">
                             <label for="aiBase">AI 基础 URL</label>
-                            <input
-                                id="aiBase"
-                                class="input-common"
-                                type="text"
-                                value="https://api.deepseek.com/v1"
-                            />
+                            <input id="aiBase" class="input-common" type="text" value="https://api.deepseek.com/v1" />
                         </div>
 
                         <div style="margin-bottom: 16px;">
                             <label for="aiModel">AI 模型</label>
-                            <input
-                                id="aiModel"
-                                class="input-common"
-                                type="text"
-                                value="deepseek-chat"
-                            />
+                            <input id="aiModel" class="input-common" type="text" value="deepseek-chat" />
                         </div>
 
                         <div style="margin-bottom: 16px;">
                             <label for="aiKey">API 密钥</label>
-                            <input
-                                id="aiKey"
-                                class="input-common"
-                                type="text"
-                                placeholder="sk-24dbbd8a266a463a8706aae3f8f64372"
-                            />
+                            <input id="aiKey" class="input-common" type="text"
+                                placeholder="sk-24dbbd8a266a463a8706aae3f8f64372" />
                         </div>
 
                         <div>
                             <label for="aiPrompt">AI 提示</label>
-                            <textarea
-                                id="aiPrompt"
-                                class="input-common"
-                                rows="5"
-                                placeholder='你是助手。请根据给定正文：1) 生成≤40字的小标题；2) 生成简洁概述。以严格JSON返回：{"title":"...", "reply":"..."}'
-                            ></textarea>
+                            <textarea id="aiPrompt" class="input-common" rows="5"
+                                placeholder='你是助手。请根据给定正文：1) 生成≤40字的小标题；2) 生成简洁概述。以严格JSON返回：{"title":"...", "reply":"..."}'></textarea>
                         </div>
                     </div>
 
-                    <div
-                        class="row"
-                        style="
+                    <div class="row" style="
                             display: flex;
                             gap: 8px;
                             justify-content: space-between;
                             align-items: center;
-                        "
-                    >
+                        ">
                         <div style="display: flex; gap: 8px">
-                            <button
-                                id="btnExport"
-                                class="btn-common"
-                                title="导出配置与历史Post"
-                            >
+                            <button id="btnExport" class="btn-common" title="导出配置与历史Post">
                                 导出
                             </button>
-                            <input
-                                id="importFile"
-                                type="file"
-                                accept="application/json"
-                                style="display: none"
-                            />
-                            <button
-                                id="btnImport"
-                                class="btn-common"
-                                title="导入配置与历史Post"
-                            >
+                            <input id="importFile" type="file" accept="application/json" style="display: none" />
+                            <button id="btnImport" class="btn-common" title="导入配置与历史Post">
                                 导入
                             </button>
                         </div>
                         <div style="display: flex; gap: 8px">
                             <button id="btnReset" class="btn-common">重置</button>
-                            <button
-                                id="btnSave"
-                                class="btn-primary"
-                                title="保存设置"
-                            >
+                            <button id="btnSave" class="btn-primary" title="保存设置">
                                 保存
                             </button>
                         </div>
@@ -279,7 +280,7 @@
                 </div>
             </div>
         </div>
-        
+
         <nav class="rail" aria-label="面板切换">
             <button class="railbtn" data-target="pha-panel" title="PHA" aria-label="PHA">👁️</button>
             <button class="railbtn" data-target="rocket-panel" title="Rocket" aria-label="Rocket">🚀</button>
@@ -292,4 +293,5 @@
     <script defer src="settings.js"></script>
     <script type="module" src="../persist-init.js"></script>
 </body>
+
 </html>
