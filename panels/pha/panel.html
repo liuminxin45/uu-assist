@@ -51,7 +51,7 @@
             display: flex;
             flex-direction: column;
             padding: 16px;
-            overflow: hidden;
+            overflow: auto;
         }
 
         /* PHA容器 */
@@ -60,7 +60,7 @@
             flex-direction: column;
             height: 100%;
             min-height: 0;
-            background-color: #fff;
+            background-color: #fafafa;
             border-radius: 12px;
             overflow: hidden;
         }
@@ -68,7 +68,7 @@
         /* 头部 */
         .header {
             padding: 12px;
-            background-color: #fff;
+            background-color: #fafafa;
             display: flex;
             flex-direction: column;
             gap: 12px;
@@ -91,24 +91,25 @@
 
         /* PHA特有样式 */
         label { display: block; margin: 8px 0 6px; color: var(--secondary-color); font-weight: 600; }
-        input[type="text"], textarea, select { width: 100%; background: #fff; border: 1px solid var(--border-color); border-radius: 10px; color: #374151; padding: 10px 12px; font-family: inherit; }
+        .hint { font-size: 12px; color: var(--secondary-color); margin-top: 6px; }
+        input[type="text"], textarea, select { width: 100%; background: #ffffff; border: 1px solid var(--border-color); border-radius: 10px; color: #374151; padding: 10px 12px; font-family: inherit; }
         input[type="text"]:focus, textarea:focus, select:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(74, 132, 255, 0.12); }
         .row { margin-top: 10px; }
         .split { display: flex; gap: 8px; align-items: center; }
         .split > :first-child { flex: 1; min-width: 0; }
         .muted { color: var(--secondary-color); }
-        .status { white-space: pre-wrap; background: #fff; border: 1px dashed var(--border-color); border-radius: 10px; padding: 8px; min-height: 120px; max-height: 200px; overflow: auto; }
+        .status { white-space: pre-wrap; background: #ffffff; border: 1px dashed var(--border-color); border-radius: 10px; padding: 8px; min-height: 120px; max-height: 200px; overflow: auto; }
         .link { color: var(--primary-color); text-decoration: none; }
         .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #eef2ff; color: #3730a3; font-size: 12px; border: 1px solid #c7d2fe; }
         .switch { display: flex; align-items: center; gap: 8px; }
         .drop { min-height: 120px; }
         .mdbar { display: flex; gap: 6px; flex-wrap: wrap; border: 1px solid var(--border-color); border-bottom: none; border-radius: 10px 10px 0 0; padding: 6px; background: #f8fafc; }
-        .mdbtn { padding: 6px 8px; border: 1px solid var(--border-color); border-radius: 8px; background: #fff; cursor: pointer; font-size: 12px; transition: all 0.2s; }
+        .mdbtn { padding: 6px 8px; border: 1px solid var(--border-color); border-radius: 8px; background: #ffffff; cursor: pointer; font-size: 12px; transition: all 0.2s; }
         .mdbtn:hover { background-color: var(--hover-bg); }
         .mdbtn:active { transform: translateY(1px); }
         .textarea-wrap { border: 1px solid var(--border-color); border-radius: 0 0 10px 10px; }
         .textarea-wrap textarea { border: none; border-radius: 0 0 10px 10px; }
-        .btn-common { padding: 8px 12px; background-color: #fff; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+        .btn-common { padding: 8px 12px; background-color: #ffffff; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
         .btn-common:hover { background-color: var(--hover-bg); border-color: var(--primary-color); }
         
         /* 侧边栏样式 - 与notes面板保持一致 */
@@ -117,7 +118,7 @@
             flex-direction: column;
             gap: 4px;
             padding: 8px 4px;
-            background-color: #fff;
+            background-color: #fafafa;
             border-radius: 12px;
             margin: 16px 8px 16px 0;
         }
@@ -158,15 +159,19 @@
                 </div>
                 
                 <div style="padding: 16px;">
-                    <div class="row split">
-                      <input id="listUrl" class="input-common" type="text" value="http://pha.tp-link.com.cn/maniphest/query/AGNGtvQS84UK/#R">
-                      <button id="btnLoad" class="btn-common" title="从 PHA 拉取该搜索页的所有任务">📥</button>
-                      <button id="btnBind" class="btn-common" title="绑定当前任务页" style="display:none">🔗</button>
+                    <div class="row">
+                      <div class="split">
+                        <input id="listUrl" class="input-common" type="text" value="http://pha.tp-link.com.cn/maniphest/query/AGNGtvQS84UK/#R">
+                        <button id="btnLoad" class="btn-common" title="从 PHA 拉取该搜索页的所有任务">📥</button>
+                        <button id="btnBind" class="btn-common" title="绑定当前任务页" style="display:none">🔗</button>
+                      </div>
                     </div>
 
-                    <div class="row split">
-                      <select id="selItems" class="select-common"></select>
-                      <a id="taskLink" href="#" target="_blank" rel="noopener" class="link"></a>
+                    <div class="row">
+                      <div class="split">
+                        <select id="selItems" class="select-common"></select>
+                        <a id="taskLink" href="#" target="_blank" rel="noopener" class="link"></a>
+                      </div>
                     </div>
 
                     <div class="row" id="taskMeta" style="display:none">
@@ -209,19 +214,23 @@
                       </div>
                     </div>
 
-                    <div class="row split">
-                      <div class="switch-ai" style="display:flex; align-items:center;"><input type="checkbox" id="chkAI" title="启用 AI 分析" style="border: 1px solid #e5e7eb; width:16px; height:16px; opacity:1;"><label for="chkAI" style="margin:0; margin-left:8px;">🧠</label></div>
-                      <div>
-                        <button id="btnGerrit" class="btn-common" title="插入 Gerrit 提交说明">➕</button>
-                        <button id="btnTpl" class="btn-common" title="编辑 POST 模板">🖋️</button>
-                        <button id="btnSumWL" class="btn-common" title="统计该任务的总工作量">✨</button>
-                        <button id="btnWeekly" class="btn-common" title="自动生成周报">🗓️</button>
+                    <div class="row">
+                      <div class="switch-ai" style="display:flex; align-items:center;">
+                        <input type="checkbox" id="chkAI" title="启用 AI 分析" style="border: 1px solid #e5e7eb; width:16px; height:16px; opacity:1;">
+                        <label for="chkAI" style="margin:0; margin-left:8px;">🧠 启用AI分析</label>
                       </div>
                     </div>
 
-                    <div class="row split">
-                      <button id="btnSend" class="btn-common" title="提交评论">📤</button>
+                    <div class="row">
+                      <div>
+                        <button id="btnGerrit" class="btn-common" title="插入 Gerrit 提交说明">Gerrit</button>
+                        <button id="btnTpl" class="btn-common" title="编辑 POST 模板">模板</button>
+                        <button id="btnSumWL" class="btn-common" title="统计该任务的总工作量">工作量</button>
+                        <button id="btnWeekly" class="btn-common" title="自动生成周报">周报</button>
+                        <button id="btnSend" class="btn-common" title="提交评论">推送 </button>
+                      </div>
                     </div>
+
 
                     <div class="row">
                       <div id="status" class="status"></div>

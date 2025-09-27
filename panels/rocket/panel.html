@@ -60,7 +60,7 @@
             flex-direction: column;
             height: 100%;
             min-height: 0;
-            background-color: #fff;
+            background-color: #fafafa;
             border-radius: 12px;
             overflow: hidden;
         }
@@ -68,7 +68,7 @@
         /* 头部 */
         .header {
             padding: 12px;
-            background-color: #fff;
+            background-color: #fafafa;
             display: flex;
             flex-direction: column;
             gap: 12px;
@@ -91,16 +91,17 @@
 
         /* Rocket特有样式 */
         label { display: block; margin: 8px 0 6px; color: var(--secondary-color); font-weight: 600; }
-        input[type="text"], input[type="number"], textarea { width: 100%; background: #fff; border: 1px solid var(--border-color); border-radius: 10px; color: #374151; padding: 10px 12px; font-family: inherit; }
+        .hint { font-size: 12px; color: var(--secondary-color); margin-top: 6px; }
+        input[type="text"], input[type="number"], textarea { width: 100%; background: #ffffff; border: 1px solid var(--border-color); border-radius: 10px; color: #374151; padding: 10px 12px; font-family: inherit; }
         input:focus, textarea:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(74, 132, 255, 0.12); }
         .row { margin-top: 10px; }
         .split { display: flex; gap: 8px; align-items: center; }
         .split > :first-child { flex: 1; min-width: 0; }
         .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #eef2ff; color: #3730a3; font-size: 12px; border: 1px solid #c7d2fe; }
-        .status { white-space: pre-wrap; background: #fff; border: 1px dashed var(--border-color); border-radius: 10px; padding: 8px; min-height: 120px; max-height: 200px; overflow: auto; }
+        .status { white-space: pre-wrap; background: #ffffff; border: 1px dashed var(--border-color); border-radius: 10px; padding: 8px; min-height: 120px; max-height: 200px; overflow: auto; }
         .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
         textarea#prompt { min-height: 140px; resize: vertical; }
-        .btn-common { padding: 8px 12px; background-color: #fff; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+        .btn-common { padding: 8px 12px; background-color: #ffffff; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
         .btn-common:hover { background-color: var(--hover-bg); border-color: var(--primary-color); }
         
         /* 侧边栏样式 - 与notes面板保持一致 */
@@ -109,7 +110,7 @@
             flex-direction: column;
             gap: 4px;
             padding: 8px 4px;
-            background-color: #fff;
+            background-color: #fafafa;
             border-radius: 12px;
             margin: 16px 8px 16px 0;
         }
@@ -150,11 +151,19 @@
                 </div>
                 
                 <div style="padding: 16px;">
-                    <div class="row split">
+                    <div class="row">
+                      <label for="msgLimit">消息数量限制</label>
                       <input id="msgLimit" type="number" min="1" max="200" step="1" value="20" />
-                        <div class="switch-ai" style="display:flex; align-items:center;"><input id="autoListen" type="checkbox" checked title="自动监听生成开关" style="border: 1px solid #e5e7eb; width:16px; height:16px; opacity:1;"><label for="autoListen" style="margin:0; margin-left:8px;">👂</label></div>
-                      <input id="userName" type="text" value="刘民心" style="display: none;" />
                     </div>
+                    
+                    <div class="row">
+                       <div class="switch-ai" style="display:flex; align-items:center;">
+                         <input id="autoListen" type="checkbox" checked title="自动监听生成开关" style="border: 1px solid #e5e7eb; width:16px; height:16px; opacity:1;">
+                         <label for="autoListen" style="margin:0; margin-left:8px;">自动监听</label>
+                       </div>
+                     </div>
+                    
+                    <input id="userName" type="text" value="刘民心" style="display: none;" />
 
                     <!-- 自定义 Prompt UI，暂隐藏 -->
                     <!--
@@ -162,7 +171,7 @@
                     <textarea id="prompt" placeholder="留空则使用预置 Prompt"></textarea>
                     -->
 
-                    <div class="row split">
+                    <div class="row">
                       <button id="btnGen" class="btn-common" title="AI 回复">AI</button>
                     </div>
 

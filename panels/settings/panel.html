@@ -20,8 +20,8 @@
     }
     .container{display:flex;height:100vh;width:100%}
     .content-wrapper{flex:1;display:flex;flex-direction:column;padding:16px;overflow:hidden}
-    .settings-wrapper{display:flex;flex-direction:column;height:100%;min-height:0;background:#fff;border-radius:12px;overflow:hidden}
-    .header{padding:12px;background:#fff;display:flex;flex-direction:column;gap:12px;align-items:stretch;border-bottom:1px solid var(--border-color)}
+    .settings-wrapper{display:flex;flex-direction:column;height:100%;min-height:0;background:#fafafa;border-radius:12px;overflow:hidden}
+    .header{padding:12px;background:#fafafa;display:flex;flex-direction:column;gap:12px;align-items:stretch;border-bottom:1px solid var(--border-color)}
     .header-top{display:flex;justify-content:space-between;align-items:center}
     .header h2{font-size:18px;font-weight:600;color:#333;margin:0}
     .row{margin-top:10px}
@@ -29,7 +29,7 @@
     .muted{color:var(--secondary-color)}
     .hint{font-size:12px;color:var(--secondary-color);margin-top:6px}
     .input-common, input[type="text"], textarea, select{
-      width:100%;background:#fff;border:1px solid var(--border-color);border-radius:10px;color:#374151;padding:10px 12px;font-family:inherit
+      width:100%;background:#ffffff;border:1px solid var(--border-color);border-radius:10px;color:#374151;padding:10px 12px;font-family:inherit
     }
     .input-common:focus, input:focus, textarea:focus, select:focus{
       outline:none;border-color:var(--primary-color);box-shadow:0 0 0 3px rgba(74,132,255,.12)
@@ -37,7 +37,7 @@
     .split{display:flex;gap:8px;align-items:center}
     .split > :first-child{flex:1;min-width:0}
     .btn-common{
-      padding:8px 12px;background:#fff;border:1px solid var(--border-color);
+      padding:8px 12px;background:#ffffff;border:1px solid var(--border-color);
       border-radius:6px;cursor:pointer;font-size:14px;transition:all .2s
     }
     .btn-common:hover{background:var(--hover-bg);border-color:var(--primary-color)}
@@ -45,9 +45,9 @@
     .btn-primary:hover{background:#3772ff}
     .toolbar{display:flex;gap:8px;flex-wrap:wrap}
     .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .card{border:1px solid var(--border-color);border-radius:12px;padding:12px}
+    .card{border:1px solid var(--border-color);border-radius:12px;padding:12px;background:#fafafa}
     .kv{display:grid;grid-template-columns:140px 1fr;gap:8px;align-items:center}
-    .rail{display:flex;flex-direction:column;gap:4px;padding:8px 4px;background:#fff;border-radius:12px;margin:16px 8px 16px 0}
+    .rail{display:flex;flex-direction:column;gap:4px;padding:8px 4px;background:#fafafa;border-radius:12px;margin:16px 8px 16px 0}
     .railbtn{width:40px;height:40px;border:none;background:transparent;border-radius:8px;font-size:20px;cursor:pointer;transition:background-color .2s;display:flex;align-items:center;justify-content:center}
     .railbtn:hover{background:#f0f0f0}
     .railbtn.active{background:#e3f2fd;color:#1976d2}
@@ -78,7 +78,6 @@
                 <button id="btnDelVendor" class="btn-common">删除</button>
               </div>
             </div>
-            <div class="hint">可添加多个供应商（如 Deepseek、OpenAI 等）。</div>
           </div>
 
           <!-- 供应商参数 -->
@@ -108,7 +107,6 @@
                 <button id="btnDelModel" class="btn-common">删除</button>
               </div>
             </div>
-            <div class="hint">为同一供应商配置多个模型，并可一键切换。</div>
           </div>
 
           <!-- 模型参数 -->
@@ -135,7 +133,7 @@
             </div>
             <div style="display:flex;gap:8px">
               <button id="btnReset" class="btn-common">重置</button>
-              <button id="btnSave" class="btn-primary">保存</button>
+              <button id="btnSave" class="btn-common">保存</button>
             </div>
           </div>
         </div>
