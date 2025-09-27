@@ -26,6 +26,37 @@ import { persistField } from '../../shared/persist.js';
     badgeEl.style.borderColor = ok ? '#a7f3d0' : '#c7d2fe';
   };
 
+  // 获取当前AI供应商和模型信息
+  async function getCurrentAIInfo() {
+    try {
+      const data = await chrome.storage.local.get(['aiCfg2']);
+      if (data.aiCfg2 && data.aiCfg2.vendors) {
+        const aiCfg2 = data.aiCfg2;
+        const activeVendorId = aiCfg2.activeVendorId;
+        const vendor = aiCfg2.vendors[activeVendorId];
+        if (vendor) {
+          const activeModelId = vendor.activeModelId;
+          const model = vendor.models[activeModelId];
+          if (model) {
+            return {
+              vendor: vendor.name,
+              model: model.name || model.model
+            };
+          }
+        }
+      }
+    } catch (e) {
+      console.error('获取AI信息失败:', e);
+    }
+    return { vendor: '未知', model: '未知' };
+  }
+
+  // 更新状态标签显示AI供应商和模型
+  async function updateBadgeWithAIInfo() {
+    const aiInfo = await getCurrentAIInfo();
+    setBadge(`${aiInfo.vendor} | ${aiInfo.model}`, true);
+  }
+
   // 监听来自service worker的日志消息
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg?.type === 'rocket:displayLog' || msg?.type === 'rocket:statusLog') {
@@ -33,7 +64,15 @@ import { persistField } from '../../shared/persist.js';
     }
   });
 
+  // 页面加载时更新状态标签
+  updateBadgeWithAIInfo();
 
+  // 监听存储变化以更新状态标签
+  chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (namespace === 'local' && (changes.aiCfg2 || changes.aiCfg)) {
+      updateBadgeWithAIInfo();
+    }
+  });
 
   // --- 请求状态跟踪
   let isRequestInProgress = false;
@@ -56,12 +95,12 @@ import { persistField } from '../../shared/persist.js';
     }
   }
 
-
-
   // --- 监听配置变更并通知内容脚本
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       notifyContentScript();
+      // 页面重新可见时也更新状态标签
+      updateBadgeWithAIInfo();
     }
   });
   
@@ -98,6 +137,8 @@ import { persistField } from '../../shared/persist.js';
 
     // 设置请求状态为进行中
     isRequestInProgress = true;
+    // 保存原始状态文本
+    const originalBadgeText = badgeEl.textContent;
     setBadge('请求中', false);
     log(`开始生成：limit=${limit}，prompt=${prompt ? '自定义' : '预置'}`);
 
@@ -119,7 +160,8 @@ import { persistField } from '../../shared/persist.js';
           }
           // 只记录状态，不记录聊天和 AI 文本
           log(`成功：AI 已完成生成并写入候选；tokens≈${resp.tokens || '-'}`);
-          setBadge('完成', true);
+          // 恢复显示AI供应商和模型信息
+          setBadge(originalBadgeText, true);
         } finally {
           // 确保状态重置，即使发生异常
           isRequestInProgress = false;

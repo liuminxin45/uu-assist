@@ -1,297 +1,158 @@
-
 <!doctype html>
 <html lang="zh-CN">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings</title>
-    <style>
-        /* 全局样式 - 与notes面板保持一致 */
-        :root {
-            --primary-color: #4A84FF;
-            --secondary-color: #6B7280;
-            --border-color: #E5E7EB;
-            --bg-color: #FFFFFF;
-            --hover-bg: #F9FAFB;
-            --error-color: #EF4444;
-            --success-color: #10B981;
-            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        html,
-        body {
-            height: 100%;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            color: #374151;
-            background-color: #F3F4F6;
-            line-height: 1.5;
-            padding: 0;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* 主容器 */
-        .container {
-            display: flex;
-            height: 100vh;
-            width: 100%;
-        }
-
-        .content-wrapper {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            padding: 16px;
-            overflow: hidden;
-        }
-
-        /* Settings容器 */
-        .settings-wrapper {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            min-height: 0;
-            background-color: #fff;
-            border-radius: 12px;
-            overflow: hidden;
-        }
-
-        /* 头部 */
-        .header {
-            padding: 12px;
-            background-color: #fff;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            align-items: stretch;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .header-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .header h2 {
-            font-size: 18px;
-            font-weight: 600;
-            color: #333;
-            margin: 0;
-        }
-
-        /* Settings特有样式 */
-        .row {
-            margin-top: 10px;
-        }
-
-        .split {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .split> :first-child {
-            flex: 1;
-            min-width: 0;
-        }
-
-        label {
-            display: block;
-            margin: 8px 0 6px;
-            color: var(--secondary-color);
-            font-weight: 600;
-        }
-
-        .muted {
-            color: var(--secondary-color);
-        }
-
-        .section-title {
-            font-weight: 700;
-            margin: 4px 0 8px;
-        }
-
-        .kv {
-            display: grid;
-            grid-template-columns: 120px 1fr;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .hint {
-            font-size: 12px;
-            color: var(--secondary-color);
-            margin-top: 6px;
-        }
-
-        /* 输入框样式 - 与notes面板保持一致 */
-        .input-common,
-        input[type="text"],
-        textarea {
-            width: 100%;
-            background: #fff;
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            color: #374151;
-            padding: 10px 12px;
-            font-family: inherit;
-        }
-
-        .input-common:focus,
-        input:focus,
-        textarea:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(74, 132, 255, 0.12);
-        }
-
-        /* 按钮样式 - 与notes面板保持一致 */
-        .btn-common {
-            padding: 8px 12px;
-            background-color: #fff;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.2s;
-        }
-
-        .btn-common:hover {
-            background-color: var(--hover-bg);
-            border-color: var(--primary-color);
-        }
-
-        .btn-primary {
-            background-color: var(--primary-color);
-            color: #fff;
-            border: none;
-        }
-
-        .btn-primary:hover {
-            background-color: #3772ff;
-        }
-
-        /* 侧边栏样式 - 与notes面板保持一致 */
-        .rail {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            padding: 8px 4px;
-            background-color: #fff;
-            border-radius: 12px;
-            margin: 16px 8px 16px 0;
-        }
-
-        .railbtn {
-            width: 40px;
-            height: 40px;
-            border: none;
-            background-color: transparent;
-            border-radius: 8px;
-            font-size: 20px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .railbtn:hover {
-            background-color: #f0f0f0;
-        }
-
-        .railbtn.active {
-            background-color: #e3f2fd;
-            color: #1976d2;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Settings</title>
+  <style>
+    :root{
+      --primary-color:#4A84FF; --secondary-color:#6B7280;
+      --border-color:#E5E7EB; --bg-color:#FFFFFF; --hover-bg:#F9FAFB;
+      --error-color:#EF4444; --success-color:#10B981;
+      --shadow-sm:0 1px 2px 0 rgba(0,0,0,.05);
+      --shadow-md:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -1px rgba(0,0,0,.06);
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+      color:#374151;background:#F3F4F6;line-height:1.5;display:flex;flex-direction:column
+    }
+    .container{display:flex;height:100vh;width:100%}
+    .content-wrapper{flex:1;display:flex;flex-direction:column;padding:16px;overflow:hidden}
+    .settings-wrapper{display:flex;flex-direction:column;height:100%;min-height:0;background:#fff;border-radius:12px;overflow:hidden}
+    .header{padding:12px;background:#fff;display:flex;flex-direction:column;gap:12px;align-items:stretch;border-bottom:1px solid var(--border-color)}
+    .header-top{display:flex;justify-content:space-between;align-items:center}
+    .header h2{font-size:18px;font-weight:600;color:#333;margin:0}
+    .row{margin-top:10px}
+    label{display:block;margin:8px 0 6px;color:var(--secondary-color);font-weight:600}
+    .muted{color:var(--secondary-color)}
+    .hint{font-size:12px;color:var(--secondary-color);margin-top:6px}
+    .input-common, input[type="text"], textarea, select{
+      width:100%;background:#fff;border:1px solid var(--border-color);border-radius:10px;color:#374151;padding:10px 12px;font-family:inherit
+    }
+    .input-common:focus, input:focus, textarea:focus, select:focus{
+      outline:none;border-color:var(--primary-color);box-shadow:0 0 0 3px rgba(74,132,255,.12)
+    }
+    .split{display:flex;gap:8px;align-items:center}
+    .split > :first-child{flex:1;min-width:0}
+    .btn-common{
+      padding:8px 12px;background:#fff;border:1px solid var(--border-color);
+      border-radius:6px;cursor:pointer;font-size:14px;transition:all .2s
+    }
+    .btn-common:hover{background:var(--hover-bg);border-color:var(--primary-color)}
+    .btn-primary{background:var(--primary-color);color:#fff;border:none}
+    .btn-primary:hover{background:#3772ff}
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .card{border:1px solid var(--border-color);border-radius:12px;padding:12px}
+    .kv{display:grid;grid-template-columns:140px 1fr;gap:8px;align-items:center}
+    .rail{display:flex;flex-direction:column;gap:4px;padding:8px 4px;background:#fff;border-radius:12px;margin:16px 8px 16px 0}
+    .railbtn{width:40px;height:40px;border:none;background:transparent;border-radius:8px;font-size:20px;cursor:pointer;transition:background-color .2s;display:flex;align-items:center;justify-content:center}
+    .railbtn:hover{background:#f0f0f0}
+    .railbtn.active{background:#e3f2fd;color:#1976d2}
+    .row .section{margin-bottom:16px}
+    .right-actions{display:flex;gap:8px;justify-content:space-between;align-items:center}
+    .status{font-size:12px;color:var(--secondary-color)}
+  </style>
 </head>
-
 <body>
-    <div class="container">
-        <div class="content-wrapper">
-            <div class="settings-wrapper">
-                <div class="header">
-                    <div class="header-top">
-                        <h2>Settings</h2>
-                    </div>
-                </div>
-
-                <div style="padding: 16px;">
-                    <div class="row">
-                        <div style="margin-bottom: 16px;">
-                            <label for="aiBase">AI 基础 URL</label>
-                            <input id="aiBase" class="input-common" type="text" value="https://api.deepseek.com/v1" />
-                        </div>
-
-                        <div style="margin-bottom: 16px;">
-                            <label for="aiModel">AI 模型</label>
-                            <input id="aiModel" class="input-common" type="text" value="deepseek-chat" />
-                        </div>
-
-                        <div style="margin-bottom: 16px;">
-                            <label for="aiKey">API 密钥</label>
-                            <input id="aiKey" class="input-common" type="text"
-                                placeholder="sk-24dbbd8a266a463a8706aae3f8f64372" />
-                        </div>
-
-                        <div>
-                            <label for="aiPrompt">AI 提示</label>
-                            <textarea id="aiPrompt" class="input-common" rows="5"
-                                placeholder='你是助手。请根据给定正文：1) 生成≤40字的小标题；2) 生成简洁概述。以严格JSON返回：{"title":"...", "reply":"..."}'></textarea>
-                        </div>
-                    </div>
-
-                    <div class="row" style="
-                            display: flex;
-                            gap: 8px;
-                            justify-content: space-between;
-                            align-items: center;
-                        ">
-                        <div style="display: flex; gap: 8px">
-                            <button id="btnExport" class="btn-common" title="导出配置与历史Post">
-                                导出
-                            </button>
-                            <input id="importFile" type="file" accept="application/json" style="display: none" />
-                            <button id="btnImport" class="btn-common" title="导入配置与历史Post">
-                                导入
-                            </button>
-                        </div>
-                        <div style="display: flex; gap: 8px">
-                            <button id="btnReset" class="btn-common">重置</button>
-                            <button id="btnSave" class="btn-primary" title="保存设置">
-                                保存
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+  <div class="container">
+    <div class="content-wrapper">
+      <div class="settings-wrapper">
+        <div class="header">
+          <div class="header-top">
+            <h2>Settings</h2>
+          </div>
         </div>
 
-        <nav class="rail" aria-label="面板切换">
-            <button class="railbtn" data-target="pha-panel" title="PHA" aria-label="PHA">👁️</button>
-            <button class="railbtn" data-target="rocket-panel" title="Rocket" aria-label="Rocket">🚀</button>
-            <button class="railbtn" data-target="notes-panel" title="笔记" aria-label="笔记">📝</button>
-            <button class="railbtn active" data-target="settings-panel" title="设置" aria-label="设置">⚙️</button>
-        </nav>
+        <div style="padding:16px;overflow:auto">
+          <!-- 供应商选择与管理 -->
+          <div class="row card">
+            <label>AI 供应商</label>
+            <div class="split">
+              <select id="vendorSelect"></select>
+              <div class="toolbar">
+                <button id="btnAddVendor" class="btn-common">新增</button>
+                <button id="btnRenameVendor" class="btn-common">重命名</button>
+                <button id="btnDelVendor" class="btn-common">删除</button>
+              </div>
+            </div>
+            <div class="hint">可添加多个供应商（如 Deepseek、OpenAI 等）。</div>
+          </div>
+
+          <!-- 供应商参数 -->
+          <div class="row grid-2">
+            <div class="card">
+              <label for="aiBase">基础 URL（供应商级）</label>
+              <input id="aiBase" class="input-common" type="text" placeholder="https://api.deepseek.com/v1"/>
+              <label for="aiKey" style="margin-top:12px">API 密钥（供应商级）</label>
+              <input id="aiKey" class="input-common" type="text" placeholder="sk-xxxxxxxx"/>
+            </div>
+            <div class="card">
+              <label for="aiVendorPrompt">默认提示词（供应商级）</label>
+              <textarea id="aiVendorPrompt" class="input-common" rows="6"
+                placeholder='为空则使用内置默认提示词'></textarea>
+              <div class="hint">模型未设置专属提示词时，继承该供应商提示词。</div>
+            </div>
+          </div>
+
+          <!-- 模型选择与管理 -->
+          <div class="row card">
+            <label>模型（隶属当前供应商）</label>
+            <div class="split">
+              <select id="modelSelect"></select>
+              <div class="toolbar">
+                <button id="btnAddModel" class="btn-common">新增</button>
+                <button id="btnRenameModel" class="btn-common">重命名</button>
+                <button id="btnDelModel" class="btn-common">删除</button>
+              </div>
+            </div>
+            <div class="hint">为同一供应商配置多个模型，并可一键切换。</div>
+          </div>
+
+          <!-- 模型参数 -->
+          <div class="row grid-2">
+            <div class="card">
+              <label for="aiModel">模型 ID（如 deepseek-chat）</label>
+              <input id="aiModel" class="input-common" type="text" placeholder="deepseek-chat"/>
+              <div class="hint">仅模型名，不含路径。调用时会配合上方基础 URL。</div>
+            </div>
+            <div class="card">
+              <label for="modelPrompt">专属提示词（模型级，可选）</label>
+              <textarea id="modelPrompt" class="input-common" rows="6"
+                placeholder="留空则继承供应商提示词"></textarea>
+            </div>
+          </div>
+
+          <!-- 导入导出 + 保存区 -->
+          <div class="row right-actions">
+            <div style="display:flex;gap:8px;align-items:center">
+              <button id="btnExport" class="btn-common" title="导出配置与历史Post">导出</button>
+              <input id="importFile" type="file" accept="application/json" style="display:none"/>
+              <button id="btnImport" class="btn-common" title="导入配置与历史Post">导入</button>
+              <span id="importExportStatus" class="status"></span>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button id="btnReset" class="btn-common">重置</button>
+              <button id="btnSave" class="btn-primary">保存</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <script defer src="../../rail.js"></script>
-    <script defer src="settings.js"></script>
-    <script type="module" src="../persist-init.js"></script>
-</body>
+    <!-- 保留侧边导航栏 -->
+    <nav class="rail" aria-label="面板切换">
+      <button class="railbtn" data-target="pha-panel" title="PHA" aria-label="PHA">👁️</button>
+      <button class="railbtn" data-target="rocket-panel" title="Rocket" aria-label="Rocket">🚀</button>
+      <button class="railbtn" data-target="notes-panel" title="笔记" aria-label="笔记">📝</button>
+      <button class="railbtn active" data-target="settings-panel" title="设置" aria-label="设置">⚙️</button>
+    </nav>
+  </div>
 
+  <script defer src="../../rail.js"></script>
+  <script defer src="settings.js"></script>
+  <script type="module" src="../persist-init.js"></script>
+</body>
 </html>

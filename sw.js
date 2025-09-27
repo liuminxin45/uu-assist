@@ -331,6 +331,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           const sysPrompt = msg.prompt || ai.prompt || "你是助手。请根据给定正文：1) 生成≤40字的小标题；2) 生成简洁回复。以严格JSON返回：{\"title\":\"...\", \"reply\":\"...\"}";
           const userContent = msg.content || "";
 
+          // 添加日志：显示当前使用的AI配置
+          console.log("[AI Request] 使用的配置:", { base, model, key: key ? "[REDACTED]" : "未设置" });
+          
           if (!key) { sendResponse({ ok: false, error: "缺少API Key" }); return; }
           const url = base + "/chat/completions";
           const payload = {
@@ -367,6 +370,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             const usage = data?.usage || null;           // {prompt_tokens, completion_tokens, total_tokens}
             const usedModel = data?.model || model;
 
+            // 添加日志：显示实际使用的模型
+            console.log("[AI Response] 实际使用的模型:", usedModel);
+            
             sendResponse({ ok: true, title, reply, usage, model: usedModel });
             return;
           } catch (e) {

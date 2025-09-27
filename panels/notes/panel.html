@@ -71,6 +71,10 @@
         .header {
             padding: 12px;
             background-color: #fff;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: stretch;
             border-bottom: 1px solid var(--border-color);
         }
 
@@ -418,13 +422,14 @@
                 <div class="header">
                     <div class="header-top">
                         <h2>Notes</h2>
-                        <div class="search-container">
-                            <input type="text" id="search-input" class="search-input" placeholder="搜索笔记...">
-                        </div>
+                        <span id="badge" class="pill">空闲</span>
                     </div>
                 </div>
 
                 <div class="input-section">
+                    <div class="search-container" style="margin-bottom: 12px;">
+                        <input type="text" id="search-input" class="search-input" placeholder="🔍">
+                    </div>
                     <div class="note-input-wrapper">
                         <div class="add-note-wrapper">
                             <textarea id="note-input" class="note-input" placeholder="" rows="1"></textarea>

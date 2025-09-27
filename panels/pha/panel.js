@@ -8,6 +8,66 @@ const setStatus = s => { const el = $("status"); if (el) { el.textContent = s; e
 const log = s => { const el = $("status"); if (el) { el.textContent = (el.textContent ? el.textContent + "\n" : "") + s; el.scrollTop = el.scrollHeight; } };
 window.addEventListener("error", e => { try{ const s=$("status"); if(s) s.textContent = "脚本错误: " + (e.message||"unknown"); }catch(_){} });
 
+// ----- AI model badge helpers -----
+const badgeEl = $("badge");
+const setBadge = (t, ok) => {
+  if (!badgeEl) return;
+  badgeEl.textContent = t;
+  badgeEl.style.background = ok ? '#ecfdf5' : '#eef2ff';
+  badgeEl.style.color = ok ? '#065f46' : '#3730a3';
+  badgeEl.style.borderColor = ok ? '#a7f3d0' : '#c7d2fe';
+};
+
+// 获取当前AI供应商和模型信息
+async function getCurrentAIInfo() {
+  try {
+    const data = await chrome.storage.local.get(['aiCfg2']);
+    if (data.aiCfg2 && data.aiCfg2.vendors) {
+      const aiCfg2 = data.aiCfg2;
+      const activeVendorId = aiCfg2.activeVendorId;
+      const vendor = aiCfg2.vendors[activeVendorId];
+      if (vendor) {
+        const activeModelId = vendor.activeModelId;
+        const model = vendor.models[activeModelId];
+        if (model) {
+          return {
+            vendor: vendor.name,
+            model: model.name || model.model
+          };
+        }
+      }
+    }
+  } catch (e) {
+    console.error('获取AI信息失败:', e);
+  }
+  return { vendor: '未知', model: '未知' };
+}
+
+// 更新状态标签显示AI供应商和模型
+async function updateBadgeWithAIInfo() {
+  const aiInfo = await getCurrentAIInfo();
+  setBadge(`${aiInfo.vendor} | ${aiInfo.model}`, true);
+}
+
+// 页面加载时更新状态标签
+document.addEventListener('DOMContentLoaded', () => {
+  updateBadgeWithAIInfo();
+});
+
+// 监听存储变化以更新状态标签
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (namespace === 'local' && (changes.aiCfg2 || changes.aiCfg)) {
+    updateBadgeWithAIInfo();
+  }
+});
+
+// 页面重新可见时也更新状态标签
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    updateBadgeWithAIInfo();
+  }
+});
+
 // ----- small utils -----
 /* -------- Gerrit helpers -------- */
 // 从 Gerrit 页面 URL 推导 API（优先 numeric changeId，rev 不给则用 current）

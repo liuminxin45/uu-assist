@@ -99,6 +99,7 @@
         .muted { color: var(--secondary-color); }
         .status { white-space: pre-wrap; background: #fff; border: 1px dashed var(--border-color); border-radius: 10px; padding: 8px; min-height: 120px; max-height: 200px; overflow: auto; }
         .link { color: var(--primary-color); text-decoration: none; }
+        .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #eef2ff; color: #3730a3; font-size: 12px; border: 1px solid #c7d2fe; }
         .switch { display: flex; align-items: center; gap: 8px; }
         .drop { min-height: 120px; }
         .mdbar { display: flex; gap: 6px; flex-wrap: wrap; border: 1px solid var(--border-color); border-bottom: none; border-radius: 10px 10px 0 0; padding: 6px; background: #f8fafc; }
@@ -152,6 +153,7 @@
                 <div class="header">
                     <div class="header-top">
                         <h2>PHA</h2>
+                        <span id="badge" class="pill">空闲</span>
                     </div>
                 </div>
                 

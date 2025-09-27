@@ -539,3 +539,57 @@ function handleTagClick(event, tagName) {
     console.log('点击标签:', tagName);
     // 可以添加搜索功能，或者高亮显示该标签的所有笔记等
 }
+
+// 获取当前AI供应商和模型信息
+async function getCurrentAIInfo() {
+    try {
+        const data = await chrome.storage.local.get(['aiCfg2']);
+        if (data.aiCfg2 && data.aiCfg2.vendors) {
+            const aiCfg2 = data.aiCfg2;
+            const activeVendorId = aiCfg2.activeVendorId;
+            const vendor = aiCfg2.vendors[activeVendorId];
+            if (vendor) {
+                const activeModelId = vendor.activeModelId;
+                const model = vendor.models[activeModelId];
+                if (model) {
+                    return {
+                        vendor: vendor.name,
+                        model: model.name || model.model
+                    };
+                }
+            }
+        }
+    } catch (e) {
+        console.error('获取AI信息失败:', e);
+    }
+    return { vendor: '未知', model: '未知' };
+}
+
+// 更新状态标签显示AI供应商和模型
+async function updateBadgeWithAIInfo() {
+    const badgeEl = document.getElementById('badge');
+    if (!badgeEl) return;
+    
+    const aiInfo = await getCurrentAIInfo();
+    badgeEl.textContent = `${aiInfo.vendor} | ${aiInfo.model}`;
+    badgeEl.style.background = '#ecfdf5';
+    badgeEl.style.color = '#065f46';
+    badgeEl.style.borderColor = '#a7f3d0';
+}
+
+// 初始化时更新标签
+document.addEventListener('DOMContentLoaded', () => {
+    // 延迟执行以确保DOM完全加载
+    setTimeout(updateBadgeWithAIInfo, 100);
+});
+
+// 监听存储变化以更新状态标签
+try {
+    chrome.storage.onChanged.addListener((changes, namespace) => {
+        if (namespace === 'local' && (changes.aiCfg2 || changes.aiCfg)) {
+            updateBadgeWithAIInfo();
+        }
+    });
+} catch (e) {
+    console.warn('无法监听存储变化:', e);
+}

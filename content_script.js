@@ -312,6 +312,13 @@ async function genSuggestionWithDeepSeek(messages, promptOverride, userNameParam
     stream: false
   };
 
+  // 添加日志：显示当前使用的AI配置
+  console.log("[Rocket AI Request] 使用的配置:", { 
+    base: ai.base, 
+    model: ai.model, 
+    key: ai.key ? "[REDACTED]" : "未设置" 
+  });
+
   try{
     // 将AI请求内容打印到status区域
     sendStatusLog(`发送AI请求：\n- 提示词：${finalPrompt}\n- 聊天内容：${convText}`);
@@ -325,6 +332,11 @@ async function genSuggestionWithDeepSeek(messages, promptOverride, userNameParam
     const data = await resp.json();
     const text = data?.choices?.[0]?.message?.content?.trim() || '';
     const usage = data?.usage || {};
+    
+    // 添加日志：显示实际使用的模型
+    const usedModel = data?.model || ai.model;
+    console.log("[Rocket AI Response] 实际使用的模型:", usedModel);
+    
     return { text, tokens: usage?.total_tokens || 0 };
   }catch(_){ return { text:'', tokens:0 }; }
 }
