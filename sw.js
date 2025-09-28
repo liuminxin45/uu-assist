@@ -150,6 +150,25 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sendResponse({ ok: true });
         return;
       }
+      
+      // 处理rocket:aiReply消息，将AI建议传递给Rocket面板
+      if (msg.type === "rocket:aiReply") {
+        // 查找所有打开的rocket-panel标签页
+        const rocketTabs = await findRocketPanelTabs();
+        if (rocketTabs.length > 0) {
+          // 向所有打开的rocket-panel发送AI回复内容
+          rocketTabs.forEach(tab => {
+            chrome.tabs.sendMessage(
+              tab.id,
+              { type: 'rocket:aiReply', content: msg.content }
+            ).catch(() => {
+              // 忽略错误，因为标签页可能已关闭或未准备好
+            });
+          });
+        }
+        sendResponse({ ok: true });
+        return;
+      }
 
       if (msg.type === "fetchListPage") {
         const { ok, status, text } = await fetchText(msg.url);

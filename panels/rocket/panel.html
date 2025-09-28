@@ -163,13 +163,13 @@
                        </div>
                      </div>
                     
-                    <input id="userName" type="text" value="刘民心" style="display: none;" />
 
-                    <!-- 自定义 Prompt UI，暂隐藏 -->
-                    <!--
-                    <label for="prompt">自定义 Prompt</label>
-                    <textarea id="prompt" placeholder="留空则使用预置 Prompt"></textarea>
-                    -->
+
+                    <div class="row">
+                      <label for="prompt">自定义 Prompt</label>
+                      <textarea id="prompt" placeholder="你是群聊助手，任务是根据最近的聊天内容，生成一条可直接作为回复发送的中文消息。\n请仔细阅读聊天记录，理解上下文，生成一条符合对话情境、自然流畅的回复。\n回复应当简洁明了，避免多余的解释和自我介绍，直接针对讨论内容给出回应。\n请只输出回复内容本身，不要包含任何前缀或后缀说明。"></textarea>
+                      <div class="hint">提示：留空则使用预置Prompt</div>
+                    </div>
 
                     <div class="row">
                       <button id="btnGen" class="btn-common" title="AI 回复">AI</button>
@@ -177,6 +177,15 @@
 
                     <div class="row">
                       <div id="status" class="status"></div>
+                    </div>
+                    
+                    <div class="row">
+                      <label for="aiReply">AI回复内容</label>
+                      <textarea id="aiReply" class="status" readonly placeholder="AI生成的回复将显示在这里..." style="min-height: 180px;"></textarea>
+                      <div style="display: flex; gap: 8px; margin-top: 6px;">
+                        <button id="btnCopyAIReply" class="btn-common" title="复制AI回复">复制</button>
+                        <button id="btnClearAIReply" class="btn-common" title="清空AI回复">清空</button>
+                      </div>
                     </div>
                 </div>
             </div>

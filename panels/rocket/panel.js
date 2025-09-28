@@ -8,7 +8,9 @@ import { persistField } from '../../shared/persist.js';
   const $limit   = $('#msgLimit');
   const $prompt  = $('#prompt');
   const $autoListen = $('#autoListen');
-  const $userName = $('#userName');
+  const aiReplyEl = $('#aiReply');
+  const btnCopyAIReply = $('#btnCopyAIReply');
+  const btnClearAIReply = $('#btnClearAIReply');
 
   const ts = () => {
     const d=new Date(); const p=n=>String(n).padStart(2,'0');
@@ -28,6 +30,9 @@ import { persistField } from '../../shared/persist.js';
 
   // 获取当前AI供应商和模型信息
   async function getCurrentAIInfo() {
+    if (typeof chrome === 'undefined' || !chrome.storage) {
+      return { vendor: '未知', model: '未知' };
+    }
     try {
       const data = await chrome.storage.local.get(['aiCfg2']);
       if (data.aiCfg2 && data.aiCfg2.vendors) {
@@ -57,34 +62,86 @@ import { persistField } from '../../shared/persist.js';
     setBadge(`${aiInfo.vendor} | ${aiInfo.model}`, true);
   }
 
-  // 监听来自service worker的日志消息
-  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-    if (msg?.type === 'rocket:displayLog' || msg?.type === 'rocket:statusLog') {
-      log(msg.message);
+  // 监听来自service worker的消息
+  if (typeof chrome !== 'undefined' && chrome.runtime) {
+    chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+      if (msg?.type === 'rocket:displayLog' || msg?.type === 'rocket:statusLog') {
+        log(msg.message);
+      }
+      // 处理AI回复内容
+      else if (msg?.type === 'rocket:aiReply') {
+        if (msg.content) {
+          displayAIReply(msg.content);
+        }
+      }
+    });
+  } else {
+    console.log('当前环境不是Chrome扩展，无法使用runtime API');
+  }
+  
+  // 显示AI回复内容
+  function displayAIReply(content) {
+    aiReplyEl.value = content;
+    // 滚动到底部以显示最新内容
+    aiReplyEl.scrollTop = aiReplyEl.scrollHeight;
+  }
+  
+  // 复制AI回复到剪贴板
+  btnCopyAIReply.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(aiReplyEl.value);
+      log('AI回复已复制到剪贴板');
+      // 显示临时提示
+      const originalText = btnCopyAIReply.textContent;
+      btnCopyAIReply.textContent = '已复制';
+      setTimeout(() => {
+        btnCopyAIReply.textContent = originalText;
+      }, 2000);
+    } catch (err) {
+      log(`复制失败：${err.message}`);
     }
+  });
+  
+  // 清空AI回复
+  btnClearAIReply.addEventListener('click', () => {
+    aiReplyEl.value = '';
+    log('AI回复已清空');
   });
 
   // 页面加载时更新状态标签
   updateBadgeWithAIInfo();
 
   // 监听存储变化以更新状态标签
-  chrome.storage.onChanged.addListener((changes, namespace) => {
-    if (namespace === 'local' && (changes.aiCfg2 || changes.aiCfg)) {
-      updateBadgeWithAIInfo();
-    }
-  });
+  if (typeof chrome !== 'undefined' && chrome.storage) {
+    chrome.storage.onChanged.addListener((changes, namespace) => {
+      if (namespace === 'local' && (changes.aiCfg2 || changes.aiCfg)) {
+        updateBadgeWithAIInfo();
+      }
+    });
+  }
 
   // --- 请求状态跟踪
   let isRequestInProgress = false;
   
   // --- helpers
   async function getActiveTab() {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    return tab;
+    if (typeof chrome !== 'undefined' && chrome.tabs) {
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        return tab;
+      } catch (e) {
+        console.warn('获取活动标签页失败:', e);
+        return null;
+      }
+    }
+    return null;
   }
   
   // --- 通知内容脚本更新配置
   async function notifyContentScript() {
+    if (typeof chrome === 'undefined' || !chrome.tabs) {
+      return;
+    }
     try {
       const tab = await getActiveTab();
       if (tab && /^https:\/\/.+?tp\-link\.com\.cn\//i.test(tab.url || '')) {
@@ -107,15 +164,20 @@ import { persistField } from '../../shared/persist.js';
   // 为各个输入元素实现持久化
   persistField($limit, 'rocketMsgLimit');
   persistField($autoListen, 'rocketAutoListen');
-  persistField($userName, 'rocketUserName');
+  persistField($prompt, 'rocketPrompt');
   
   // 为需要持久化的元素添加变更监听以通知内容脚本
   $limit.addEventListener('change', notifyContentScript);
   $autoListen.addEventListener('change', notifyContentScript);
-  $userName.addEventListener('change', notifyContentScript);
+  $prompt.addEventListener('change', notifyContentScript);
   
   // --- trigger generation
   $('#btnGen').addEventListener('click', async () => {
+    if (typeof chrome === 'undefined') {
+      log('当前环境不是Chrome扩展，无法使用AI生成功能');
+      return;
+    }
+    
     // 检查是否已有请求在执行
     if (isRequestInProgress) {
       log('已有请求执行中，本次请求失败');
@@ -130,10 +192,9 @@ import { persistField } from '../../shared/persist.js';
     if (!ok) { log('当前页不在 Rocket 域名，忽略'); return; }
 
     // 读配置（确保已落库）
-    const got = await chrome.storage.local.get({ 'rocketMsgLimit': 20, 'rocketPrompt': '', 'rocketUserName': '刘民心' });
+    const got = await chrome.storage.local.get({ 'rocketMsgLimit': 20, 'rocketPrompt': '' });
     const limit = Math.max(1, Math.min(200, Number(got['rocketMsgLimit'] || 20)));
     const prompt = got['rocketPrompt'] || '';
-    const userName = got['rocketUserName'] || '刘民心';
 
     // 设置请求状态为进行中
     isRequestInProgress = true;
@@ -142,31 +203,33 @@ import { persistField } from '../../shared/persist.js';
     setBadge('请求中', false);
     log(`开始生成：limit=${limit}，prompt=${prompt ? '自定义' : '预置'}`);
 
-    chrome.tabs.sendMessage(
-      tab.id,
-      { type: 'rocket:generate', limit, promptOverride: prompt, userName },
-      (resp) => {
-        // 请求完成，无论成功失败都重置状态
-        try {
-          if (chrome.runtime.lastError) {
-            log(`失败：${chrome.runtime.lastError.message || '未知错误'}`);
-            setBadge('失败', false);
-            return;
+    if (chrome.tabs) {
+      chrome.tabs.sendMessage(
+        tab.id,
+        { type: 'rocket:generate', limit, promptOverride: prompt },
+        (resp) => {
+          // 请求完成，无论成功失败都重置状态
+          try {
+            if (chrome.runtime && chrome.runtime.lastError) {
+              log(`失败：${chrome.runtime.lastError.message || '未知错误'}`);
+              setBadge('失败', false);
+              return;
+            }
+            if (!resp || !resp.ok) {
+              log(`失败：${resp?.error || '内容脚本未响应'}`);
+              setBadge('失败', false);
+              return;
+            }
+            // 只记录状态，不记录聊天和 AI 文本
+            log(`成功：AI 已完成生成并写入候选；tokens≈${resp.tokens || '-'}`);
+            // 恢复显示AI供应商和模型信息
+            setBadge(originalBadgeText, true);
+          } finally {
+            // 确保状态重置，即使发生异常
+            isRequestInProgress = false;
           }
-          if (!resp || !resp.ok) {
-            log(`失败：${resp?.error || '内容脚本未响应'}`);
-            setBadge('失败', false);
-            return;
-          }
-          // 只记录状态，不记录聊天和 AI 文本
-          log(`成功：AI 已完成生成并写入候选；tokens≈${resp.tokens || '-'}`);
-          // 恢复显示AI供应商和模型信息
-          setBadge(originalBadgeText, true);
-        } finally {
-          // 确保状态重置，即使发生异常
-          isRequestInProgress = false;
         }
-      }
-    );
+      );
+    }
   });
 })();
