@@ -13,6 +13,7 @@ const fullscreenImage = document.getElementById('fullscreen-image');
 // 状态变量
 let currentSearchTerm = '';
 let isDropdownMenuOpen = false; // 添加全局变量来跟踪子菜单状态
+let currentEditNoteId = null; // 跟踪当前正在编辑的笔记ID
 
 // 笔记数据
 let notes = [];
@@ -59,15 +60,10 @@ function saveNotesToStorage() {
 
 // 应用初始化
 function initApp() {
-    // 加载笔记数据
-    loadNotesFromStorage();
-
     if (noteInput) {
         noteInput.addEventListener('input', updateButtonState);
         noteInput.addEventListener('keydown', handleKeyDown);
         noteInput.addEventListener('paste', handlePaste);
-        noteInput.addEventListener('dragover', handleDragOver);
-        noteInput.addEventListener('dragleave', handleDragLeave);
         noteInput.addEventListener('drop', handleDrop);
         noteInput.addEventListener('input', adjustTextareaHeight);
     }
@@ -78,10 +74,6 @@ function initApp() {
         updateButtonState();
     }
 
-    if (removeImageBtn) {
-        removeImageBtn.addEventListener('click', removeImagePreview);
-    }
-
     if (searchInput) {
         searchInput.addEventListener('input', handleSearchChange);
     }
@@ -90,8 +82,8 @@ function initApp() {
         fullscreenPreview.addEventListener('click', hideFullscreenPreview);
     }
     
-    // 从存储中加载笔记数据
-    // 已经在顶部加载了，这里不需要重复加载
+    // 初始化页面功能
+    initializePage();
 }
 
 // 初始化
@@ -121,237 +113,254 @@ function adjustTextareaHeight() {
     noteInput.style.height = Math.min(scrollHeight, maxHeight) + 'px';
 }
 
+function getImagesArray() {
+  if (noteInput.dataset.imagesData) {
+    try { return JSON.parse(noteInput.dataset.imagesData) || []; } catch { return []; }
+  }
+  if (noteInput.dataset.imageData) {
+    // 旧单图字段转成数组并清理
+    const arr = [noteInput.dataset.imageData];
+    delete noteInput.dataset.imageData;
+    noteInput.dataset.imagesData = JSON.stringify(arr);
+    return arr;
+  }
+  return [];
+}
+function setImagesArray(arr) {
+  if (!arr || arr.length === 0) {
+    delete noteInput.dataset.imagesData;
+    delete noteInput.dataset.imageData;
+    previewContainer.style.display = 'none';
+    updateButtonState();
+    return;
+  }
+  noteInput.dataset.imagesData = JSON.stringify(arr);
+  showMultipleImagePreviews(arr);
+  updateButtonState();
+}
+
 // 处理粘贴事件
 function handlePaste(e) {
-    // 尝试获取粘贴的文本内容
-    const text = (e.clipboardData || e.originalEvent.clipboardData).getData('text/plain');
-    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-    
-    // 如果有文本内容，保留默认粘贴行为
-    if (text && text.trim().length > 0) {
-        // 不阻止默认行为，让文本正常粘贴
-        return;
-    }
-    
-    // 如果没有文本内容但有图片，则处理图片
-    e.preventDefault(); // 阻止默认粘贴行为，避免显示base64文本
-    for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
-            const file = items[i].getAsFile();
-            handleImageFile(file);
-            break;
-        }
-    }
-}
+  const cd = e.clipboardData || e.originalEvent?.clipboardData;
+  if (!cd) return;
 
-// 处理拖拽悬停
-function handleDragOver(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    noteInput.style.borderColor = '#4A84FF';
-}
+  const text = cd.getData('text/plain');
+  const items = cd.items || [];
 
-// 处理拖拽离开
-function handleDragLeave(e) {
+  // 收集图片
+  const imgs = [];
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].type && items[i].type.indexOf('image') !== -1) {
+      const f = items[i].getAsFile?.();
+      if (f) imgs.push(f);
+    }
+  }
+
+  if (imgs.length === 0) {
+    // 纯文本或无图片，走默认
+    return;
+  }
+
+  if (text && text.trim()) {
+    // 同时有文本与图片：允许默认粘贴文本，同时异步处理图片，避免清空文本
+    setTimeout(() => handleMultipleImages(imgs, /* append */ true), 0);
+  } else {
+    // 只有图片：阻止默认，避免插入奇怪占位，直接处理图片
     e.preventDefault();
-    e.stopPropagation();
-    noteInput.style.borderColor = '';
+    handleMultipleImages(imgs, /* append */ true);
+  }
 }
 
 // 处理拖拽释放
 function handleDrop(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    noteInput.style.borderColor = '';
-    
-    if (e.dataTransfer.files.length > 0) {
-        const file = e.dataTransfer.files[0];
-        if (file.type.indexOf('image') !== -1) {
-            handleImageFile(file);
-        }
+  e.preventDefault();
+  e.stopPropagation();
+  noteInput.style.borderColor = '';
+
+  const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type.indexOf('image') !== -1);
+  if (files.length > 0) {
+    handleMultipleImages(files, /* append */ true);
+  }
+}
+
+// 处理多个图片文件
+function handleMultipleImages(files, append = true) {
+  const readAll = files.map(f => new Promise(res => {
+    const r = new FileReader();
+    r.onload = ev => res(ev.target.result);
+    r.readAsDataURL(f);
+  }));
+
+  Promise.all(readAll).then(newImgs => {
+    let existing = [];
+    if (noteInput.dataset.imagesData) {
+      try { existing = JSON.parse(noteInput.dataset.imagesData) || []; } catch {}
     }
-}
+    if (noteInput.dataset.imageData) {
+      existing.push(noteInput.dataset.imageData);
+      delete noteInput.dataset.imageData;
+    }
 
-// 处理图片文件
-function handleImageFile(file) {
-    const reader = new FileReader();
-    reader.onload = function(event) {
-        const imageData = event.target.result;
-        noteInput.dataset.imageData = imageData; // 存储图片数据但不显示在输入框
-        noteInput.value = '';
-        showImagePreview(imageData);
-        updateButtonState();
-    };
-    reader.readAsDataURL(file);
-}
+    const combined = append ? existing.concat(newImgs) : newImgs;
+    const uniq = Array.from(new Set(combined));
 
-// 显示图片预览
-function showImagePreview(imageData) {
-    if (!previewContainer || !previewImage) return;
-    previewImage.src = imageData;
-    previewContainer.style.display = 'block';
-}
-
-// 移除图片预览
-function removeImagePreview() {
-    if (!noteInput || !previewContainer) return;
-    noteInput.removeAttribute('data-image-data');
-    previewContainer.style.display = 'none';
+    noteInput.dataset.imagesData = JSON.stringify(uniq);
+    // 关键点：不触碰 noteInput.value，保留已输入文字
+    showMultipleImagePreviews(uniq);
     updateButtonState();
+    adjustTextareaHeight();
+  });
 }
+// 显示多张图片预览
+function showMultipleImagePreviews(imagesData) {
+  if (!previewContainer) return;
+  previewContainer.innerHTML = '';
 
-// 隐藏全屏预览
-function hideFullscreenPreview() {
-    if (!fullscreenPreview) return;
-    fullscreenPreview.style.display = 'none';
-}
+  const grid = document.createElement('div');
+  grid.className = 'image-preview-grid';
+  grid.style.display = 'grid';
+  grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(80px, 1fr))';
+  grid.style.gap = '8px';
+  grid.style.padding = '8px';
 
-// 处理搜索变化
-function handleSearchChange() {
-    if (!searchInput) return;
-    currentSearchTerm = searchInput.value.trim().toLowerCase();
-    renderNotes();
-}
+  imagesData.forEach((src, idx) => {
+    const cell = document.createElement('div');
+    cell.style.position = 'relative';
+    cell.style.borderRadius = '6px';
+    cell.style.overflow = 'hidden';
+    cell.style.border = '1px solid #e5e7eb';
 
-// 渲染笔记列表
-function renderNotes() {
-    if (!notesContainer || !emptyState) return;
-    
-    // 清空容器
-    notesContainer.innerHTML = '';
-    
-    if (notes.length === 0) {
-        showEmptyState();
-        return;
-    }
-    
-    // 隐藏空状态
-    emptyState.style.display = 'none';
-    
-    let filteredNotes = notes;
-    
-    // 如果有搜索词，则过滤笔记
-    if (currentSearchTerm) {
-        filteredNotes = notes.filter(note => {
-            // 对于同时有图片和文字的笔记，搜索文字部分
-            if (note.hasImage && note.content) {
-                return note.content.toLowerCase().includes(currentSearchTerm);
-            }
-            // 对于纯图片笔记，不进行搜索（因为图片数据是base64，搜索没有意义）
-            else if (note.isImage) {
-                return false;
-            }
-            // 对于纯文字笔记，搜索文字内容
-            else {
-                return note.content.toLowerCase().includes(currentSearchTerm);
-            }
-        });
-        
-        if (filteredNotes.length === 0) {
-            showNoSearchResults();
-            return;
-        }
-    }
-    
-    // 按归档状态和时间排序：非归档笔记在前，归档笔记在后，均按时间倒序排列
-    filteredNotes.sort((a, b) => {
-        // 首先按归档状态排序：非归档在前，归档在后
-        if (a.isArchived !== b.isArchived) {
-            return a.isArchived ? 1 : -1;
-        }
-        
-        // 然后按时间戳倒序排列（最新的在前）
-        // 直接使用时间戳进行比较，确保排序的稳定性和准确性
-        return b.timestamp - a.timestamp;
+    const img = document.createElement('img');
+    img.className = 'image-preview-input';
+    img.src = src;
+    img.alt = '预览';
+    img.style.width = '100%';
+    img.style.height = '80px';
+    img.style.objectFit = 'cover';
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.title = '删除此图';
+    del.style.position = 'absolute';
+    del.style.top = '4px';
+    del.style.right = '4px';
+    del.style.width = '20px';
+    del.style.height = '20px';
+    del.style.border = 'none';
+    del.style.borderRadius = '50%';
+    del.style.background = 'rgba(255,255,255,.95)';
+    del.style.color = '#EF4444';
+    del.style.cursor = 'pointer';
+    del.style.lineHeight = '1';
+    del.textContent = '×';
+    del.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      removeOneImage(idx);
     });
-    
-    // 渲染每条笔记
-    filteredNotes.forEach(note => {
-        const card = createNoteCard(note);
-        notesContainer.appendChild(card);
-    });
+
+    cell.appendChild(img);
+    cell.appendChild(del);
+    grid.appendChild(cell);
+  });
+
+  previewContainer.appendChild(grid);
+  previewContainer.style.display = imagesData.length ? 'block' : 'none';
+}
+
+// 新增：删除单张
+function removeOneImage(index) {
+  const arr = getImagesArray();
+  if (index < 0 || index >= arr.length) return;
+  arr.splice(index, 1);
+  setImagesArray(arr);
+}
+
+// 更新按钮状态
+function updateButtonState() {
+  if (!noteInput || !addNoteBtn) return;
+  const hasText = !!noteInput.value.trim();
+  const hasSingle = !!noteInput.dataset.imageData;
+  const hasMulti = !!noteInput.dataset.imagesData;
+  addNoteBtn.disabled = !(hasText || hasSingle || hasMulti);
 }
 
 // 添加笔记
+// 添加新笔记
 function addNote() {
     if (!noteInput) return;
     
-    const textContent = noteInput.value.trim();
+    const content = noteInput.value.trim();
+    const imagesData = noteInput.dataset.imagesData ? JSON.parse(noteInput.dataset.imagesData) : null;
     const imageData = noteInput.dataset.imageData;
     
-    // 如果没有内容，则不创建笔记
-    if (!textContent && !imageData) return;
+    console.log('添加笔记时的图片数据:', { imagesData, imageData });
     
-    // 检查是否是编辑模式
-    const isEditing = noteInput.dataset.editingNoteId !== undefined;
-    // 为新笔记生成唯一时间戳，确保排序稳定性
-    // 使用一个小技巧确保即使在同一毫秒内添加多条笔记也能保持正确顺序
-    let newTimestamp = Date.now();
-    // 如果是新笔记且不是编辑模式，确保时间戳唯一
-    if (!isEditing && notes.length > 0) {
-        const latestNoteTimestamp = Math.max(...notes.map(note => note.timestamp));
-        // 如果当前时间戳小于等于最新笔记的时间戳，使用最新笔记时间戳+1
-        if (newTimestamp <= latestNoteTimestamp) {
-            newTimestamp = latestNoteTimestamp + 1;
+    // 检查是否有内容或图片
+    if (!content && !imagesData && !imageData) {
+        return; // 没有内容不添加
+    }
+    
+    const newNote = {
+        id: Date.now().toString(),
+        timestamp: Date.now(),
+        content: content,
+        isArchived: false
+    };
+    
+    // 设置图片相关属性
+    if (imagesData && imagesData.length > 0) {
+        newNote.imagesData = imagesData;
+        newNote.isMultipleImages = true;
+        newNote.hasImages = true;
+        newNote.isImage = false;
+    } else if (imageData) {
+        newNote.imageData = imageData;
+        newNote.hasImage = true;
+        newNote.isImage = !content;
+    } else {
+        newNote.isImage = false;
+        newNote.hasImage = false;
+        newNote.isMultipleImages = false;
+    }
+    
+    console.log('创建的新笔记:', newNote);
+    
+    // 如果是编辑模式，删除旧笔记
+    if (currentEditNoteId) {
+        // 找到旧笔记的索引
+        const oldNoteIndex = notes.findIndex(note => note.id === currentEditNoteId);
+        if (oldNoteIndex !== -1) {
+            // 保留归档状态
+            newNote.isArchived = notes[oldNoteIndex].isArchived;
+            // 删除旧笔记
+            notes.splice(oldNoteIndex, 1);
         }
     }
     
-    const originalTimestamp = isEditing ? parseInt(noteInput.dataset.editingNoteTimestamp) : newTimestamp;
-    const originalArchivedStatus = isEditing ? (noteInput.dataset.editingNoteArchived === 'true') : false;
-    
-    // 创建新笔记对象
-    const newNote = {
-        id: isEditing ? noteInput.dataset.editingNoteId : `note_${newTimestamp}`,
-        timestamp: originalTimestamp,
-        isArchived: originalArchivedStatus
-    };
-    
-    // 根据内容类型设置属性
-    if (imageData && textContent) {
-        // 如果同时有图片和文字，保存两种内容
-        newNote.content = textContent;
-        newNote.imageData = imageData;
-        newNote.hasImage = true;
-        newNote.isImage = false; // 不是纯图片笔记
-    } else if (imageData) {
-        // 如果只有图片
-        newNote.content = imageData;
-        newNote.isImage = true;
-    } else {
-        // 如果只有文字
-        newNote.content = textContent;
-        newNote.isImage = false;
-    };
-    
     // 添加到笔记列表
-    notes.push(newNote);
+    notes.unshift(newNote);
     
-    // 在保存和渲染前先对数组进行排序，确保每次操作后顺序都是正确的
+    // 重新排序笔记（先显示未归档的，再显示归档的）
     notes.sort((a, b) => {
-        // 首先按归档状态排序：非归档在前，归档在后
-        if (a.isArchived !== b.isArchived) {
-            return a.isArchived ? 1 : -1;
-        }
-        
-        // 然后按时间戳倒序排列（最新的在前）
+        if (a.isArchived && !b.isArchived) return 1;
+        if (!a.isArchived && b.isArchived) return -1;
         return b.timestamp - a.timestamp;
     });
     
     // 保存到存储
     saveNotesToStorage();
     
-    // 清空输入框和预览
+    // 渲染笔记
+    renderNotes();
+    
+    // 重置输入
     resetInput();
     
     // 清除编辑状态
-    if (isEditing) {
-        delete noteInput.dataset.editingNoteId;
-        delete noteInput.dataset.editingNoteTimestamp;
-        delete noteInput.dataset.editingNoteArchived;
+    if (currentEditNoteId) {
+        currentEditNoteId = null;
+        addNoteBtn.textContent = '添加笔记';
     }
-    
-    // 重新渲染笔记列表
-    renderNotes();
 }
 
 // 重置输入区域
@@ -359,6 +368,7 @@ function resetInput() {
     if (!noteInput || !previewContainer) return;
     noteInput.value = '';
     noteInput.removeAttribute('data-image-data');
+    noteInput.removeAttribute('data-images-data');
     previewContainer.style.display = 'none';
     
     // 重置输入区域高度
@@ -371,30 +381,35 @@ function resetInput() {
     adjustTextareaHeight();
 }
 
-//  \ 编辑笔记
+// 编辑笔记
 function editNote(note) {
     if (!noteInput) return;
     
     // 保存原始笔记的ID和时间戳
-    const originalId = note.id;
-    const originalTimestamp = note.timestamp;
-    const originalArchivedStatus = note.isArchived;
+    currentEditNoteId = note.id;
     
     // 先清空输入框和预览
     noteInput.value = '';
     noteInput.removeAttribute('data-image-data');
+    noteInput.removeAttribute('data-images-data');
     previewContainer.style.display = 'none';
     
-    // 检查是否同时包含图片和文字
-    if (note.hasImage && note.imageData) {
+    // 检查是否包含多张图片
+    if (note.isMultipleImages && note.imagesData) {
+        noteInput.dataset.imagesData = JSON.stringify(note.imagesData);
+        showMultipleImagePreviews(note.imagesData);
+        noteInput.value = note.content || '';
+    } 
+    // 检查是否同时包含单张图片和文字
+    else if (note.hasImage && note.imageData) {
         // 显示图片预览
         noteInput.dataset.imageData = note.imageData;
         showImagePreview(note.imageData);
         
         // 填充文本内容
         noteInput.value = note.content || '';
-    } else if (note.isImage) {
-        // 如果只有图片
+    } else if (note.isImage && !note.isMultipleImages) {
+        // 如果只有单张图片
         noteInput.dataset.imageData = note.content;
         showImagePreview(note.content);
     } else {
@@ -406,52 +421,24 @@ function editNote(note) {
     updateButtonState();
     adjustTextareaHeight();
     
-    // 滚动到输入框
-    noteInput.scrollIntoView({ behavior: 'smooth' });
-    
-    // 聚焦输入框
-    noteInput.focus();
-    
-    // 临时保存原始笔记信息，供重新添加时使用
-    noteInput.dataset.editingNoteId = originalId;
-    noteInput.dataset.editingNoteTimestamp = originalTimestamp;
-    noteInput.dataset.editingNoteArchived = originalArchivedStatus;
-    
-    // 删除旧笔记
-    deleteNote(originalId);
-}
-
-// 归档/取消归档笔记
-function archiveNote(noteId, isArchived) {
-    const noteIndex = notes.findIndex(note => note.id === noteId);
-    if (noteIndex !== -1) {
-        // 更新笔记的归档状态
-        notes[noteIndex].isArchived = isArchived;
-        
-        // 保存到存储
-        saveNotesToStorage();
-        
-        // 重新渲染笔记列表
-        renderNotes();
+    // 将焦点设置到输入框
+    if (noteInput) {
+        noteInput.focus();
     }
-}
-
-// 删除笔记
-function deleteNote(noteId) {
-    // 从笔记列表中删除
-    notes = notes.filter(note => note.id !== noteId);
     
-    // 保存到存储
-    saveNotesToStorage();
-    
-    // 重新渲染笔记列表
-    renderNotes();
+    // 更改按钮文字
+    addNoteBtn.textContent = '更新笔记';
 }
 
 // 创建笔记卡片
 function createNoteCard(note) {
+    if (!note) return null;
+    
+    console.log('渲染笔记卡片:', { id: note.id, isMultipleImages: note.isMultipleImages, imagesData: note.imagesData?.length });
+    
     const card = document.createElement('div');
     card.className = 'note-card';
+    
     if (note.isArchived) {
         card.classList.add('archived');
     }
@@ -473,8 +460,36 @@ function createNoteCard(note) {
     }
     
     // 根据笔记类型设置内容
-    if (note.isImage) {
-        // 如果是图片笔记
+    if (note.isMultipleImages && note.imagesData) {
+        console.log('渲染多张图片笔记，图片数量:', note.imagesData.length);
+        // 如果是多张图片笔记
+        if (note.content) {
+            // 先添加文字内容
+            const textDiv = document.createElement('div');
+            if (note.isArchived) {
+                textDiv.classList.add('archived-text');
+            }
+            textDiv.innerHTML = formatNoteContent(note.content);
+            contentDiv.appendChild(textDiv);
+        }
+        
+        // 创建图片网格
+        const imageGrid = document.createElement('div');
+        imageGrid.className = 'note-image-grid';
+        
+        note.imagesData.forEach((imageData, index) => {
+            console.log('添加图片到网格:', index, imageData.substring(0, 30) + '...');
+            const img = document.createElement('img');
+            img.className = 'note-image';
+            img.src = imageData;
+            img.alt = '笔记图片';
+            img.addEventListener('click', () => previewFullImage(imageData));
+            imageGrid.appendChild(img);
+        });
+        
+        contentDiv.appendChild(imageGrid);
+    } else if (note.isImage && !note.isMultipleImages) {
+        // 如果是单张图片笔记
         const img = document.createElement('img');
         img.className = 'note-image';
         img.src = note.content;
@@ -482,7 +497,7 @@ function createNoteCard(note) {
         img.addEventListener('click', () => previewFullImage(note.content));
         contentDiv.appendChild(img);
     } else if (note.hasImage && note.imageData) {
-        // 如果是同时包含图片和文字的笔记
+        // 如果是同时包含单张图片和文字的笔记
         // 先添加文字内容
         const textDiv = document.createElement('div');
         if (note.isArchived) {
@@ -656,81 +671,169 @@ function handleTagClick(event, tagName) {
 }
 
 // 预览全屏图片
+// 显示图片预览（单张图片）
+function showImagePreview(imageData) {
+  const arr = getImagesArray();
+  arr.push(imageData);
+  setImagesArray(Array.from(new Set(arr))); // 去重
+}
+
+// 移除图片预览
+function removeImagePreview() {
+    if (!noteInput || !previewContainer) return;
+    noteInput.removeAttribute('data-image-data');
+    noteInput.removeAttribute('data-images-data');
+    previewContainer.style.display = 'none';
+    updateButtonState();
+}
+
+// 全屏预览图片
 function previewFullImage(imageData) {
     if (!fullscreenPreview || !fullscreenImage) return;
     fullscreenImage.src = imageData;
     fullscreenPreview.style.display = 'flex';
 }
 
-// 获取当前AI供应商和模型信息
-async function getCurrentAIInfo() {
-    try {
-        // 更完善地检查Chrome API是否可用
-        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-            const data = await chrome.storage.local.get(['aiCfg2']);
-            if (data.aiCfg2 && data.aiCfg2.vendors) {
-                const aiCfg2 = data.aiCfg2;
-                const activeVendorId = aiCfg2.activeVendorId;
-                const vendor = aiCfg2.vendors[activeVendorId];
-                if (vendor) {
-                    const activeModelId = vendor.activeModelId;
-                    const model = vendor.models[activeModelId];
-                    if (model) {
-                        return {
-                            vendor: vendor.name,
-                            model: model.name || model.model
-                        };
-                    }
-                }
-            }
-        }
-    } catch (e) {
-        console.error('获取AI信息失败:', e);
+// 隐藏全屏预览
+function hideFullscreenPreview() {
+    if (!fullscreenPreview) return;
+    fullscreenPreview.style.display = 'none';
+}
+
+// 处理搜索变化
+function handleSearchChange() {
+    if (!searchInput) return;
+    currentSearchTerm = searchInput.value.trim().toLowerCase();
+    renderNotes();
+}
+
+// 归档/取消归档笔记
+function archiveNote(noteId, isArchived) {
+    const noteIndex = notes.findIndex(note => note.id === noteId);
+    if (noteIndex !== -1) {
+        // 更新笔记的归档状态
+        notes[noteIndex].isArchived = isArchived;
+        
+        // 保存到存储
+        saveNotesToStorage();
+        
+        // 重新渲染笔记列表
+        renderNotes();
     }
-    return { vendor: '未知', model: '未知' };
 }
 
-// 更新状态标签显示AI供应商和模型
-async function updateBadgeWithAIInfo() {
-    const badgeEl = document.getElementById('badge');
-    if (!badgeEl) return;
+// 删除笔记
+function deleteNote(noteId) {
+    // 从笔记列表中删除
+    notes = notes.filter(note => note.id !== noteId);
     
-    const aiInfo = await getCurrentAIInfo();
-    badgeEl.textContent = `${aiInfo.vendor} | ${aiInfo.model}`;
-    badgeEl.style.background = '#ecfdf5';
-    badgeEl.style.color = '#065f46';
-    badgeEl.style.borderColor = '#a7f3d0';
+    // 保存到存储
+    saveNotesToStorage();
+    
+    // 重新渲染笔记列表
+    renderNotes();
 }
 
-// 初始化时更新标签
-document.addEventListener('DOMContentLoaded', () => {
-    // 延迟执行以确保DOM完全加载
-    setTimeout(updateBadgeWithAIInfo, 100);
-});
-
-// 监听存储变化以更新状态标签
-try {
-    chrome.storage.onChanged.addListener((changes, namespace) => {
-        if (namespace === 'local' && (changes.aiCfg2 || changes.aiCfg)) {
-            updateBadgeWithAIInfo();
+// 渲染笔记列表
+function renderNotes() {
+    if (!notesContainer || !emptyState) return;
+    
+    // 清空容器
+    notesContainer.innerHTML = '';
+    
+    if (notes.length === 0) {
+        showEmptyState();
+        return;
+    }
+    
+    // 隐藏空状态
+    emptyState.style.display = 'none';
+    
+    let filteredNotes = notes;
+    
+    // 如果有搜索词，则过滤笔记
+    if (currentSearchTerm) {
+        filteredNotes = notes.filter(note => {
+            // 对于同时有图片和文字的笔记，搜索文字部分
+            if (note.hasImage && note.content) {
+                return note.content.toLowerCase().includes(currentSearchTerm);
+            }
+            // 对于纯图片笔记，不进行搜索（因为图片数据是base64，搜索没有意义）
+            else if (note.isImage) {
+                return false;
+            }
+            // 对于纯文字笔记，搜索文字内容
+            else {
+                return note.content.toLowerCase().includes(currentSearchTerm);
+            }
+        });
+        
+        if (filteredNotes.length === 0) {
+            showNoSearchResults();
+            return;
         }
+    }
+    
+    // 按归档状态和时间排序：非归档笔记在前，归档笔记在后，均按时间倒序排列
+    filteredNotes.sort((a, b) => {
+        // 首先按归档状态排序：非归档在前，归档在后
+        if (a.isArchived !== b.isArchived) {
+            return a.isArchived ? 1 : -1;
+        }
+        
+        // 然后按时间戳倒序排列（最新的在前）
+        // 直接使用时间戳进行比较，确保排序的稳定性和准确性
+        return b.timestamp - a.timestamp;
     });
-} catch (e) {
-    console.warn('无法监听存储变化:', e);
+    
+    // 渲染每条笔记
+    filteredNotes.forEach(note => {
+        const card = createNoteCard(note);
+        notesContainer.appendChild(card);
+    });
 }
 
 // 点击页面其他区域关闭所有下拉菜单
-document.addEventListener('click', () => {
-    const allDropMenus = document.querySelectorAll('.drop-menu');
-    allDropMenus.forEach(menu => {
-        menu.style.display = 'none';
+function setupDropdownMenuHandlers() {
+    document.addEventListener('click', () => {
+        const allDropMenus = document.querySelectorAll('.drop-menu');
+        allDropMenus.forEach(menu => {
+            menu.style.display = 'none';
+        });
+
+        // 更新子菜单状态
+        isDropdownMenuOpen = false;
+
+        // 移除菜单打开状态的类
+        if (notesContainer) {
+            notesContainer.classList.remove('menu-open');
+        }
     });
+}
+
+// 初始化页面功能
+function initializePage() {
+    // 设置下拉菜单处理
+    setupDropdownMenuHandlers();
     
-    // 更新子菜单状态
-    isDropdownMenuOpen = false;
-    
-    // 移除菜单打开状态的类
-    if (notesContainer) {
-        notesContainer.classList.remove('menu-open');
+    // 处理拖拽悬停
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        noteInput.style.borderColor = '#4A84FF';
     }
-});
+
+    // 处理拖拽离开
+    function handleDragLeave(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        noteInput.style.borderColor = '';
+    }
+
+    // 设置拖拽相关事件监听
+    noteInput.addEventListener('dragover', handleDragOver);
+    noteInput.addEventListener('dragleave', handleDragLeave);
+    
+    // 初始化时加载笔记
+    loadNotesFromStorage();
+}

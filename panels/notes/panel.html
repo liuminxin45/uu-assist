@@ -16,7 +16,7 @@
     }
     *,*::before,*::after{ box-sizing:border-box; }
     html,body{ height:100%; }
-    body{
+    body{ 
       margin:0; font:13px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
       color:#374151; background:var(--page); display:flex; flex-direction:column;
     }
@@ -59,12 +59,44 @@
 
     .image-preview-container-input{
       position:relative; margin-top:8px; border-radius:6px; overflow:hidden; border:1px dashed var(--border); background:var(--bg);
+      padding:8px;
     }
     .image-preview-input{ width:100%; display:block; max-height:280px; object-fit:contain; }
     .remove-image-btn{
       position:absolute; top:8px; right:8px; width:22px; height:22px;
       background:rgba(255,255,255,.95); border:none; border-radius:50%; color:var(--error);
       font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1; box-shadow:var(--shadow-sm);
+      z-index:10;
+    }
+
+    /* 图片预览网格样式 */
+    .image-preview-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fill, minmax(100px, 1fr));
+      gap:8px;
+      max-height:300px;
+      overflow-y:auto;
+    }
+    .image-preview-grid img{
+      width:100%;
+      height:100px;
+      object-fit:cover;
+      border-radius:4px;
+      border:1px solid var(--border);
+    }
+
+    /* 笔记卡片图片网格样式 */
+    .note-image-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fill, minmax(100px, 1fr));
+      gap:6px;
+      margin-top:6px;
+    }
+    .note-image-grid img{
+      width:100%;
+      height:100px;
+      object-fit:cover;
+      border-radius:4px;
     }
 
     .notes-list{
@@ -153,8 +185,7 @@
             </div>
 
             <div id="image-preview-container" class="image-preview-container-input" style="display:none;">
-              <img id="image-preview" class="image-preview-input" src="" alt="预览"/>
-              <button id="remove-image-btn" class="remove-image-btn" aria-label="移除">×</button>
+              <!-- 图片预览将通过JavaScript动态生成 -->
             </div>
           </div>
         </div>
