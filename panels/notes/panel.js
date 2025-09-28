@@ -460,11 +460,17 @@ function createNoteCard(note) {
     // 先创建时间元素，放在卡片最上方
     const timeDiv = document.createElement('div');
     timeDiv.className = 'note-time';
+    if (note.isArchived) {
+        timeDiv.classList.add('archived-text');
+    }
     timeDiv.textContent = formatTime(note.timestamp);
     
     // 创建内容区域
     const contentDiv = document.createElement('div');
     contentDiv.className = 'note-content';
+    if (note.isArchived) {
+        contentDiv.classList.add('archived-text');
+    }
     
     // 根据笔记类型设置内容
     if (note.isImage) {
@@ -479,6 +485,9 @@ function createNoteCard(note) {
         // 如果是同时包含图片和文字的笔记
         // 先添加文字内容
         const textDiv = document.createElement('div');
+        if (note.isArchived) {
+            textDiv.classList.add('archived-text');
+        }
         textDiv.innerHTML = formatNoteContent(note.content);
         contentDiv.appendChild(textDiv);
         
