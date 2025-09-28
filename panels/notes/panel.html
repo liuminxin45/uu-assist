@@ -1,485 +1,186 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>笔记收集</title>
-    <style>
-        /* 全局样式 */
-        :root {
-            --primary-color: #4A84FF;
-            --secondary-color: #6B7280;
-            --border-color: #E5E7EB;
-            --bg-color: #FFFFFF;
-            --hover-bg: #F9FAFB;
-            --error-color: #EF4444;
-            --success-color: #10B981;
-            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Notes</title>
+  <style>
+    :root{
+      --primary:#2563eb; --primary-weak:rgba(37,99,235,.12);
+      --text:#111827; --muted:#6b7280;
+      --bg:#fff; --bg-muted:#f8fafc; --page:#F3F4F6;
+      --border:#e5e7eb; --error:#EF4444;
+      --shadow-sm:0 1px 2px rgba(0,0,0,.05);
+      --shadow-md:0 4px 10px rgba(0,0,0,.10);
+      --radius:10px; --radius-sm:8px;
+    }
+    *,*::before,*::after{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0; font:13px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+      color:#374151; background:var(--page); display:flex; flex-direction:column;
+    }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+    .container{ display:flex; height:100vh; width:100%; }
+    .content-wrapper{ flex:1; display:flex; flex-direction:column; padding:12px; overflow:hidden; }
+    .notes-wrapper{
+      display:flex; flex-direction:column; min-height:0; height:100%;
+      background:var(--bg-muted); border-radius:12px; overflow:hidden;
+      border:1px solid var(--border); box-shadow:var(--shadow-sm);
+    }
 
-        html,
-        body {
-            height: 100%;
-        }
+    .header{ flex:0 0 auto; padding:10px 12px; background:var(--bg-muted); border-bottom:1px solid var(--border); }
+    .header-top{ display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .header h2{ margin:0; font-size:16px; font-weight:600; color:var(--text); }
+    .pill{ display:inline-block; padding:2px 8px; border-radius:999px; background:#eef2ff; color:#3730a3; font-size:12px; border:1px solid #c7d2fe; }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            color: #374151;
-            background-color: #F3F4F6;
-            line-height: 1.5;
-            padding: 0;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-        }
+    .input-section{ flex:0 0 auto; padding:10px 12px; background:var(--bg-muted); border-bottom:1px solid var(--border); }
+    .search-container{ width:100%; max-width:300px; margin-bottom:10px; }
 
-        /* 主容器 */
-        .container {
-            display: flex;
-            height: 100vh;
-            width: 100%;
-        }
+    .search-input,
+    .note-input{
+      width:100%; background:var(--bg); border:1px solid var(--border);
+      border-radius:var(--radius); padding:8px 10px; font:inherit; outline:none;
+      box-shadow:var(--shadow-sm); transition:border-color .15s ease, box-shadow .15s ease;
+    }
+    .search-input::placeholder{ color:#9ca3af; }
+    .search-input:focus,.note-input:focus{ border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-weak); }
+    .note-input{ padding:10px 72px 10px 10px; min-height:56px; max-height:120px; resize:vertical; }
 
-        .content-wrapper {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            padding: 16px;
-            overflow: hidden;
-        }
+    .add-note-wrapper{ position:relative; }
+    .add-note-btn{
+      position:absolute; right:4px; bottom:4px; padding:6px 10px;
+      background:var(--bg); border:1px solid var(--border); border-radius:6px; font-size:13px; cursor:pointer;
+      transition:background-color .15s ease, border-color .15s ease, transform .1s ease; box-shadow:var(--shadow-sm);
+    }
+    .add-note-btn:hover{ background:#f9fafb; border-color:var(--primary); }
+    .add-note-btn:active{ transform:translateY(1px); }
+    .add-note-btn:disabled{ opacity:.5; cursor:not-allowed; }
 
-        /* 笔记容器 */
-        .notes-wrapper {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            min-height: 0;
-            background-color: #fafafa;
-            border-radius: 12px;
-            overflow: hidden;
-        }
+    .image-preview-container-input{
+      position:relative; margin-top:8px; border-radius:6px; overflow:hidden; border:1px dashed var(--border); background:var(--bg);
+    }
+    .image-preview-input{ width:100%; display:block; max-height:280px; object-fit:contain; }
+    .remove-image-btn{
+      position:absolute; top:8px; right:8px; width:22px; height:22px;
+      background:rgba(255,255,255,.95); border:none; border-radius:50%; color:var(--error);
+      font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1; box-shadow:var(--shadow-sm);
+    }
 
-        /* 头部 */
-        .header {
-            padding: 12px;
-            background-color: #fafafa;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            align-items: stretch;
-            border-bottom: 1px solid var(--border-color);
-        }
+    .notes-list{
+      flex:1 1 auto; min-height:0; overflow:auto;
+      padding:12px; display:flex; flex-direction:column; gap:10px; background:#f3f4f6;
+    }
 
-        .header-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-        }
+    .note-card{
+      padding:10px; background:var(--bg); border:1px solid var(--border);
+      border-radius:8px; transition:box-shadow .15s ease, transform .15s ease;
+    }
+    .note-card:hover{ box-shadow:var(--shadow-md); transform:translateY(-1px); }
+    .menu-open .note-card:hover{ box-shadow:none; transform:none; }
 
-        .header h2 {
-            font-size: 18px;
-            font-weight: 600;
-            color: #333;
-            margin: 0;
-        }
+    .note-card.archived{ background:#f9fafb; }
+    .archived-text{ color:#d1d5db; }
 
-        /* 搜索框 */
-        .search-container {
-            position: relative;
-            width: 100%;
-            max-width: 300px;
-        }
+    .note-content{ margin-bottom:6px; word-break:break-word; }
+    .note-image{ max-width:100%; height:auto; border-radius:4px; cursor:pointer; transition:opacity .15s ease; }
+    .note-image:hover{ opacity:.9; }
+    .note-time{ font-size:10px; color:#9ca3af; margin-bottom:6px; }
 
-        .search-input {
-            width: 100%;
-            padding: 8px 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            font-size: 14px;
-            transition: border-color 0.2s;
-        }
+    .note-tag{ background:#3B82F6; color:#fff; padding:2px 6px; border-radius:4px; font-weight:500; cursor:pointer; text-decoration:none; margin:0 2px; }
 
-        .search-input:focus {
-            outline: none;
-            border-color: var(--primary-color);
-        }
+    .more-menu-container{ position:relative; display:flex; justify-content:flex-end; margin-top:6px; }
+    .more-btn{
+      width:22px; height:22px; padding:0; background:transparent; border:1px solid var(--border);
+      border-radius:4px; font-size:14px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0;
+      transition:opacity .15s ease, background-color .15s ease, border-color .15s ease;
+    }
+    .note-card:hover .more-btn{ opacity:1; }
+    .more-btn:hover{ background:#f9fafb; border-color:var(--primary); }
+    .drop-menu{
+      position:absolute; top:100%; right:0; margin-top:4px; background:var(--bg);
+      border:1px solid var(--border); border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,.15); min-width:110px; z-index:100; overflow:hidden;
+    }
+    .menu-option{ padding:8px 10px; cursor:pointer; font-size:14px; }
+    .menu-option:hover{ background:#f9fafb; }
+    .menu-option.delete{ color:var(--error); }
 
-        /* 输入区域 */
-        .input-section {
-            padding: 12px;
-            background-color: #fafafa;
-            border-bottom: 1px solid var(--border-color);
-        }
+    .empty-state{ text-align:center; padding:28px 16px; color:var(--muted); font-size:13px; }
 
-        .note-input-wrapper {
-            position: relative;
-            margin-bottom: 10px;
-        }
+    .fullscreen-preview{ position:fixed; inset:0; background:rgba(0,0,0,.9); display:flex; align-items:center; justify-content:center; z-index:1000; cursor:pointer; }
+    .fullscreen-image{ max-width:90%; max-height:90vh; object-fit:contain; }
 
-        .note-input {
-            width: 100%;
-            padding: 12px 80px 12px 12px;
-            /* 右侧留出按钮空间 */
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            font-size: 14px;
-            font-family: inherit;
-            resize: vertical;
-            min-height: 60px;
-            max-height: 120px;
-            transition: border-color 0.2s;
-        }
+    .rail{
+      display:flex; flex-direction:column; gap:4px; padding:8px 4px;
+      background:#fafafa; border-radius:12px; margin:16px 8px 16px 0; border:1px solid var(--border);
+    }
+    .railbtn{
+      width:40px; height:40px; border:none; border-radius:8px; background:transparent;
+      font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+      transition:background-color .15s ease, transform .1s ease;
+    }
+    .railbtn:hover{ background:#f0f0f0; }
+    .railbtn:active{ transform:translateY(1px); }
+    .railbtn.active{ background:#e3f2fd; color:#1976d2; }
 
-        .note-input:focus {
-            outline: none;
-            border-color: var(--primary-color);
-        }
-
-        /* 图片预览 */
-        .image-preview-container-input {
-            position: relative;
-            margin-top: 10px;
-            border-radius: 6px;
-            overflow: hidden;
-            border: 1px dashed var(--border-color);
-        }
-
-        .image-preview-input {
-            width: 100%;
-            height: auto;
-            display: block;
-            max-height: 300px;
-            object-fit: contain;
-        }
-
-        .remove-image-btn {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 24px;
-            height: 24px;
-            background-color: rgba(255, 255, 255, 0.9);
-            border: none;
-            border-radius: 50%;
-            color: var(--error-color);
-            font-size: 20px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            line-height: 1;
-            transition: background-color 0.2s;
-        }
-
-        .remove-image-btn:hover {
-            background-color: white;
-        }
-
-        /* 添加按钮 - 定位在输入框内右下角 */
-        .add-note-wrapper {
-            position: relative;
-        }
-
-        .add-note-btn {
-            position: absolute;
-            right: 4px;
-            bottom: 4px;
-            padding: 8px 12px;
-            background-color: #fafafa;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.2s;
-            z-index: 1;
-        }
-
-        .add-note-btn:hover {
-            background-color: var(--hover-bg);
-            border-color: var(--primary-color);
-        }
-
-        .add-note-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        /* 笔记列表 */
-        .notes-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            background-color: #f3f4f6;
-        }
-
-        /* 笔记卡片 */
-        .note-card {
-            padding: 12px;
-            background-color: var(--bg-color);
-            border: none;
-            border-radius: 6px;
-            transition: box-shadow 0.2s, transform 0.2s;
-        }
-
-        .note-card:hover {
-            box-shadow: var(--shadow-md);
-            transform: translateY(-1px);
-        }
-
-        .note-content {
-            margin-bottom: 8px;
-            word-break: break-word;
-        }
-
-        .note-image {
-            max-width: 100%;
-            height: auto;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-
-        .note-image:hover {
-            opacity: 0.9;
-        }
-
-        .note-time {
-            font-size: 10px;
-            color: #d1d5db;
-            margin-bottom: 8px;
-        }
-
-        /* AI模型标签样式 */
-        .pill {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 999px;
-            background: #eef2ff;
-            color: #3730a3;
-            font-size: 12px;
-            border: 1px solid #c7d2fe;
-        }
-
-        /* 笔记标签样式 */
-        .note-tag {
-            background-color: #3B82F6;
-            color: white;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-weight: 500;
-            cursor: pointer;
-            text-decoration: none;
-            transition: background-color 0.2s;
-            margin: 0 2px;
-        }
-
-        .note-tag:hover {
-            background-color: #2563EB;
-        }
-
-        /* 更多按钮和下拉菜单样式 */
-        .more-menu-container {
-            position: relative;
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 8px;
-        }
-
-        .more-btn {
-            width: 24px;
-            height: 24px;
-            padding: 0;
-            background-color: transparent;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-            opacity: 0;
-        }
-
-        /* 卡片悬浮时显示更多按钮 */
-        .note-card:hover .more-btn {
-            opacity: 1;
-        }
-
-        .more-btn:hover {
-            background-color: var(--hover-bg);
-            border-color: var(--primary-color);
-        }
-
-        .drop-menu {
-            position: absolute;
-            top: 100%;
-            right: 0;
-            margin-top: 4px;
-            background-color: white;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-            min-width: 80px;
-            z-index: 10;
-            overflow: hidden;
-        }
-
-        .menu-option {
-            padding: 8px 12px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            font-size: 14px;
-        }
-
-        .menu-option:hover {
-            background-color: var(--hover-bg);
-        }
-
-        .menu-option.delete {
-            color: var(--error-color);
-        }
-
-        .menu-option.delete:hover {
-            background-color: rgba(239, 68, 68, 0.1);
-        }
-
-        /* 状态消息 */
-        .empty-state,
-        .no-results {
-            text-align: center;
-            padding: 40px 20px;
-            color: var(--secondary-color);
-        }
-
-        .empty-state p,
-        .no-results p {
-            margin-bottom: 8px;
-        }
-
-        /* 全屏图片预览 */
-        .fullscreen-preview {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0, 0, 0, 0.9);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            cursor: pointer;
-        }
-
-        .fullscreen-image {
-            max-width: 90%;
-            max-height: 90vh;
-            object-fit: contain;
-        }
-
-        /* 面板切换导航栏 */
-        .rail {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            padding: 8px 4px;
-            background-color: #fafafa;
-            border-radius: 12px;
-            margin: 16px 8px 16px 0;
-        }
-
-        .railbtn {
-            width: 40px;
-            height: 40px;
-            border: none;
-            border-radius: 8px;
-            background-color: transparent;
-            font-size: 20px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .railbtn:hover {
-            background-color: #f0f0f0;
-        }
-
-        .railbtn.active {
-            background-color: #e3f2fd;
-            color: #1976d2;
-        }
-    </style>
+    *{ scrollbar-width:thin; scrollbar-color:#CBD5E1 transparent; }
+    *::-webkit-scrollbar{ width:8px; height:8px; }
+    *::-webkit-scrollbar-thumb{ background:#CBD5E1; border-radius:8px; }
+    *::-webkit-scrollbar-thumb:hover{ background:#94A3B8; }
+    *::-webkit-scrollbar-track{ background:transparent; }
+  </style>
 </head>
-
 <body>
-    <div class="container">
-        <div class="content-wrapper">
-            <div class="notes-wrapper">
-                <div class="header">
-                    <div class="header-top">
-                        <h2>Notes</h2>
-                        <span id="badge" class="pill">空闲</span>
-                    </div>
-                </div>
-
-                <div class="input-section">
-                    <div class="search-container" style="margin-bottom: 12px;">
-                        <input type="text" id="search-input" class="search-input" placeholder="🔍">
-                    </div>
-                    <div class="note-input-wrapper">
-                        <div class="add-note-wrapper">
-                            <textarea id="note-input" class="note-input" placeholder="" rows="1"></textarea>
-                        </div>
-                        <div id="image-preview-container" class="image-preview-container-input" style="display: none;">
-                            <img id="image-preview" class="image-preview-input" src="" alt="预览图片">
-                            <button id="remove-image-btn" class="remove-image-btn">×</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="notes-container" class="notes-list">
-                    <!-- 笔记列表将在这里动态生成 -->
-                </div>
-
-                <div id="empty-state" class="empty-state" style="display: none;">
-                    <p>暂无笔记</p>
-                    <p style="font-size: 12px;">输入内容或粘贴图片添加第一条笔记吧！</p>
-                </div>
-            </div>
+  <div class="container">
+    <div class="content-wrapper">
+      <div class="notes-wrapper">
+        <div class="header">
+          <div class="header-top">
+            <h2>Notes</h2>
+            <span id="badge" class="pill">空闲</span>
+          </div>
         </div>
 
-        <nav class="rail" aria-label="面板切换">
-            <button class="railbtn" data-target="pha-panel" title="PHA" aria-label="PHA">👁️</button>
-            <button class="railbtn" data-target="rocket-panel" title="Rocket" aria-label="Rocket">🚀</button>
-            <button class="railbtn active" data-target="notes-panel" title="笔记" aria-label="笔记">📝</button>
-            <button class="railbtn" data-target="settings-panel" title="设置" aria-label="设置">⚙️</button>
-        </nav>
+        <div class="input-section">
+          <div class="search-container">
+            <input type="text" id="search-input" class="search-input" placeholder="🔍 搜索"/>
+          </div>
+
+          <div class="note-input-wrapper">
+            <div class="add-note-wrapper">
+              <textarea id="note-input" class="note-input" placeholder="记点啥…" rows="1"></textarea>
+              <button id="add-note-btn" class="add-note-btn" style="display:none">添加</button>
+            </div>
+
+            <div id="image-preview-container" class="image-preview-container-input" style="display:none;">
+              <img id="image-preview" class="image-preview-input" src="" alt="预览"/>
+              <button id="remove-image-btn" class="remove-image-btn" aria-label="移除">×</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="notes-container" class="notes-list"></div>
+
+        <div id="empty-state" class="empty-state" style="display:none;">
+          无内容。输入或粘贴图片即可。
+        </div>
+      </div>
     </div>
 
-    <!-- 全屏图片预览容器 -->
-    <div id="fullscreen-preview" class="fullscreen-preview" style="display: none;">
-        <img id="fullscreen-image" class="fullscreen-image" src="" alt="全屏预览">
-    </div>
+    <nav class="rail" aria-label="面板切换">
+      <button class="railbtn" data-target="pha-panel" title="PHA" aria-label="PHA">👁️</button>
+      <button class="railbtn" data-target="rocket-panel" title="Rocket" aria-label="Rocket">🚀</button>
+      <button class="railbtn active" data-target="notes-panel" title="笔记" aria-label="笔记">📝</button>
+      <button class="railbtn" data-target="settings-panel" title="设置" aria-label="设置">⚙️</button>
+    </nav>
+  </div>
 
-    <script type="module" src="../persist-init.js"></script>
-    <script src="panel.js"></script>
-    <script src="../../rail.js" type="module"></script>
+  <div id="fullscreen-preview" class="fullscreen-preview" style="display:none;">
+    <img id="fullscreen-image" class="fullscreen-image" src="" alt="预览"/>
+  </div>
+
+  <script type="module" src="../persist-init.js"></script>
+  <script src="panel.js"></script>
+  <script src="../../rail.js" type="module"></script>
 </body>
-
 </html>

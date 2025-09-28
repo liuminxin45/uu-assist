@@ -1,281 +1,270 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PHA</title>
-    <style>
-        /* 全局样式 - 与notes面板保持一致 */
-        :root {
-            --primary-color: #4A84FF;
-            --secondary-color: #6B7280;
-            --border-color: #E5E7EB;
-            --bg-color: #FFFFFF;
-            --hover-bg: #F9FAFB;
-            --error-color: #EF4444;
-            --success-color: #10B981;
-            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PHA</title>
+  <style>
+  /* ===== 基础一致性 ===== */
+  *,*::before,*::after{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  :root{
+    --rail-btn:38px;
+    --radius:10px; --radius-sm:8px;
+    --primary:#2563eb; --primary-weak:rgba(37,99,235,.12);
+    --text:#0f172a; --muted:#6b7280;
+    --bg:#ffffff; --bg-muted:#f8fafc;
+    --border:#e5e7eb;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.08);
+    --shadow-md:0 2px 6px rgba(0,0,0,.25);
+  }
+  body{
+    margin:0; font:13px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+    color:#374151; background:#F3F4F6; display:flex; flex-direction:column;
+  }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  /* 容器 */
+  .container{ display:flex; height:100vh; width:100%; }
+  .content-wrapper{ flex:1; display:flex; flex-direction:column; padding:12px; overflow:hidden; }
+  .pha-wrapper{
+    display:flex; flex-direction:column; min-height:0; height:100%;
+    background:var(--bg-muted); border-radius:12px; overflow:hidden;
+    border:1px solid var(--border); box-shadow:var(--shadow-sm);
+  }
 
-        html, body {
-            height: 100%;
-        }
+  /* 头部 */
+  .header{ flex:0 0 auto; padding:10px 12px; background:var(--bg-muted); border-bottom:1px solid var(--border); }
+  .header-top{ display:flex; justify-content:space-between; align-items:center; }
+  .header h2{ margin:0; font-size:16px; font-weight:600; color:#111827; }
+  .pill{ display:inline-block; padding:2px 8px; border-radius:999px; background:#eef2ff; color:#3730a3; font-size:12px; border:1px solid #c7d2fe; }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            color: #374151;
-            background-color: #F3F4F6;
-            line-height: 1.5;
-            padding: 0;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-        }
+  /* 行与分栏 */
+  .inner-pad{ flex:1 1 auto; min-height:0; overflow:auto; padding:12px; }
+  .row{ margin-top:10px; }
+  .split{ display:flex; gap:8px; align-items:center; }
+  .split>:first-child{ flex:1; min-width:0; }
+  .muted{ color:var(--muted); }
 
-        /* 主容器 */
-        .container {
-            display: flex;
-            height: 100vh;
-            width: 100%;
-        }
+  /* 链接、卡片、状态 */
+  .link{ color:var(--primary); text-decoration:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .link:hover{ text-decoration:underline; }
+  .card{ background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-sm); }
+  .status{ white-space:pre-wrap; background:var(--bg); border:1px dashed var(--border); border-radius:var(--radius); padding:8px; min-height:120px; max-height:220px; overflow:auto; }
 
-        .content-wrapper {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            padding: 16px;
-            overflow: auto;
-        }
+  /* 输入与选择 */
+  .input-common{
+    background:var(--bg); border:1px solid var(--border); outline:none; width:100%;
+    padding:8px 10px; border-radius:var(--radius); box-shadow:var(--shadow-sm);
+    transition:box-shadow .15s ease, border-color .15s ease;
+  }
+  .input-common::placeholder{ color:#9ca3af; }
+  .input-common:focus{ box-shadow:0 0 0 3px var(--primary-weak); border-color:var(--primary); }
+  .input-common:disabled{ opacity:.6; cursor:not-allowed; }
 
-        /* PHA容器 */
-        .pha-wrapper {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            min-height: 0;
-            background-color: #fafafa;
-            border-radius: 12px;
-            overflow: hidden;
-        }
+  .select-common{
+    background:var(--bg); border:1px solid var(--border); outline:none; width:100%;
+    padding:8px 34px 8px 10px; border-radius:var(--radius);
+    appearance:none; -webkit-appearance:none; -moz-appearance:none;
+    background-image:
+      linear-gradient(transparent,transparent),
+      url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5" fill="none" stroke="%236b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+    background-repeat:no-repeat; background-position:right 10px center; background-size:14px 14px;
+    box-shadow:var(--shadow-sm); transition:box-shadow .15s ease, border-color .15s ease;
+  }
+  .select-common:focus{ box-shadow:0 0 0 3px var(--primary-weak); border-color:var(--primary); }
+  .select-common:disabled{ opacity:.6; cursor:not-allowed; }
 
-        /* 头部 */
-        .header {
-            padding: 12px;
-            background-color: #fafafa;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            align-items: stretch;
-            border-bottom: 1px solid var(--border-color);
-        }
+  /* 文本域与工具栏 */
+  #txtContent{ font:inherit; line-height:inherit; white-space:pre-wrap; min-height:240px; }
+  .mdbar{
+    display:flex; gap:6px; flex-wrap:wrap;
+    border:1px solid var(--border); border-bottom:none;
+    border-radius:var(--radius) var(--radius) 0 0; padding:6px; background:var(--bg-muted);
+  }
+  .mdbtn{
+    padding:6px 8px; border:1px solid var(--border); border-radius:var(--radius-sm);
+    background:var(--bg); cursor:pointer; font-size:12px; user-select:none;
+    transition:transform .12s ease, border-color .12s ease, background-color .12s ease;
+  }
+  .mdbtn:hover{ background:#f9fafb; border-color:var(--primary); }
+  .mdbtn:active{ transform:translateY(1px); }
+  .textarea-wrap{ border:1px solid var(--border); border-radius:0 0 var(--radius) var(--radius); overflow:hidden; background:var(--bg); }
+  .textarea-wrap textarea{ border:none; border-radius:0; }
+  .drop{ min-height:140px; }
 
-        .header-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+  /* 按钮 */
+  .btn-common{
+    background:var(--bg); border:1px solid var(--border);
+    padding:6px 10px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+    font:inherit; line-height:1.2; transition:transform .15s ease, border-color .15s ease, background-color .15s ease;
+    box-shadow:var(--shadow-sm);
+  }
+  .btn-common:hover{ background:#f9fafb; border-color:var(--primary); }
+  .btn-common:active{ transform:translateY(1px); }
+  .btn-common[disabled]{ opacity:.6; cursor:not-allowed; }
+  #btnLoad,#btnBind{ width:var(--rail-btn); min-width:var(--rail-btn); height:var(--rail-btn); padding:0; }
 
-        .header h2 {
-            font-size: 18px;
-            font-weight: 600;
-            color: #333;
-            margin: 0;
-        }
+  /* 侧边栏 */
+  .rail{
+    display:flex; flex-direction:column; gap:4px; padding:8px 4px;
+    background:#fafafa; border-radius:12px; margin:16px 8px 16px 0; border:1px solid var(--border);
+  }
+  .railbtn{
+    width:40px; height:40px; border:none; background:transparent; border-radius:8px;
+    font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:background-color .15s ease, transform .1s ease;
+  }
+  .railbtn:hover{ background:#f0f0f0; }
+  .railbtn:active{ transform:translateY(1px); }
+  .railbtn.active{ background:#e3f2fd; color:#1976d2; }
 
-        /* PHA特有样式 */
-        label { display: block; margin: 8px 0 6px; color: var(--secondary-color); font-weight: 600; }
-        .hint { font-size: 12px; color: var(--secondary-color); margin-top: 6px; }
-        input[type="text"], textarea, select { width: 100%; background: #ffffff; border: 1px solid var(--border-color); border-radius: 10px; color: #374151; padding: 10px 12px; font-family: inherit; }
-        input[type="text"]:focus, textarea:focus, select:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(74, 132, 255, 0.12); }
-        .row { margin-top: 10px; }
-        .split { display: flex; gap: 8px; align-items: center; }
-        .split > :first-child { flex: 1; min-width: 0; }
-        .muted { color: var(--secondary-color); }
-        .status { white-space: pre-wrap; background: #ffffff; border: 1px dashed var(--border-color); border-radius: 10px; padding: 8px; min-height: 120px; max-height: 200px; overflow: auto; }
-        .link { color: var(--primary-color); text-decoration: none; }
-        .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #eef2ff; color: #3730a3; font-size: 12px; border: 1px solid #c7d2fe; }
-        .switch { display: flex; align-items: center; gap: 8px; }
-        .drop { min-height: 120px; }
-        .mdbar { display: flex; gap: 6px; flex-wrap: wrap; border: 1px solid var(--border-color); border-bottom: none; border-radius: 10px 10px 0 0; padding: 6px; background: #f8fafc; }
-        .mdbtn { padding: 6px 8px; border: 1px solid var(--border-color); border-radius: 8px; background: #ffffff; cursor: pointer; font-size: 12px; transition: all 0.2s; }
-        .mdbtn:hover { background-color: var(--hover-bg); }
-        .mdbtn:active { transform: translateY(1px); }
-        .textarea-wrap { border: 1px solid var(--border-color); border-radius: 0 0 10px 10px; }
-        .textarea-wrap textarea { border: none; border-radius: 0 0 10px 10px; }
-        .btn-common { padding: 8px 12px; background-color: #ffffff; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
-        .btn-common:hover { background-color: var(--hover-bg); border-color: var(--primary-color); }
-        
-        /* 侧边栏样式 - 与notes面板保持一致 */
-        .rail {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            padding: 8px 4px;
-            background-color: #fafafa;
-            border-radius: 12px;
-            margin: 16px 8px 16px 0;
-        }
-        
-        .railbtn {
-            width: 40px;
-            height: 40px;
-            border: none;
-            background-color: transparent;
-            border-radius: 8px;
-            font-size: 20px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .railbtn:hover {
-            background-color: #f0f0f0;
-        }
-        
-        .railbtn.active {
-            background-color: #e3f2fd;
-            color: #1976d2;
-        }
-    </style>
+  /* 对话框 */
+  dialog{ border:none; border-radius:12px; padding:12px; box-shadow:0 4px 12px rgba(0,0,0,.12); background:#fff; }
+  dialog::backdrop{ background:rgba(17,24,39,.35); }
+  dialog h3{ margin:0 0 8px; font-size:16px; color:#111827; }
+  #tplArea{ font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace; }
+
+  /* 开关 */
+  .switch-ai{ display:flex; align-items:center; gap:8px; }
+  .switch-ai input[type="checkbox"]{ appearance:auto; accent-color:var(--primary); width:16px; height:16px; }
+  .switch-ai label{ margin:0; font-weight:600; color:#1f2937; font-size:12px; }
+
+  /* 滚动条 */
+  *{ scrollbar-width:thin; scrollbar-color:#CBD5E1 transparent; }
+  *::-webkit-scrollbar{ width:8px; height:8px; }
+  *::-webkit-scrollbar-thumb{ background:#CBD5E1; border-radius:8px; }
+  *::-webkit-scrollbar-thumb:hover{ background:#94A3B8; }
+  *::-webkit-scrollbar-track{ background:transparent; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="content-wrapper">
-            <div class="pha-wrapper">
-                <div class="header">
-                    <div class="header-top">
-                        <h2>PHA</h2>
-                        <span id="badge" class="pill">空闲</span>
-                    </div>
-                </div>
-                
-                <div style="padding: 16px;">
-                    <div class="row">
-                      <div class="split">
-                        <input id="listUrl" class="input-common" type="text" value="http://pha.tp-link.com.cn/maniphest/query/AGNGtvQS84UK/#R">
-                        <button id="btnLoad" class="btn-common" title="从 PHA 拉取该搜索页的所有任务">📥</button>
-                        <button id="btnBind" class="btn-common" title="绑定当前任务页" style="display:none">🔗</button>
-                      </div>
-                    </div>
-
-                    <div class="row">
-                      <div class="split">
-                        <select id="selItems" class="select-common"></select>
-                        <a id="taskLink" href="#" target="_blank" rel="noopener" class="link"></a>
-                      </div>
-                    </div>
-
-                    <div class="row" id="taskMeta" style="display:none">
-                      <div id="taskMetaBox" class="card" style="padding:8px">
-                        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-                          <div style="min-width:0">
-                            <div id="taskTitle" style="font-weight:600;word-break:break-all"></div>
-                            <div class="muted" style="margin-top:4px;font-size:12px">
-                              <span id="taskStatus"></span><span style="margin:0 6px">·</span><span id="taskPriority"></span>
-                            </div>
-                          </div>
-                          <button id="metaToggle" class="btn-common" title="展开/收起">▾</button>
-                        </div>
-                        <div id="taskMetaMore" style="margin-top:6px;display:none"></div>
-                      </div>
-                    </div>
-
-                    <div class="row">
-                      <div class="mdbar" id="mdBar">
-                        <button class="mdbtn" data-md="h1" title="一级标题">H1</button>
-                        <button class="mdbtn" data-md="h2" title="二级标题">H2</button>
-                        <button class="mdbtn" data-md="h3" title="三级标题">H3</button>
-                        <button class="mdbtn" data-md="bold" title="加粗">B</button>
-                        <button class="mdbtn" data-md="italic" title="斜体">I</button>
-                        <button class="mdbtn" data-md="link" title="插入链接">Link</button>
-                        <button class="mdbtn" data-md="ul" title="无序列表">◾</button>
-                        <button class="mdbtn" data-md="ol" title="有序列表">1</button>
-                        <button class="mdbtn" data-md="quote" title="引用">></button>
-                        <button class="mdbtn" data-md="code" title="代码段">`</button>
-                        <button class="mdbtn" data-md="codeblock" title="代码块">&lt;/&gt;</button>
-                        <button class="mdbtn" data-md="checkbox" title="复选框">Todo</button>
-                        <button class="mdbtn" data-md="table" title="插入表格">Table</button>
-                        <button class="mdbtn" data-md="important" title="IMPORTANT 标签">!</button>
-                      </div>
-
-                      <div class="row">
-                        <div class="textarea-wrap">
-                          <textarea id="txtContent" class="input-common drop" rows="7" placeholder=""></textarea>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="row">
-                      <div class="switch-ai" style="display:flex; align-items:center;">
-                        <input type="checkbox" id="chkAI" title="启用 AI 分析" style="border: 1px solid #e5e7eb; width:16px; height:16px; opacity:1;">
-                        <label for="chkAI" style="margin:0; margin-left:8px;">🧠 启用AI</label>
-                      </div>
-                    </div>
-
-                    <div class="row">
-                      <div>
-                        <button id="btnGerrit" class="btn-common" title="插入 Gerrit 提交说明">Gerrit</button>
-                        <button id="btnTpl" class="btn-common" title="编辑 POST 模板">模板</button>
-                        <button id="btnSumWL" class="btn-common" title="统计该任务的总工作量">统计</button>
-                        <button id="btnWeekly" class="btn-common" title="自动生成周报">周报</button>
-                        <button id="btnSend" class="btn-common" title="提交评论">推送 </button>
-                      </div>
-                    </div>
-
-
-                    <div class="row">
-                      <div id="status" class="status"></div>
-                    </div>
-                </div>
-            </div>
+  <div class="container">
+    <div class="content-wrapper">
+      <div class="pha-wrapper">
+        <div class="header">
+          <div class="header-top">
+            <h2>PHA</h2>
+            <span id="badge" class="pill">空闲</span>
+          </div>
         </div>
-        
-        <nav class="rail" aria-label="面板切换">
-            <button class="railbtn active" data-target="pha-panel" title="PHA" aria-label="PHA">👁️</button>
-            <button class="railbtn" data-target="rocket-panel" title="Rocket" aria-label="Rocket">🚀</button>
-            <button class="railbtn" data-target="notes-panel" title="笔记" aria-label="笔记">📝</button>
-            <button class="railbtn" data-target="settings-panel" title="设置" aria-label="设置">⚙️</button>
-        </nav>
+
+        <div class="inner-pad">
+          <div class="row">
+            <div class="split">
+              <input id="listUrl" class="input-common" type="text" value="http://pha.tp-link.com.cn/maniphest/query/AGNGtvQS84UK/#R" placeholder="列表页 URL">
+              <button id="btnLoad" class="btn-common" title="拉取">📥</button>
+              <button id="btnBind" class="btn-common" title="绑定" style="display:none">🔗</button>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="split">
+              <select id="selItems" class="select-common"></select>
+              <a id="taskLink" href="#" target="_blank" rel="noopener" class="link"></a>
+            </div>
+          </div>
+
+          <div class="row" id="taskMeta" style="display:none">
+            <div id="taskMetaBox" class="card" style="padding:8px">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+                <div style="min-width:0">
+                  <div id="taskTitle" style="font-weight:600;word-break:break-all"></div>
+                  <div class="muted" style="margin-top:4px;font-size:12px">
+                    <span id="taskStatus"></span><span style="margin:0 6px">·</span><span id="taskPriority"></span>
+                  </div>
+                </div>
+                <button id="metaToggle" class="btn-common" title="展开/收起">▾</button>
+              </div>
+              <div id="taskMetaMore" style="margin-top:6px;display:none"></div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="mdbar" id="mdBar">
+              <button class="mdbtn" data-md="h1" title="H1">H1</button>
+              <button class="mdbtn" data-md="h2" title="H2">H2</button>
+              <button class="mdbtn" data-md="h3" title="H3">H3</button>
+              <button class="mdbtn" data-md="bold" title="加粗">B</button>
+              <button class="mdbtn" data-md="italic" title="斜体">I</button>
+              <button class="mdbtn" data-md="link" title="链接">Link</button>
+              <button class="mdbtn" data-md="ul" title="无序">◾</button>
+              <button class="mdbtn" data-md="ol" title="有序">1</button>
+              <button class="mdbtn" data-md="quote" title="引用">&gt;</button>
+              <button class="mdbtn" data-md="code" title="行内">`</button>
+              <button class="mdbtn" data-md="codeblock" title="代码">&lt;/&gt;</button>
+              <button class="mdbtn" data-md="checkbox" title="复选">Todo</button>
+              <button class="mdbtn" data-md="table" title="表格">Table</button>
+              <button class="mdbtn" data-md="important" title="重要">!</button>
+            </div>
+
+            <div class="row">
+              <div class="textarea-wrap">
+                <textarea id="txtContent" class="input-common drop" rows="7" placeholder="记录…"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="switch-ai">
+              <input type="checkbox" id="chkAI" title="启用 AI 分析">
+              <label for="chkAI">🧠 AI</label>
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <button id="btnGerrit" class="btn-common" title="Gerrit 模板">Gerrit</button>
+              <button id="btnTpl" class="btn-common" title="编辑模板">模板</button>
+              <button id="btnSumWL" class="btn-common" title="统计工作量">统计</button>
+              <button id="btnWeekly" class="btn-common" title="周报生成">周报</button>
+              <button id="btnSend" class="btn-common" title="提交评论">推送</button>
+            </div>
+          </div>
+
+          <div class="row">
+            <div id="status" class="status"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- 工作量选择弹窗 -->
-    <dialog id="dlgEffort" style="border:none;border-radius:12px;padding:12px;max-width:320px">
-      <h3 style="margin:0 0 8px">填写工作量</h3>
-      <select id="effortSelect" class="select-common" style="width:100%">
-        <option value="">请选择</option>
-        <option>0.5D</option>
-        <option>1D</option>
-        <option>2D</option>
-        <option>3D</option>
-        <option>5D</option>
-      </select>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
-        <button id="effortCancel" class="btn-common">取消</button>
-      </div>
-    </dialog>
+    <nav class="rail" aria-label="面板切换">
+      <button class="railbtn active" data-target="pha-panel" title="PHA" aria-label="PHA">👁️</button>
+      <button class="railbtn" data-target="rocket-panel" title="Rocket" aria-label="Rocket">🚀</button>
+      <button class="railbtn" data-target="notes-panel" title="笔记" aria-label="笔记">📝</button>
+      <button class="railbtn" data-target="settings-panel" title="设置" aria-label="设置">⚙️</button>
+    </nav>
+  </div>
 
-    <!-- POST 模板编辑弹窗 -->
-    <dialog id="dlgTpl" style="border:none;border-radius:12px;padding:12px;max-width:640px;width:90vw">
-      <h3 style="margin:0 0 8px">编辑 POST 模板</h3>
-      <textarea id="tplArea" class="input-common" rows="10"
-        placeholder="{{timestamp}}\n# {{AITitle}}\n\n{{AIResponse}}\n\n{{正文}}"></textarea>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
-        <button id="tplCancel" class="btn-common">取消</button>
-        <button id="tplSave" class="btn-common">保存</button>
-      </div>
-    </dialog>
-    
-    <script type="module" src="../persist-init.js"></script>
-    <script defer src="panel.js"></script>
-    <script defer src="../../rail.js"></script>
+  <!-- 工作量选择弹窗 -->
+  <dialog id="dlgEffort">
+    <h3>工作量</h3>
+    <select id="effortSelect" class="select-common" style="width:100%">
+      <option value="">选择</option>
+      <option>0.5D</option>
+      <option>1D</option>
+      <option>2D</option>
+      <option>3D</option>
+      <option>5D</option>
+    </select>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+      <button id="effortCancel" class="btn-common">取消</button>
+    </div>
+  </dialog>
+
+  <!-- POST 模板编辑弹窗 -->
+  <dialog id="dlgTpl" style="max-width:640px;width:90vw">
+    <h3>模板</h3>
+    <textarea id="tplArea" class="input-common" rows="10"
+      placeholder="{{timestamp}}\n# {{AITitle}}\n\n{{AIResponse}}\n\n{{正文}}"></textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+      <button id="tplCancel" class="btn-common">取消</button>
+      <button id="tplSave" class="btn-common">保存</button>
+    </div>
+  </dialog>
+
+  <script type="module" src="../persist-init.js"></script>
+  <script defer src="panel.js"></script>
+  <script defer src="../../rail.js"></script>
 </body>
 </html>

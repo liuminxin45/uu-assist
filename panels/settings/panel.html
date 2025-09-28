@@ -6,54 +6,95 @@
   <title>Settings</title>
   <style>
     :root{
-      --primary-color:#4A84FF; --secondary-color:#6B7280;
-      --border-color:#E5E7EB; --bg-color:#FFFFFF; --hover-bg:#F9FAFB;
-      --error-color:#EF4444; --success-color:#10B981;
-      --shadow-sm:0 1px 2px 0 rgba(0,0,0,.05);
-      --shadow-md:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -1px rgba(0,0,0,.06);
+      --primary:#2563eb; --primary-weak:rgba(37,99,235,.12);
+      --text:#111827; --muted:#6b7280;
+      --bg:#ffffff; --bg-muted:#f8fafc; --page:#F3F4F6;
+      --border:#e5e7eb; --error:#EF4444; --success:#10B981;
+      --shadow-sm:0 1px 2px rgba(0,0,0,.05);
+      --shadow-md:0 4px 10px rgba(0,0,0,.10);
+      --radius:10px; --radius-sm:8px; --radius-lg:12px;
     }
-    *{margin:0;padding:0;box-sizing:border-box}
-    html,body{height:100%}
+    *,*::before,*::after{ box-sizing:border-box; }
+    html,body{ height:100%; }
     body{
-      font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-      color:#374151;background:#F3F4F6;line-height:1.5;display:flex;flex-direction:column
+      margin:0; font:13px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+      color:#374151; background:var(--page); display:flex; flex-direction:column;
     }
-    .container{display:flex;height:100vh;width:100%}
-    .content-wrapper{flex:1;display:flex;flex-direction:column;padding:16px;overflow:hidden}
-    .settings-wrapper{display:flex;flex-direction:column;height:100%;min-height:0;background:#fafafa;border-radius:12px;overflow:hidden}
-    .header{padding:12px;background:#fafafa;display:flex;flex-direction:column;gap:12px;align-items:stretch;border-bottom:1px solid var(--border-color)}
-    .header-top{display:flex;justify-content:space-between;align-items:center}
-    .header h2{font-size:18px;font-weight:600;color:#333;margin:0}
-    .row{margin-top:10px}
-    label{display:block;margin:8px 0 6px;color:var(--secondary-color);font-weight:600}
-    .muted{color:var(--secondary-color)}
-    .hint{font-size:12px;color:var(--secondary-color);margin-top:6px}
+
+    .container{ display:flex; height:100vh; width:100%; }
+    .content-wrapper{ flex:1; display:flex; flex-direction:column; padding:16px; overflow:hidden; }
+    .settings-wrapper{
+      display:flex; flex-direction:column; min-height:0; height:100%;
+      background:var(--bg-muted); border-radius:12px; overflow:hidden;
+      border:1px solid var(--border); box-shadow:var(--shadow-sm);
+    }
+
+    .header{
+      flex:0 0 auto; padding:12px; background:var(--bg-muted);
+      border-bottom:1px solid var(--border);
+    }
+    .header-top{ display:flex; justify-content:space-between; align-items:center; }
+    .header h2{ margin:0; font-size:16px; font-weight:600; color:var(--text); }
+
+    .inner-pad{ flex:1 1 auto; min-height:0; overflow:auto; padding:12px; }
+
+    .row{ margin-top:10px; }
+    label{ display:block; margin:6px 0 4px; color:var(--muted); font-weight:600; font-size:12px; }
+    .split{ display:flex; gap:8px; align-items:center; }
+    .split>:first-child{ flex:1; min-width:0; }
+    .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
     .input-common, input[type="text"], textarea, select{
-      width:100%;background:#ffffff;border:1px solid var(--border-color);border-radius:10px;color:#374151;padding:10px 12px;font-family:inherit
+      width:100%; background:var(--bg); color:#374151;
+      border:1px solid var(--border); border-radius:var(--radius);
+      padding:8px 10px; font-family:inherit; outline:none;
+      transition:border-color .15s ease, box-shadow .15s ease;
+      box-shadow:var(--shadow-sm);
     }
+    .input-common::placeholder, input::placeholder, textarea::placeholder{ color:#9ca3af; }
     .input-common:focus, input:focus, textarea:focus, select:focus{
-      outline:none;border-color:var(--primary-color);box-shadow:0 0 0 3px rgba(74,132,255,.12)
+      border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-weak);
     }
-    .split{display:flex;gap:8px;align-items:center}
-    .split > :first-child{flex:1;min-width:0}
+
+    .card{
+      border:1px solid var(--border); border-radius:12px;
+      padding:12px; background:var(--bg);
+    }
+
     .btn-common{
-      padding:8px 12px;background:#ffffff;border:1px solid var(--border-color);
-      border-radius:6px;cursor:pointer;font-size:14px;transition:all .2s
+      padding:6px 10px; background:var(--bg); border:1px solid var(--border);
+      border-radius:6px; cursor:pointer; font-size:13px;
+      transition:background-color .15s ease, border-color .15s ease, transform .1s ease;
+      box-shadow:var(--shadow-sm);
     }
-    .btn-common:hover{background:var(--hover-bg);border-color:var(--primary-color)}
-    .btn-primary{background:var(--primary-color);color:#fff;border:none}
-    .btn-primary:hover{background:#3772ff}
-    .toolbar{display:flex;gap:8px;flex-wrap:wrap}
-    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .card{border:1px solid var(--border-color);border-radius:12px;padding:12px;background:#fafafa}
-    .kv{display:grid;grid-template-columns:140px 1fr;gap:8px;align-items:center}
-    .rail{display:flex;flex-direction:column;gap:4px;padding:8px 4px;background:#fafafa;border-radius:12px;margin:16px 8px 16px 0}
-    .railbtn{width:40px;height:40px;border:none;background:transparent;border-radius:8px;font-size:20px;cursor:pointer;transition:background-color .2s;display:flex;align-items:center;justify-content:center}
-    .railbtn:hover{background:#f0f0f0}
-    .railbtn.active{background:#e3f2fd;color:#1976d2}
-    .row .section{margin-bottom:16px}
-    .right-actions{display:flex;gap:8px;justify-content:space-between;align-items:center}
-    .status{font-size:12px;color:var(--secondary-color)}
+    .btn-common:hover{ background:#f9fafb; border-color:var(--primary); }
+    .btn-common:active{ transform:translateY(1px); }
+    .btn-common[disabled]{ opacity:.55; cursor:not-allowed; }
+    .btn-primary{ background:var(--primary); color:#fff; border:none; }
+    .btn-primary:hover{ filter:brightness(.96); }
+
+    .toolbar{ display:flex; gap:6px; flex-wrap:wrap; }
+    .right-actions{ display:flex; gap:8px; justify-content:space-between; align-items:center; }
+    .status{ font-size:12px; color:var(--muted); }
+
+    .rail{
+      display:flex; flex-direction:column; gap:4px; padding:8px 4px;
+      background:#fafafa; border-radius:12px; margin:16px 8px 16px 0; border:1px solid var(--border);
+    }
+    .railbtn{
+      width:40px; height:40px; border:none; background:transparent; border-radius:8px;
+      font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+      transition:background-color .15s ease, transform .1s ease;
+    }
+    .railbtn:hover{ background:#f0f0f0; }
+    .railbtn:active{ transform:translateY(1px); }
+    .railbtn.active{ background:#e3f2fd; color:#1976d2; }
+
+    *{ scrollbar-width:thin; scrollbar-color:#CBD5E1 transparent; }
+    *::-webkit-scrollbar{ width:8px; height:8px; }
+    *::-webkit-scrollbar-thumb{ background:#CBD5E1; border-radius:8px; }
+    *::-webkit-scrollbar-thumb:hover{ background:#94A3B8; }
+    *::-webkit-scrollbar-track{ background:transparent; }
   </style>
 </head>
 <body>
@@ -66,16 +107,16 @@
           </div>
         </div>
 
-        <div style="padding:16px;overflow:auto">
-          <!-- 供应商选择与管理 -->
+        <div class="inner-pad">
+          <!-- 供应商 -->
           <div class="row card">
-            <label>AI 供应商</label>
+            <label>供应商</label>
             <div class="split">
               <select id="vendorSelect"></select>
               <div class="toolbar">
                 <button id="btnAddVendor" class="btn-common">新增</button>
-                <button id="btnRenameVendor" class="btn-common">重命名</button>
-                <button id="btnDelVendor" class="btn-common">删除</button>
+                <button id="btnRenameVendor" class="btn-common">改名</button>
+                <button id="btnDelVendor" class="btn-common">删</button>
               </div>
             </div>
           </div>
@@ -83,28 +124,26 @@
           <!-- 供应商参数 -->
           <div class="row grid-2">
             <div class="card">
-              <label for="aiBase">基础 URL（供应商级）</label>
-              <input id="aiBase" class="input-common" type="text" placeholder="https://api.deepseek.com/v1"/>
-              <label for="aiKey" style="margin-top:12px">API 密钥（供应商级）</label>
-              <input id="aiKey" class="input-common" type="text" placeholder="sk-xxxxxxxx"/>
+              <label for="aiBase">URL</label>
+              <input id="aiBase" class="input-common" type="text" placeholder="https://api.xxx.com/v1"/>
+              <label for="aiKey" style="margin-top:10px">Key</label>
+              <input id="aiKey" class="input-common" type="text" placeholder="sk-****"/>
             </div>
             <div class="card">
-              <label for="aiVendorPrompt">默认提示词（供应商级）</label>
-              <textarea id="aiVendorPrompt" class="input-common" rows="6"
-                placeholder='为空则使用内置默认提示词'></textarea>
-              <div class="hint">模型未设置专属提示词时，继承该供应商提示词。</div>
+              <label for="aiVendorPrompt">提示词（供应商）</label>
+              <textarea id="aiVendorPrompt" class="input-common" rows="6" placeholder="留空=默认"></textarea>
             </div>
           </div>
 
-          <!-- 模型选择与管理 -->
+          <!-- 模型 -->
           <div class="row card">
-            <label>模型（隶属当前供应商）</label>
+            <label>模型</label>
             <div class="split">
               <select id="modelSelect"></select>
               <div class="toolbar">
                 <button id="btnAddModel" class="btn-common">新增</button>
-                <button id="btnRenameModel" class="btn-common">重命名</button>
-                <button id="btnDelModel" class="btn-common">删除</button>
+                <button id="btnRenameModel" class="btn-common">改名</button>
+                <button id="btnDelModel" class="btn-common">删</button>
               </div>
             </div>
           </div>
@@ -112,18 +151,17 @@
           <!-- 模型参数 -->
           <div class="row grid-2">
             <div class="card">
-              <label for="aiModel">模型 ID（如 deepseek-chat）</label>
+              <label for="aiModel">模型ID</label>
               <input id="aiModel" class="input-common" type="text" placeholder="deepseek-chat"/>
-              <div class="hint">仅模型名，不含路径。调用时会配合上方基础 URL。</div>
+              <div class="status" style="margin-top:6px">仅名称，不含路径</div>
             </div>
             <div class="card">
-              <label for="modelPrompt">专属提示词（模型级，可选）</label>
-              <textarea id="modelPrompt" class="input-common" rows="6"
-                placeholder="留空则继承供应商提示词"></textarea>
+              <label for="modelPrompt">提示词（模型）</label>
+              <textarea id="modelPrompt" class="input-common" rows="6" placeholder="留空=继承供应商"></textarea>
             </div>
           </div>
 
-          <!-- 导入导出 + 保存区 -->
+          <!-- 导入导出 / 保存 -->
           <div class="row right-actions">
             <div style="display:flex;gap:8px;align-items:center">
               <button id="btnExport" class="btn-common" title="导出配置与历史Post">导出</button>
@@ -133,14 +171,13 @@
             </div>
             <div style="display:flex;gap:8px">
               <button id="btnReset" class="btn-common">重置</button>
-              <button id="btnSave" class="btn-common">保存</button>
+              <button id="btnSave" class="btn-common btn-primary">保存</button>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 保留侧边导航栏 -->
     <nav class="rail" aria-label="面板切换">
       <button class="railbtn" data-target="pha-panel" title="PHA" aria-label="PHA">👁️</button>
       <button class="railbtn" data-target="rocket-panel" title="Rocket" aria-label="Rocket">🚀</button>
