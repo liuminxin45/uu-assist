@@ -120,9 +120,6 @@ import { persistField } from '../../shared/persist.js';
     });
   }
 
-  // --- 请求状态跟踪
-  let isRequestInProgress = false;
-  
   // --- helpers
   async function getActiveTab() {
     if (typeof chrome !== 'undefined' && chrome.tabs) {
@@ -170,66 +167,4 @@ import { persistField } from '../../shared/persist.js';
   $limit.addEventListener('change', notifyContentScript);
   $autoListen.addEventListener('change', notifyContentScript);
   $prompt.addEventListener('change', notifyContentScript);
-  
-  // --- trigger generation
-  $('#btnGen').addEventListener('click', async () => {
-    if (typeof chrome === 'undefined') {
-      log('当前环境不是Chrome扩展，无法使用AI生成功能');
-      return;
-    }
-    
-    // 检查是否已有请求在执行
-    if (isRequestInProgress) {
-      log('已有请求执行中，本次请求失败');
-      return;
-    }
-    
-    const tab = await getActiveTab();
-    if (!tab) { log('无活动标签页'); return; }
-
-    const url = tab.url || '';
-    const ok = /^https:\/\/.+?tp\-link\.com\.cn\//i.test(url);
-    if (!ok) { log('当前页不在 Rocket 域名，忽略'); return; }
-
-    // 读配置（确保已落库）
-    const got = await chrome.storage.local.get({ 'rocketMsgLimit': 20, 'rocketPrompt': '' });
-    const limit = Math.max(1, Math.min(200, Number(got['rocketMsgLimit'] || 20)));
-    const prompt = got['rocketPrompt'] || '';
-
-    // 设置请求状态为进行中
-    isRequestInProgress = true;
-    // 保存原始状态文本
-    const originalBadgeText = badgeEl.textContent;
-    setBadge('请求中', false);
-    log(`开始生成：limit=${limit}，prompt=${prompt ? '自定义' : '预置'}`);
-
-    if (chrome.tabs) {
-      chrome.tabs.sendMessage(
-        tab.id,
-        { type: 'rocket:generate', limit, promptOverride: prompt },
-        (resp) => {
-          // 请求完成，无论成功失败都重置状态
-          try {
-            if (chrome.runtime && chrome.runtime.lastError) {
-              log(`失败：${chrome.runtime.lastError.message || '未知错误'}`);
-              setBadge('失败', false);
-              return;
-            }
-            if (!resp || !resp.ok) {
-              log(`失败：${resp?.error || '内容脚本未响应'}`);
-              setBadge('失败', false);
-              return;
-            }
-            // 只记录状态，不记录聊天和 AI 文本
-            log(`成功：AI 已完成生成并写入候选；tokens≈${resp.tokens || '-'}`);
-            // 恢复显示AI供应商和模型信息
-            setBadge(originalBadgeText, true);
-          } finally {
-            // 确保状态重置，即使发生异常
-            isRequestInProgress = false;
-          }
-        }
-      );
-    }
-  });
 })();

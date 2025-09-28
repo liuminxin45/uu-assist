@@ -207,12 +207,13 @@ async function genSuggestionWithDeepSeek(messages, promptOverride){
     (promptOverride && promptOverride.trim()) ||
     (rocketCfg.prompt && rocketCfg.prompt.trim()) ||
     // 预置 Prompt：生成可直接回复的文案
-    [
-      "你是群聊助手，任务是根据最近的聊天内容，生成一条可直接作为回复发送的中文消息。",
-      "请仔细阅读聊天记录，理解上下文，生成一条符合对话情境、自然流畅的回复。",
-      "回复应当简洁明了，避免多余的解释和自我介绍，直接针对讨论内容给出回应。",
-      "请只输出回复内容本身，不要包含任何前缀或后缀说明。"
-    ].filter(line => line.trim()).join('\n'); // 过滤掉空行
+      [
+        "你是群聊助手，任务是根据最近的聊天内容，生成一条可直接作为刘民心发送的中文消息。",
+        "请从'刘民心'的视角和立场来生成回复，保持符合该用户的说话风格和身份。",
+        "请仔细阅读聊天记录，理解上下文，生成一条符合对话情境、自然流畅的回复。",
+        "回复应当简洁明了，避免多余的解释和自我介绍，直接针对讨论内容给出回应。",
+        "请只输出回复内容本身，不要包含任何前缀或后缀说明。"
+      ].filter(line => line.trim()).join('\n'); // 过滤掉空行
   
   const finalPrompt = basePrompt;
 
@@ -292,52 +293,17 @@ function sendAIReplyToPanel(content) {
   }
 }
 
-// 新增：面板主动触发生成和配置更新
-  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-    (async () => {
-      // 配置更新消息
-      if (msg?.type === 'rocket:updateConfig') {
-        sendResponse({ ok: true });
-        // 重新加载配置
-        rocketCfg = await loadRocketCfg();
-        return;
-      }
-      
-      if (msg?.type !== 'rocket:generate') return;
-    try{
-      // 读取消息上限
-      const limit = Math.max(1, Math.min(200, Number(msg.limit || (await loadRocketCfg()).limit || 20)));
-      // 抓取最近消息
-      const msgs = extractMessagesInOrder(limit);
-      if (!msgs.length) { sendResponse({ ok:false, error:'未检测到聊天消息' }); return; }
-
-      // 生成
-      const { text, tokens } = await genSuggestionWithDeepSeek(msgs, msg.promptOverride || '');
-      if (!text) { sendResponse({ ok:false, error:'AI 未返回内容' }); return; }
-
-      // 将 AI 建议写入“灰色候选”
-      try{
-        // 确保建议容器存在
-        if (ensureSuggestionContainer()) {
-          // 先清空旧的候选区文案
-          window.rocketSuggestion.suggestion = '';
-          // 然后设置新的建议
-          window.rocketSuggestion.suggestion = text;
-        } else {
-        // 尝试直接设置suggestion值，看是否能显示
-        suggestion = text;
-        renderSuggestion();
-      }
-      // 发送AI回复内容到Rocket面板
-      sendAIReplyToPanel(text);
-      }catch(e){ }
-
-      sendResponse({ ok:true, tokens });
-    }catch(e){
-      sendStatusLog('错误: 生成失败 - ' + (e?.message || String(e)));
-      sendResponse({ ok:false, error: e?.message || String(e) });
+// 新增：面板配置更新
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  (async () => {
+    // 配置更新消息
+    if (msg?.type === 'rocket:updateConfig') {
+      sendResponse({ ok: true });
+      // 重新加载配置
+      rocketCfg = await loadRocketCfg();
+      return;
     }
-  })();
+  })().catch(e => {});
   return true;
 });
 
