@@ -906,6 +906,16 @@ function createNoteCard(note) {
         dropMenu.style.display = 'none';
     });
     
+    // 创建AI洞察选项
+    const aiInsightOption = document.createElement('div');
+    aiInsightOption.className = 'menu-option';
+    aiInsightOption.textContent = '洞察';
+    aiInsightOption.addEventListener('click', () => {
+        // 这里可以添加AI洞察功能的实现
+        alert('AI洞察功能正在开发中');
+        dropMenu.style.display = 'none';
+    });
+    
     // 创建删除选项
     const deleteOption = document.createElement('div');
     deleteOption.className = 'menu-option delete';
@@ -915,9 +925,21 @@ function createNoteCard(note) {
         dropMenu.style.display = 'none';
     });
     
+    // 创建关联选项
+    const relateOption = document.createElement('div');
+    relateOption.className = 'menu-option';
+    relateOption.textContent = '关联';
+    relateOption.addEventListener('click', () => {
+        // 这里可以添加关联功能的实现
+        alert('查找相关笔记功能正在开发中');
+        dropMenu.style.display = 'none';
+    });
+    
     // 组装下拉菜单
     dropMenu.appendChild(editOption);
     dropMenu.appendChild(archiveOption);
+    dropMenu.appendChild(aiInsightOption);
+    dropMenu.appendChild(relateOption);
     dropMenu.appendChild(deleteOption);
     
     // 将更多按钮和下拉菜单添加到容器
