@@ -145,10 +145,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse)=>{
       // 检查扩展上下文是否有效
       if (chrome.runtime && chrome.runtime.id) {
         chrome.storage.local.get({ rocketMsgLimit: 5, rocketPrompt: '', rocketAutoListen: true }, (got) => {
-          res({ 
-            limit: Number(got.rocketMsgLimit || 5), 
+          const raw = got.rocketAutoListen;
+          const autoListen =
+            raw === undefined
+              ? true
+              : raw === true || raw === '1' || raw === 1;
+
+          res({
+            limit: Number(got.rocketMsgLimit || 5),
             prompt: got.rocketPrompt || '',
-            autoListen: got.rocketAutoListen !== false
+            autoListen
           });
         });
       } else {
