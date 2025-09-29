@@ -3,7 +3,7 @@
   "name": "uu-assist",
   "version": "1.1.1",
   "description": "uu-assist with Rocket Copilot",
-  "permissions": ["storage", "sidePanel", "scripting", "tabs", "downloads"],
+  "permissions": ["storage", "sidePanel", "scripting", "tabs", "downloads", "contextMenus"],
   "host_permissions": [
     "http://pha.tp-link.com.cn/*",
     "https://llmapp.tp-link.com.cn/*",

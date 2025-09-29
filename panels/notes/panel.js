@@ -18,6 +18,99 @@ let currentEditNoteId = null; // 跟踪当前正在编辑的笔记ID
 // 笔记数据
 let notes = [];
 
+// 从上下文菜单添加笔记的全局函数
+window.addNoteFromContext = function(data) {
+  try {
+    console.log('从上下文菜单添加笔记:', data);
+    
+    // 重置输入区域
+    resetInput();
+    
+    // 根据数据类型处理
+    if (data.imageUrl) {
+      // 处理图片
+      fetchImageAsDataURL(data.imageUrl).then(base64Data => {
+        if (base64Data) {
+          // 设置图片数据
+          noteInput.dataset.imagesData = JSON.stringify([base64Data]);
+          showMultipleImagePreviews([base64Data]);
+          
+          // 设置文本内容（如果有）
+          if (data.text) {
+            noteInput.value = data.text;
+          }
+          
+          // 更新按钮状态
+          updateButtonState();
+          
+          // 延迟添加笔记，确保UI更新完成
+          setTimeout(() => {
+            addNote();
+          }, 100);
+        } else {
+          console.error('无法获取图片数据');
+        }
+      }).catch(error => {
+        console.error('处理图片失败:', error);
+      });
+    } else if (data.text) {
+      // 只有文本
+      noteInput.value = data.text;
+      updateButtonState();
+      
+      // 延迟添加笔记
+      setTimeout(() => {
+        addNote();
+      }, 100);
+    }
+  } catch (error) {
+    console.error('添加笔记失败:', error);
+  }
+};
+
+// 将图片URL转换为base64数据
+function fetchImageAsDataURL(url) {
+  return new Promise((resolve, reject) => {
+    // 检查是否是data URL
+    if (url.startsWith('data:image/')) {
+      resolve(url);
+      return;
+    }
+    
+    // 对于普通URL，尝试获取图片
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // 尝试解决跨域问题
+    
+    img.onload = function() {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        
+        // 转换为base64
+        const base64Data = canvas.toDataURL('image/png');
+        resolve(base64Data);
+      } catch (error) {
+        console.error('Canvas绘制失败:', error);
+        // 如果canvas失败，尝试使用原始URL（可能在某些情况下有效）
+        resolve(url);
+      }
+    };
+    
+    img.onerror = function(error) {
+      console.error('图片加载失败:', error);
+      // 在加载失败时，尝试直接使用URL
+      resolve(url);
+    };
+    
+    // 设置图片源
+    img.src = url;
+  });
+}
+
 // 从存储中加载笔记数据
 function loadNotesFromStorage() {
     try {
@@ -84,6 +177,46 @@ function initApp() {
     
     // 初始化页面功能
     initializePage();
+    
+    // 检查是否有待处理的笔记数据
+    checkPendingNoteData();
+    
+    // 监听来自service worker的消息
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+        chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+            if (message.type === 'add-note-from-context') {
+                if (message.data) {
+                    window.addNoteFromContext(message.data);
+                    sendResponse({ ok: true });
+                } else {
+                    sendResponse({ ok: false, error: '没有数据' });
+                }
+                return true; // 保持消息通道开放
+            }
+        });
+    }
+}
+
+// 检查待处理的笔记数据
+function checkPendingNoteData() {
+    try {
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+            chrome.storage.local.get('pending_note_data', (result) => {
+                if (result && result.pending_note_data) {
+                    const pendingData = result.pending_note_data;
+                    console.log('找到待处理的笔记数据:', pendingData);
+                    
+                    // 清除待处理数据
+                    chrome.storage.local.remove('pending_note_data');
+                    
+                    // 添加笔记
+                    window.addNoteFromContext(pendingData);
+                }
+            });
+        }
+    } catch (error) {
+        console.error('检查待处理笔记数据失败:', error);
+    }
 }
 
 // 初始化

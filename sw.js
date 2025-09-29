@@ -104,7 +104,262 @@ chrome.runtime.onInstalled.addListener(() => {
   if (chrome.sidePanel?.setPanelBehavior) {
     chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => { });
   }
+  
+  // 创建右键菜单
+  chrome.contextMenus.create({
+    id: "add-to-notes",
+    title: "添加到 Notes",
+    contexts: ["selection", "image"],
+    documentUrlPatterns: ["<all_urls>"]
+  });
 });
+
+// 处理右键菜单点击事件
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId === "add-to-notes") {
+    try {
+      // 检查是否为受限制的域名
+      if (tab.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('edge://'))) {
+        console.warn('无法在受限制的域名上添加到Notes');
+        // 对于受限制域名，我们不能直接在页面上显示toast，但可以记录日志并返回
+        return;
+      }
+      
+      // 准备要添加到笔记的数据
+      let noteData = { type: 'text', text: '', imageUrl: null };
+      
+      // 处理图片
+      if (info.mediaType === 'image' && info.srcUrl) {
+        noteData.imageUrl = info.srcUrl;
+        noteData.type = 'image';
+      }
+      
+      // 处理选中文本
+      if (info.selectionText) {
+        noteData.text = info.selectionText;
+        if (!noteData.imageUrl) {
+          noteData.type = 'text';
+        } else {
+          noteData.type = 'text_image';
+        }
+      }
+      
+      // 首先尝试直接保存笔记到数据库（不依赖面板状态）
+      const saveSuccess = await saveNoteDirectly(noteData);
+      
+      if (saveSuccess) {
+        // 显示添加成功的toast提示
+        await showToast(tab.id, '添加成功');
+        
+        // 同时尝试通知已打开的Notes面板（如果有的话）
+        // 这样用户如果已经打开了面板，也能看到新添加的笔记
+        try {
+          await sendToNotesPanel(noteData);
+        } catch (panelError) {
+          // 即使通知面板失败也无所谓，因为笔记已经成功保存了
+          console.log('通知面板失败，但笔记已成功保存:', panelError);
+        }
+      } else {
+        // 如果直接保存失败，再尝试发送到Notes面板
+        const panelSuccess = await sendToNotesPanel(noteData);
+        
+        if (panelSuccess) {
+          // 显示添加成功的toast提示
+          await showToast(tab.id, '添加成功');
+        } else {
+          // 如果两种方式都失败，保存到待处理队列
+          await chrome.storage.local.set({
+            pending_note_data: noteData
+          });
+          
+          // 通知用户已保存待处理
+          await showToast(tab.id, '已保存待添加到Notes');
+        }
+      }
+    } catch (error) {
+      console.error('添加到Notes失败:', error);
+      await showToast(tab.id, '添加失败: ' + error.message);
+    }
+  }
+});
+
+// 发送数据到Notes面板
+async function sendToNotesPanel(data) {
+  try {
+    // 在Service Worker中，我们不能直接访问视图
+    // 尝试通过消息传递给所有打开的标签页和面板
+    
+    // 使用Promise来处理消息发送，设置超时时间
+    return new Promise((resolve) => {
+      // 标记是否收到了响应
+      let responseReceived = false;
+      
+      // 尝试发送消息到Notes面板（通过runtime.sendMessage）
+      chrome.runtime.sendMessage({
+        type: 'add-note-from-context',
+        data: data
+      }, (response) => {
+        // 处理响应
+        responseReceived = true;
+        
+        // 检查响应是否成功
+        if (response && response.ok === true) {
+          resolve(true);
+        } else {
+          console.warn('Notes面板未成功处理消息:', response);
+          resolve(false);
+        }
+      });
+      
+      // 处理消息发送失败的情况（如面板未打开）
+      if (chrome.runtime.lastError) {
+        console.warn('直接发送消息失败，可能Notes面板未打开:', chrome.runtime.lastError.message);
+        resolve(false);
+      }
+      
+      // 设置300毫秒超时，如果没有收到响应，视为发送失败
+      setTimeout(() => {
+        if (!responseReceived) {
+          console.warn('发送消息到Notes面板超时，可能面板未打开');
+          resolve(false);
+        }
+      }, 300);
+    });
+  } catch (error) {
+    console.error('发送到Notes面板失败:', error);
+    return false;
+  }
+}
+
+// 直接保存笔记到数据库
+async function saveNoteDirectly(data) {
+  try {
+    // 从存储中加载现有笔记
+    const result = await chrome.storage.local.get('notes_data');
+    let notes = result.notes_data || [];
+    
+    // 创建新笔记对象（与panel.js中格式保持一致）
+    const newNote = {
+      id: Date.now().toString(),
+      timestamp: Date.now(),
+      content: data.text || '',
+      isArchived: false
+    };
+    
+    // 处理图片数据
+    if (data.imageUrl) {
+      try {
+        // 尝试将图片转换为base64（简化版，实际可能需要更复杂的处理）
+        const base64Data = await fetchImageAsDataURL(data.imageUrl);
+        
+        // 设置图片相关属性
+        newNote.imagesData = [base64Data];
+        newNote.isMultipleImages = true;
+        newNote.hasImages = true;
+        newNote.isImage = !data.text;
+      } catch (imgError) {
+        console.error('处理图片数据失败，将使用原始URL:', imgError);
+        // 如果转换失败，使用原始URL
+        newNote.imagesData = [data.imageUrl];
+        newNote.isMultipleImages = true;
+        newNote.hasImages = true;
+        newNote.isImage = !data.text;
+      }
+    } else {
+      newNote.isImage = false;
+      newNote.hasImage = false;
+      newNote.isMultipleImages = false;
+    }
+    
+    // 添加到笔记列表开头
+    notes.unshift(newNote);
+    
+    // 排序笔记（先显示未归档的，再显示归档的，按时间戳倒序）
+    notes.sort((a, b) => {
+      if (a.isArchived && !b.isArchived) return 1;
+      if (!a.isArchived && b.isArchived) return -1;
+      return b.timestamp - a.timestamp;
+    });
+    
+    // 保存更新后的笔记列表
+    await chrome.storage.local.set({ 'notes_data': notes });
+    console.log('笔记已直接保存到数据库:', newNote);
+    return true;
+  } catch (error) {
+    console.error('直接保存笔记失败:', error);
+    return false;
+  }
+}
+
+// 简化版的图片转base64函数
+async function fetchImageAsDataURL(url) {
+  return new Promise((resolve, reject) => {
+    // 检查是否已经是data URL
+    if (url.startsWith('data:image/')) {
+      resolve(url);
+      return;
+    }
+    
+    // 对于普通URL，尝试获取图片（在Service Worker中，我们不能直接使用canvas）
+    // 这里简化处理，直接返回URL，让面板在加载时处理
+    resolve(url);
+  });
+}
+
+// 显示toast提示
+async function showToast(tabId, message) {
+  try {
+    // 首先获取标签页信息，检查URL是否为受限制域名
+    const tab = await chrome.tabs.get(tabId);
+    if (tab.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('edge://'))) {
+      console.warn('无法在受限制的域名上显示toast');
+      // 对于受限制域名，我们不能直接在页面上显示toast
+      return;
+    }
+    
+    // 对于非受限制域名，正常显示toast
+    chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      func: (msg) => {
+        // 创建toast元素
+        const toast = document.createElement('div');
+        toast.style.position = 'fixed';
+        toast.style.top = '20px';
+        toast.style.right = '20px';
+        toast.style.padding = '12px 20px';
+        toast.style.backgroundColor = msg.includes('失败') ? '#EF4444' : '#10B981';
+        toast.style.color = 'white';
+        toast.style.borderRadius = '8px';
+        toast.style.zIndex = '9999';
+        toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+        toast.style.fontSize = '14px';
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s ease';
+        toast.textContent = msg;
+        
+        document.body.appendChild(toast);
+        
+        // 显示toast
+        setTimeout(() => {
+          toast.style.opacity = '1';
+        }, 10);
+        
+        // 3秒后自动消失
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => {
+          if (document.body.contains(toast)) {
+            document.body.removeChild(toast);
+          }
+        }, 300);
+      }, 3000);
+      },
+      args: [message]
+    });
+  } catch (error) {
+    console.error('显示toast失败:', error);
+  }
+}
 
 function findInputValue(html, names) {
   for (const name of names) {
