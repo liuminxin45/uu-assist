@@ -298,12 +298,15 @@ function insertAroundSelection(textarea, left, right) {
   textarea.focus();
 }
 function syncSelectToTask() {
-  const sel = $("selItems");
+  const sel = $('selItems');
   if (!sel) return;
-  const href = sel.value || "";
-  const abs = href ? new URL("http://pha.tp-link.com.cn" + href).href : "";
+  const href = sel.value || '';
+  const abs = href ? new URL('http://pha.tp-link.com.cn' + href).href : '';
   setTaskLink(abs);
   try { chrome.storage.local.set({ 'phaPanelSelectedItem': href }); } catch (_) { }
+  
+  // 更新评论持久化绑定
+  updateCommentPersistence().catch(e => console.warn('更新评论持久化失败:', e));
 }
 
 
@@ -786,6 +789,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 });
 
+// 初始化评论持久化
+setTimeout(() => {
+  updateCommentPersistence().catch(e => console.warn('初始化评论持久化失败:', e));
+}, 500);
+
 // 在 DOMReady 之前的 loadConfig 兜底（若需要）
 if (document.readyState !== "loading") { loadConfig().catch(() => { }); }
 
@@ -1036,3 +1044,76 @@ ${todoList.length ? todoList.join("\n\n") : "（无）"}
     document.getElementById("btnWeekly")?.addEventListener("click", genWeekly);
   });
 })();
+
+
+// ----- 评论内容与任务号联动的持久化功能 -----
+let currentTaskId = '';
+
+// 保存当前任务的评论内容
+async function saveCommentForCurrentTask() {
+  try {
+    const ta = $('txtContent');
+    if (!ta || !currentTaskId) return;
+    
+    const commentsByTask = await getCommentsByTask();
+    commentsByTask[currentTaskId] = ta.value;
+    await chrome.storage.local.set({ 'phaPanelCommentsByTask': commentsByTask });
+  } catch (e) {
+    console.warn('保存评论内容失败:', e);
+  }
+}
+
+// 获取所有任务的评论内容
+async function getCommentsByTask() {
+  try {
+    const result = await chrome.storage.local.get('phaPanelCommentsByTask');
+    return result.phaPanelCommentsByTask || {};
+  } catch (e) {
+    console.warn('获取评论内容失败:', e);
+    return {};
+  }
+}
+
+// 加载指定任务的评论内容
+async function loadCommentForTask(taskId) {
+  try {
+    const ta = $('txtContent');
+    if (!ta || !taskId) return;
+    
+    const commentsByTask = await getCommentsByTask();
+    ta.value = commentsByTask[taskId] || '';
+    currentTaskId = taskId;
+  } catch (e) {
+    console.warn('加载评论内容失败:', e);
+  }
+}
+
+// 更新任务评论持久化绑定
+async function updateCommentPersistence() {
+  const sel = $('selItems');
+  if (!sel) return;
+  
+  // 获取当前选中的任务ID
+  const href = sel.value || '';
+  const taskId = (href.match(/\/T(\d+)/) || [])[1];
+  
+  // 如果任务ID发生变化，先保存当前评论，再加载新任务的评论
+  if (taskId && taskId !== currentTaskId) {
+    await saveCommentForCurrentTask();
+    await loadCommentForTask(taskId);
+  } else if (taskId) {
+    // 如果任务ID相同但currentTaskId未设置，设置它
+    currentTaskId = taskId;
+  }
+}
+
+// 在页面隐藏或关闭前保存评论内容
+document.addEventListener('visibilitychange', async () => {
+  if (document.hidden) {
+    await saveCommentForCurrentTask();
+  }
+});
+
+window.addEventListener('beforeunload', async () => {
+  await saveCommentForCurrentTask();
+});
