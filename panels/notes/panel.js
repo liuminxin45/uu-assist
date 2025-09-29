@@ -366,6 +366,11 @@ function handleKeyDown(e) {
         e.preventDefault();
         addNote();
         hideTagMenu(); // 添加笔记后自动隐藏标签菜单
+    } else if (e.key === 'Escape' && currentEditNoteId) {
+        e.preventDefault();
+        resetInput(); // 重置输入区域
+        currentEditNoteId = null; // 清除编辑状态
+        addNoteBtn.textContent = '添加笔记'; // 恢复按钮文字
     }
 }
 
@@ -611,6 +616,8 @@ function addNote() {
         if (oldNoteIndex !== -1) {
             // 保留归档状态
             newNote.isArchived = notes[oldNoteIndex].isArchived;
+            // 保留原始笔记的时间戳（创建时间）
+            newNote.timestamp = notes[oldNoteIndex].timestamp;
             // 删除旧笔记
             notes.splice(oldNoteIndex, 1);
         }
