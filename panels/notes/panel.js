@@ -647,6 +647,9 @@ function addNote() {
         currentEditNoteId = null;
         addNoteBtn.textContent = '添加笔记';
     }
+    
+    // 提取并更新所有标签列表，确保新添加的标签能立即显示在标签列表中
+    extractAllTagsFromNotes();
 }
 
 // 重置输入区域
@@ -1263,12 +1266,56 @@ function populateTagMenu() {
     sortedTags.forEach(tag => {
         const item = document.createElement('div');
         item.className = 'tag-menu-item';
+        item.style.position = 'relative';
         
         const tagElement = document.createElement('span');
         tagElement.className = 'tag-menu-item-tag';
         tagElement.textContent = '#' + tag;
         
+        // 创建删除按钮
+        const deleteBtn = document.createElement('span');
+        deleteBtn.className = 'tag-menu-item-delete';
+        deleteBtn.textContent = '✕';
+        deleteBtn.style.position = 'absolute';
+        deleteBtn.style.right = '8px';
+        deleteBtn.style.opacity = '0';
+        deleteBtn.style.color = '#ef4444';
+        deleteBtn.style.fontSize = '12px';
+        deleteBtn.style.cursor = 'pointer';
+        deleteBtn.style.transition = 'opacity 0.2s ease';
+        deleteBtn.style.padding = '2px 4px';
+        deleteBtn.style.borderRadius = '2px';
+        deleteBtn.style.background = 'rgba(239, 68, 68, 0.1)';
+        
+        // 添加悬浮显示删除按钮的效果
+        item.addEventListener('mouseenter', () => {
+            deleteBtn.style.opacity = '1';
+        });
+        
+        item.addEventListener('mouseleave', () => {
+            deleteBtn.style.opacity = '0';
+        });
+        
+        // 删除按钮点击事件
+        deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // 阻止事件冒泡
+            
+            // 显示确认对话框
+            if (confirm(`此操作将删除所有使用了标签 "#${tag}" 的笔记，确定要继续吗？`)) {
+                // 删除所有包含该标签的笔记
+                deleteNotesByTag(tag);
+                // 从标签列表中移除该标签
+                removeTagFromLists(tag);
+                // 重新填充标签菜单
+                populateTagMenu();
+                // 重新渲染笔记列表
+                renderNotes();
+            }
+        });
+        
         item.appendChild(tagElement);
+        item.appendChild(deleteBtn);
+        
         item.addEventListener('click', () => {
             insertTagAtCursor(tag);
             hideTagMenu();
@@ -1276,6 +1323,34 @@ function populateTagMenu() {
         
         tagMenuList.appendChild(item);
     });
+}
+
+// 根据标签删除笔记
+function deleteNotesByTag(tag) {
+    // 找出所有包含该标签的笔记
+    const notesWithTag = notes.filter(note => {
+        if (!note.content) return false;
+        // 检查笔记内容中是否包含该标签
+        return note.content.includes(`#${tag}`);
+    });
+    
+    // 从笔记列表中删除这些笔记
+    notes = notes.filter(note => !notesWithTag.some(n => n.id === note.id));
+    
+    // 保存更新后的笔记列表
+    saveNotesToStorage();
+}
+
+// 从标签列表中移除指定标签
+function removeTagFromLists(tag) {
+    // 从所有标签列表中移除
+    allTags = allTags.filter(t => t !== tag);
+    
+    // 从近期使用的标签列表中移除
+    recentTags = recentTags.filter(t => t !== tag);
+    
+    // 保存更新后的标签数据
+    saveTagsToStorage();
 }
 
 // 过滤标签菜单
