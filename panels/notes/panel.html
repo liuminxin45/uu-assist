@@ -114,7 +114,7 @@
     .note-card.archived{ background:#f9fafb; }
     .archived-text{ color:#d1d5db; }
 
-    .note-content{ margin-bottom:6px; word-break:break-word; }
+    .note-content{ margin-bottom:6px; word-break:break-word; line-height:1.4; }
     .note-image{ max-width:100%; height:auto; border-radius:4px; cursor:pointer; transition:opacity .15s ease; }
     .note-image:hover{ opacity:.9; }
     .note-header { position: relative; display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
@@ -135,9 +135,109 @@
     
     .source-copy-btn:hover { opacity: 1; }
     
-    .note-tag{ background:#3B82F6; color:#fff; padding:2px 6px; border-radius:4px; font-weight:500; cursor:pointer; text-decoration:none; margin:0 2px; }
+    .note-tag{ 
+      background:transparent; 
+      color:#3B82F6; 
+      padding:2px 6px; 
+      border-radius:4px; 
+      font-weight:500; 
+      cursor:pointer; 
+      text-decoration:none; 
+      margin:0 2px;
+      font-size:12px; 
+      transition: background-color 0.2s ease;
+    }
+    .note-tag:hover{
+      background:var(--primary-weak);
+    }
 
-    .more-menu-container{ position:relative; display:flex; justify-content:flex-end; margin-top:6px; }
+    .card-actions{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      margin-top:6px;
+    }
+    
+    .tags-container{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      flex-wrap:wrap;
+    }
+    
+    .note-input-wrapper {
+      position: relative;
+    }
+
+    .tag-btn{
+      display: none;
+    }
+
+    .add-note-btn{
+      position:absolute; right:4px; bottom:4px; padding:6px 10px;
+      background:var(--bg); border:1px solid var(--border); border-radius:6px; font-size:13px; cursor:pointer;
+      transition:background-color .15s ease, border-color .15s ease, transform .1s ease; box-shadow:var(--shadow-sm);
+      z-index: 5;
+    }
+
+    .more-menu-container{ position:relative; display:flex; justify-content:flex-end; }
+
+    /* 标签菜单样式 */
+    .tag-menu{
+      position:absolute;
+      top:100%;
+      left:0;
+      width:280px;
+      max-height:300px;
+      background:var(--bg);
+      border:1px solid var(--border);
+      border-radius:8px;
+      box-shadow:var(--shadow-md);
+      z-index:100;
+      overflow:hidden;
+      display:none;
+    }
+    
+    .tag-menu-header{
+      padding:8px 12px;
+      border-bottom:1px solid var(--border);
+      background:var(--bg-muted);
+    }
+    
+    .tag-menu-search{
+      width:100%;
+      padding:6px 8px;
+      border:1px solid var(--border);
+      border-radius:4px;
+      font-size:12px;
+    }
+    
+    .tag-menu-list{
+      max-height:250px;
+      overflow-y:auto;
+    }
+    
+    .tag-menu-item{
+      padding:8px 12px;
+      cursor:pointer;
+      font-size:13px;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      transition: background-color 0.2s ease;
+    }
+    
+    .tag-menu-item:hover{
+      background:var(--bg-muted);
+    }
+    
+    .tag-menu-item-tag{
+      background:#3B82F6;
+      color:#fff;
+      padding:2px 6px;
+      border-radius:4px;
+      font-size:11px;
+    }
     .more-btn{
       width:22px; height:22px; padding:0; background:transparent; border:1px solid var(--border);
       border-radius:4px; font-size:14px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0;
@@ -197,7 +297,18 @@
           <div class="note-input-wrapper">
             <div class="add-note-wrapper">
               <textarea id="note-input" class="note-input" placeholder="记点啥…" rows="1"></textarea>
+              <button id="tag-btn" class="tag-btn" title="添加标签">#</button>
               <button id="add-note-btn" class="add-note-btn" style="display:none">添加</button>
+            </div>
+            
+            <!-- 标签菜单 -->
+            <div id="tag-menu" class="tag-menu">
+              <div class="tag-menu-header">
+                <input type="text" id="tag-menu-search" class="tag-menu-search" placeholder="搜索标签..."/>
+              </div>
+              <div id="tag-menu-list" class="tag-menu-list">
+                <!-- 标签列表将通过JavaScript动态生成 -->
+              </div>
             </div>
 
             <div id="image-preview-container" class="image-preview-container-input" style="display:none;">

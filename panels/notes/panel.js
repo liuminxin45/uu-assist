@@ -9,6 +9,15 @@ const previewImage = document.getElementById('image-preview');
 const removeImageBtn = document.getElementById('remove-image-btn');
 const fullscreenPreview = document.getElementById('fullscreen-preview');
 const fullscreenImage = document.getElementById('fullscreen-image');
+const tagBtn = document.getElementById('tag-btn');
+const tagMenu = document.getElementById('tag-menu');
+const tagMenuSearch = document.getElementById('tag-menu-search');
+const tagMenuList = document.getElementById('tag-menu-list');
+
+// 标签相关状态
+let allTags = []; // 所有存在的标签
+let recentTags = []; // 近期使用的标签（最多保存20个）
+let currentTagPrefix = ''; // 当前输入的标签前缀
 
 // 状态变量
 let currentSearchTerm = '';
@@ -129,10 +138,18 @@ function loadNotesFromStorage() {
     try {
         // 尝试从Chrome存储加载数据
         if (typeof chrome !== 'undefined' && chrome.storage) {
-            chrome.storage.local.get('notes_data', (result) => {
+            chrome.storage.local.get(['notes_data', 'tags_data'], (result) => {
                 if (result && result.notes_data) {
                     notes = result.notes_data;
                 }
+                if (result && result.tags_data) {
+                    allTags = result.tags_data.allTags || [];
+                    recentTags = result.tags_data.recentTags || [];
+                }
+                
+                // 从所有笔记中提取标签，确保标签列表完整
+                extractAllTagsFromNotes();
+                
                 renderNotes();
             });
         } else {
@@ -141,11 +158,66 @@ function loadNotesFromStorage() {
             if (savedNotes) {
                 notes = JSON.parse(savedNotes);
             }
+            
+            const savedTags = localStorage.getItem('tags_data');
+            if (savedTags) {
+                const tagsData = JSON.parse(savedTags);
+                allTags = tagsData.allTags || [];
+                recentTags = tagsData.recentTags || [];
+            }
+            
+            // 从所有笔记中提取标签，确保标签列表完整
+            extractAllTagsFromNotes();
+            
             renderNotes();
         }
     } catch (error) {
         console.error('加载笔记数据失败:', error);
         renderNotes();
+    }
+}
+
+// 从所有笔记中提取标签并清理不再使用的标签
+function extractAllTagsFromNotes() {
+    const allNoteTags = [];
+    
+    notes.forEach(note => {
+        if (note.content) {
+            const tags = extractTagsFromText(note.content);
+            allNoteTags.push(...tags);
+        }
+    });
+    
+    // 去重
+    const uniqueTags = [...new Set(allNoteTags)];
+    
+    // 清理不再使用的标签
+    allTags = uniqueTags;
+    
+    // 清理recentTags中不再使用的标签
+    recentTags = recentTags.filter(tag => allTags.includes(tag));
+    
+    // 保存更新后的标签数据
+    saveTagsToStorage();
+}
+
+// 保存标签数据到存储
+function saveTagsToStorage() {
+    try {
+        const tagsData = {
+            allTags: allTags,
+            recentTags: recentTags
+        };
+        
+        // 尝试保存到Chrome存储
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+            chrome.storage.local.set({ 'tags_data': tagsData });
+        } else {
+            // 如果没有Chrome API，保存到localStorage
+            localStorage.setItem('tags_data', JSON.stringify(tagsData));
+        }
+    } catch (error) {
+        console.error('保存标签数据失败:', error);
     }
 }
 
@@ -159,6 +231,9 @@ function saveNotesToStorage() {
             // 如果没有Chrome API，保存到localStorage
             localStorage.setItem('notes_data', JSON.stringify(notes));
         }
+        
+        // 同时保存标签数据
+        saveTagsToStorage();
     } catch (error) {
         console.error('保存笔记数据失败:', error);
     }
@@ -172,6 +247,8 @@ function initApp() {
         noteInput.addEventListener('paste', handlePaste);
         noteInput.addEventListener('drop', handleDrop);
         noteInput.addEventListener('input', adjustTextareaHeight);
+        noteInput.addEventListener('input', handleNoteInputChange);
+        noteInput.addEventListener('blur', parseNoteTags);
     }
 
     if (addNoteBtn) {
@@ -186,6 +263,47 @@ function initApp() {
 
     if (fullscreenPreview) {
         fullscreenPreview.addEventListener('click', hideFullscreenPreview);
+    }
+    
+    // 标签按钮事件监听
+    if (tagBtn) {
+        tagBtn.addEventListener('click', handleTagButtonClick);
+    }
+    
+    // 标签菜单搜索事件监听
+    if (tagMenuSearch) {
+        tagMenuSearch.addEventListener('input', filterTagMenu);
+    }
+    
+    // 点击页面其他区域关闭标签菜单
+    document.addEventListener('click', (e) => {
+        if (!tagBtn.contains(e.target) && !tagMenu.contains(e.target)) {
+            hideTagMenu();
+        }
+    });
+    
+    // 阻止标签菜单内的点击事件冒泡
+    if (tagMenu) {
+        tagMenu.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    }
+    
+    // 为笔记容器添加事件委托，处理标签点击
+    if (notesContainer) {
+        notesContainer.addEventListener('click', (e) => {
+            const tagElement = e.target.closest('.note-tag');
+            if (tagElement) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const tagName = tagElement.dataset.tag;
+                if (tagName && searchInput) {
+                    searchInput.value = '#' + tagName;
+                    handleSearchChange();
+                }
+            }
+        });
     }
     
     // 初始化页面功能
@@ -247,6 +365,7 @@ function handleKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         addNote();
+        hideTagMenu(); // 添加笔记后自动隐藏标签菜单
     }
 }
 
@@ -857,8 +976,9 @@ function formatNoteContent(content) {
     // 将换行符转换为<br>标签
     escapedContent = escapedContent.replace(/\n/g, '<br>');
     
-    // 再替换#标签（#后面跟字母、数字、下划线）
-    return escapedContent.replace(/#([a-zA-Z0-9_]+)/g, '<span class="note-tag" onclick="handleTagClick(event, \'$1\')">#$1</span>');
+    // 再替换#标签（#后面跟任意非空白字符，符合要求）
+    // 使用data-tag属性而不是内联onclick，避免CSP限制
+    return escapedContent.replace(/#([^\s]+)/g, '<span class="note-tag" data-tag="$1">#$1</span>');
 }
 
 // 截断文本，添加省略号
@@ -873,9 +993,14 @@ function truncateText(text, maxLength) {
 function handleTagClick(event, tagName) {
     event.preventDefault();
     event.stopPropagation();
-    // 这里可以实现点击标签后的逻辑，例如搜索该标签的所有笔记
-    console.log('点击标签:', tagName);
-    // 可以添加搜索功能，或者高亮显示该标签的所有笔记等
+    
+    // 将标签写入搜索框
+    if (searchInput) {
+        searchInput.value = '#' + tagName;
+        
+        // 执行筛选
+        handleSearchChange();
+    }
 }
 
 // 预览全屏图片
@@ -1044,4 +1169,262 @@ function initializePage() {
     
     // 初始化时加载笔记
     loadNotesFromStorage();
+}
+
+// 处理标签按钮点击事件
+function handleTagButtonClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // 获取光标位置
+    const cursorPosition = noteInput.selectionStart;
+    
+    // 在光标位置插入 #
+    const text = noteInput.value;
+    const beforeCursor = text.substring(0, cursorPosition);
+    const afterCursor = text.substring(cursorPosition);
+    
+    noteInput.value = beforeCursor + '#' + afterCursor;
+    
+    // 设置光标位置在 # 后面
+    noteInput.setSelectionRange(cursorPosition + 1, cursorPosition + 1);
+    noteInput.focus();
+    
+    // 显示标签菜单
+    showTagMenu();
+}
+
+// 显示标签菜单
+function showTagMenu() {
+    if (!tagMenu) return;
+    
+    // 填充标签菜单
+    populateTagMenu();
+    
+    // 更新标签菜单位置
+    updateTagMenuPosition();
+    
+    // 显示标签菜单
+    tagMenu.style.display = 'block';
+    
+    // 清空搜索框
+    if (tagMenuSearch) {
+        tagMenuSearch.value = '';
+    }
+}
+
+// 隐藏标签菜单
+function hideTagMenu() {
+    if (!tagMenu) return;
+    tagMenu.style.display = 'none';
+}
+
+// 更新标签菜单位置
+function updateTagMenuPosition() {
+    if (!tagMenu || !noteInput) return;
+    
+    // 获取输入框位置信息
+    const rect = noteInput.getBoundingClientRect();
+    const containerRect = noteInput.parentElement.getBoundingClientRect();
+    
+    // 设置标签菜单位置
+    tagMenu.style.top = (containerRect.bottom - rect.top) + 'px';
+    tagMenu.style.left = '0px';
+}
+
+// 填充标签菜单
+function populateTagMenu() {
+    if (!tagMenuList) return;
+    
+    // 清空标签菜单
+    tagMenuList.innerHTML = '';
+    
+    // 按近期使用优先排序标签
+    const sortedTags = [...new Set([...recentTags, ...allTags.filter(tag => !recentTags.includes(tag))])];
+    
+    // 如果没有标签，显示提示信息
+    if (sortedTags.length === 0) {
+        const emptyItem = document.createElement('div');
+        emptyItem.className = 'tag-menu-item';
+        emptyItem.style.color = '#9ca3af';
+        emptyItem.textContent = '暂无标签';
+        tagMenuList.appendChild(emptyItem);
+        return;
+    }
+    
+    // 添加标签项
+    sortedTags.forEach(tag => {
+        const item = document.createElement('div');
+        item.className = 'tag-menu-item';
+        
+        const tagElement = document.createElement('span');
+        tagElement.className = 'tag-menu-item-tag';
+        tagElement.textContent = '#' + tag;
+        
+        item.appendChild(tagElement);
+        item.addEventListener('click', () => {
+            insertTagAtCursor(tag);
+            hideTagMenu();
+        });
+        
+        tagMenuList.appendChild(item);
+    });
+}
+
+// 过滤标签菜单
+function filterTagMenu() {
+    if (!tagMenuSearch || !tagMenuList) return;
+    
+    const searchTerm = tagMenuSearch.value.toLowerCase();
+    const items = tagMenuList.querySelectorAll('.tag-menu-item');
+    
+    items.forEach(item => {
+        const tagText = item.querySelector('.tag-menu-item-tag')?.textContent || '';
+        const shouldShow = tagText.toLowerCase().includes(searchTerm);
+        item.style.display = shouldShow ? 'flex' : 'none';
+    });
+}
+
+// 在光标位置插入标签
+function insertTagAtCursor(tagName) {
+    if (!noteInput) return;
+    
+    // 获取光标位置
+    const cursorPosition = noteInput.selectionStart;
+    
+    // 获取当前文本
+    const text = noteInput.value;
+    
+    // 查找光标前的 # 位置
+    let hashPosition = -1;
+    for (let i = cursorPosition - 1; i >= 0; i--) {
+        if (text[i] === '#') {
+            hashPosition = i;
+            break;
+        }
+        if (text[i] === ' ' || text[i] === '\n' || text[i] === '\t') {
+            break;
+        }
+    }
+    
+    // 如果找到了 #，替换从 # 开始到光标位置的文本
+    let newText, newCursorPosition;
+    if (hashPosition !== -1) {
+        const beforeHash = text.substring(0, hashPosition);
+        const afterCursor = text.substring(cursorPosition);
+        newText = beforeHash + '#' + tagName + ' ' + afterCursor;
+        newCursorPosition = hashPosition + tagName.length + 2; // +2 for # and space
+    } else {
+        // 如果没有找到 #，在光标位置插入标签
+        const beforeCursor = text.substring(0, cursorPosition);
+        const afterCursor = text.substring(cursorPosition);
+        newText = beforeCursor + '#' + tagName + ' ' + afterCursor;
+        newCursorPosition = cursorPosition + tagName.length + 2; // +2 for # and space
+    }
+    
+    // 更新输入框内容
+    noteInput.value = newText;
+    
+    // 设置光标位置
+    noteInput.setSelectionRange(newCursorPosition, newCursorPosition);
+    noteInput.focus();
+    
+    // 更新按钮状态
+    updateButtonState();
+    
+    // 更新标签列表和使用记录
+    updateAllTags([tagName]);
+    updateRecentTags(tagName);
+}
+
+// 处理笔记输入变化
+function handleNoteInputChange() {
+    const input = noteInput;
+    const value = input.value;
+    const cursorPosition = input.selectionStart;
+    
+    // 检查光标前是否有#符号
+    const beforeCursor = value.substring(0, cursorPosition);
+    const lastHashIndex = beforeCursor.lastIndexOf('#');
+    
+    // 如果找到了#，并且#后面没有空格（即正在输入标签）
+    if (lastHashIndex !== -1) {
+        const afterHash = beforeCursor.substring(lastHashIndex + 1);
+        if (afterHash.trim() === '') {
+            // 显示标签菜单
+            currentTagPrefix = '';
+            showTagMenu();
+        } else if (!/\s/.test(afterHash)) {
+            // 更新当前标签前缀并过滤菜单
+            currentTagPrefix = afterHash;
+            showTagMenu();
+            filterTagMenu();
+        } else {
+            // 如果#后面有空格，关闭菜单
+            hideTagMenu();
+        }
+    } else {
+        // 如果没有找到#，关闭菜单
+        hideTagMenu();
+    }
+}
+
+// 解析笔记中的标签
+function parseNoteTags() {
+    if (!noteInput) return;
+    
+    const text = noteInput.value;
+    const tags = extractTagsFromText(text);
+    
+    // 更新所有标签列表
+    updateAllTags(tags);
+}
+
+// 从文本中提取标签
+function extractTagsFromText(text) {
+    const tags = [];
+    const tagRegex = /#([^\s\n\t]+)/g;
+    let match;
+    
+    while ((match = tagRegex.exec(text)) !== null) {
+        tags.push(match[1]);
+    }
+    
+    // 去重
+    return [...new Set(tags)];
+}
+
+// 更新所有标签列表
+function updateAllTags(newTags) {
+    if (!newTags || newTags.length === 0) return;
+    
+    // 将新标签添加到所有标签列表中
+    newTags.forEach(tag => {
+        if (!allTags.includes(tag)) {
+            allTags.push(tag);
+        }
+    });
+    
+    // 保存标签数据
+    saveTagsToStorage();
+}
+
+// 更新近期使用的标签
+function updateRecentTags(tagName) {
+    // 移除已存在的相同标签
+    const index = recentTags.indexOf(tagName);
+    if (index !== -1) {
+        recentTags.splice(index, 1);
+    }
+    
+    // 添加到开头
+    recentTags.unshift(tagName);
+    
+    // 限制最多保存20个标签
+    if (recentTags.length > 20) {
+        recentTags = recentTags.slice(0, 20);
+    }
+    
+    // 保存标签数据
+    saveTagsToStorage();
 }
