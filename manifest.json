@@ -10,7 +10,10 @@
     "https://api.deepseek.com/*",
     "https://review.tp-link.net/*",
     "https://chat.rd.tp-link.com.cn/*",
-    "https://*.rocket.chat/*"
+    "https://*.rocket.chat/*",
+    "http://sohoci.rd.tp-link.net/*",
+    "https://www.baidu.com/*",
+    "<all_urls>"
   ],
   "background": { "service_worker": "sw.js" },
   "action": { "default_title": "PHA Helper" },
@@ -24,11 +27,15 @@
     {
       "matches": [
         "https://review.tp-link.net/*",
-        "https://chat.rd.tp-link.com.cn/*"
+        "https://chat.rd.tp-link.com.cn/*",
+        "http://sohoci.rd.tp-link.net/*",
+        "https://www.baidu.com/*",
+        "<all_urls>"
       ],
       "js": ["content_script.js"],
       "run_at": "document_end",
-      "all_frames": true
+      "all_frames": true,
+      "match_about_blank": true
     }
   ]
 }

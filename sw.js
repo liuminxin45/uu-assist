@@ -128,6 +128,10 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       // 准备要添加到笔记的数据
       let noteData = { type: 'text', text: '', imageUrl: null };
       
+      // 添加来源信息
+      noteData.url = tab.url;
+      noteData.title = tab.title;
+      
       // 处理图片
       if (info.mediaType === 'image' && info.srcUrl) {
         noteData.imageUrl = info.srcUrl;
@@ -245,6 +249,12 @@ async function saveNoteDirectly(data) {
       content: data.text || '',
       isArchived: false
     };
+    
+    // 添加来源信息
+    if (data.url && data.title) {
+      newNote.sourceUrl = data.url;
+      newNote.sourceTitle = data.title;
+    }
     
     // 处理图片数据
     if (data.imageUrl) {

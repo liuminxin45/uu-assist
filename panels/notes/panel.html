@@ -117,8 +117,24 @@
     .note-content{ margin-bottom:6px; word-break:break-word; }
     .note-image{ max-width:100%; height:auto; border-radius:4px; cursor:pointer; transition:opacity .15s ease; }
     .note-image:hover{ opacity:.9; }
-    .note-time{ font-size:10px; color:#9ca3af; margin-bottom:6px; }
-
+    .note-header { position: relative; display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+    
+    .note-time{ font-size:10px; color:#9ca3af; }
+    
+    .note-source { display: flex; align-items: center; gap: 4px; font-size: 10px; color: #6b7280; background: #f3f4f6; padding: 2px 6px; border-radius: 4px; line-height: 1.4; }
+    
+    .source-favicon { width: 12px; height: 12px; margin-right: 4px; object-fit: contain; }
+    
+    .source-domain, .source-title { color: #6b7280; text-decoration: none; }
+    
+    .source-domain:hover, .source-title:hover { text-decoration: underline; color: #3b82f6; }
+    
+    .source-external { margin-left: 2px; font-size: 11px; opacity: 0.7; }
+    
+    .source-copy-btn { background: transparent; border: none; cursor: pointer; padding: 0 2px; margin-left: 4px; font-size: 10px; opacity: 0.7; transition: opacity 0.2s; }
+    
+    .source-copy-btn:hover { opacity: 1; }
+    
     .note-tag{ background:#3B82F6; color:#fff; padding:2px 6px; border-radius:4px; font-weight:500; cursor:pointer; text-decoration:none; margin:0 2px; }
 
     .more-menu-container{ position:relative; display:flex; justify-content:flex-end; margin-top:6px; }

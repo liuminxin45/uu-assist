@@ -40,6 +40,12 @@ window.addNoteFromContext = function(data) {
             noteInput.value = data.text;
           }
           
+          // 保存来源信息
+          if (data.url && data.title) {
+            noteInput.dataset.sourceUrl = data.url;
+            noteInput.dataset.sourceTitle = data.title;
+          }
+          
           // 更新按钮状态
           updateButtonState();
           
@@ -56,6 +62,13 @@ window.addNoteFromContext = function(data) {
     } else if (data.text) {
       // 只有文本
       noteInput.value = data.text;
+      
+      // 保存来源信息
+      if (data.url && data.title) {
+        noteInput.dataset.sourceUrl = data.url;
+        noteInput.dataset.sourceTitle = data.title;
+      }
+      
       updateButtonState();
       
       // 延迟添加笔记
@@ -426,6 +439,10 @@ function addNote() {
     const imagesData = noteInput.dataset.imagesData ? JSON.parse(noteInput.dataset.imagesData) : null;
     const imageData = noteInput.dataset.imageData;
     
+    // 获取来源信息
+    const sourceUrl = noteInput.dataset.sourceUrl;
+    const sourceTitle = noteInput.dataset.sourceTitle;
+    
     console.log('添加笔记时的图片数据:', { imagesData, imageData });
     
     // 检查是否有内容或图片
@@ -455,6 +472,16 @@ function addNote() {
         newNote.hasImage = false;
         newNote.isMultipleImages = false;
     }
+    
+    // 设置来源信息
+    if (sourceUrl) {
+        newNote.sourceUrl = sourceUrl;
+        newNote.sourceTitle = sourceTitle;
+    }
+    
+    // 清除来源信息，避免影响下一条笔记
+    delete noteInput.dataset.sourceUrl;
+    delete noteInput.dataset.sourceTitle;
     
     console.log('创建的新笔记:', newNote);
     
@@ -577,13 +604,53 @@ function createNoteCard(note) {
     }
     card.dataset.id = note.id;
     
-    // 先创建时间元素，放在卡片最上方
+    // 先创建时间元素和来源信息元素的容器
+    const headerContainer = document.createElement('div');
+    headerContainer.className = 'note-header';
+    
+    // 创建时间元素
     const timeDiv = document.createElement('div');
     timeDiv.className = 'note-time';
     if (note.isArchived) {
         timeDiv.classList.add('archived-text');
     }
     timeDiv.textContent = formatTime(note.timestamp);
+    headerContainer.appendChild(timeDiv);
+    
+    // 创建来源信息元素（如果有来源信息）
+    if (note.sourceUrl) {
+        const sourceDiv = document.createElement('div');
+        sourceDiv.className = 'note-source';
+        
+        // 获取域名和省略的标题
+        const urlObj = new URL(note.sourceUrl);
+        const domain = urlObj.hostname;
+        const shortTitle = note.sourceTitle ? truncateText(note.sourceTitle, 15) : '未命名页面';
+        
+        // 创建favicon元素
+        const faviconImg = document.createElement('img');
+        faviconImg.className = 'source-favicon';
+        faviconImg.src = `${urlObj.protocol}//${domain}/favicon.ico`;
+        faviconImg.alt = 'favicon';
+        faviconImg.onerror = function() {
+            // 如果favicon加载失败，使用默认图标
+            this.src = 'data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Cpath fill=%22%239ca3af%22 d=%22M14.5 2.5a.5.5 0 01.5.5v10a.5.5 0 01-.5.5h-13a.5.5 0 01-.5-.5v-10a.5.5 0 01.5-.5h13zm-1 0h-11v10h11v-10zm-5 3a.5.5 0 00-.5.5v4a.5.5 0 00.5.5h1a.5.5 0 00.5-.5v-4a.5.5 0 00-.5-.5h-1zm-3 0a.5.5 0 00-.5.5v4a.5.5 0 00.5.5h1a.5.5 0 00.5-.5v-4a.5.5 0 00-.5-.5h-1zm6 0a.5.5 0 00-.5.5v4a.5.5 0 00.5.5h1a.5.5 0 00.5-.5v-4a.5.5 0 00-.5-.5h-1z%22/%3E%3C/svg%3E';
+        };
+        
+        // 创建标题链接
+        const titleLink = document.createElement('a');
+        titleLink.className = 'source-title';
+        titleLink.href = note.sourceUrl;
+        titleLink.target = '_blank';
+        titleLink.textContent = shortTitle;
+        titleLink.title = `${note.sourceTitle || '未命名页面'}\n${note.sourceUrl}`;
+        
+        // 组装来源信息
+        sourceDiv.appendChild(faviconImg);
+        sourceDiv.appendChild(titleLink);
+        
+        headerContainer.appendChild(sourceDiv);
+    }
     
     // 创建内容区域
     const contentDiv = document.createElement('div');
@@ -728,8 +795,8 @@ function createNoteCard(note) {
     moreMenuContainer.appendChild(moreBtn);
     moreMenuContainer.appendChild(dropMenu);
     
-    // 调整元素顺序：时间 -> 内容 -> 更多菜单
-    card.appendChild(timeDiv);
+    // 调整元素顺序：头部(时间+来源) -> 内容 -> 更多菜单
+    card.appendChild(headerContainer);
     card.appendChild(contentDiv);
     card.appendChild(moreMenuContainer);
     
@@ -792,6 +859,14 @@ function formatNoteContent(content) {
     
     // 再替换#标签（#后面跟字母、数字、下划线）
     return escapedContent.replace(/#([a-zA-Z0-9_]+)/g, '<span class="note-tag" onclick="handleTagClick(event, \'$1\')">#$1</span>');
+}
+
+// 截断文本，添加省略号
+function truncateText(text, maxLength) {
+    if (!text || text.length <= maxLength) {
+        return text;
+    }
+    return text.substring(0, maxLength) + '...';
 }
 
 // 处理标签点击事件
