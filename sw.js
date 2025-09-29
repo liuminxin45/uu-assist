@@ -19,6 +19,24 @@ async function ensureCS(tabId) {
   // 再探测一次
   await chrome.tabs.sendMessage(tabId, { type: "ping" });
 }
+
+async function bootstrapContentScripts() {
+  try {
+    const rocketTabs = await chrome.tabs.query({ url: [
+      "https://chat.rd.tp-link.com.cn/*",
+      "https://review.tp-link.net/*"
+    ] });
+    for (const tab of rocketTabs) {
+      try {
+        await ensureCS(tab.id);
+      } catch (e) {
+        console.warn('bootstrapContentScripts ensureCS failed', e);
+      }
+    }
+  } catch (err) {
+    console.warn('bootstrapContentScripts query failed', err);
+  }
+}
 async function sendMsgWithTimeout(tabId, msg, timeoutMs = 20000) {
   return await Promise.race([
     chrome.tabs.sendMessage(tabId, msg),
@@ -104,7 +122,14 @@ chrome.runtime.onInstalled.addListener(() => {
   if (chrome.sidePanel?.setPanelBehavior) {
     chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => { });
   }
+  bootstrapContentScripts();
 });
+
+chrome.runtime.onStartup.addListener(() => {
+  bootstrapContentScripts();
+});
+
+bootstrapContentScripts();
 
 function findInputValue(html, names) {
   for (const name of names) {
