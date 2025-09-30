@@ -10,14 +10,28 @@ const removeImageBtn = document.getElementById('remove-image-btn');
 const fullscreenPreview = document.getElementById('fullscreen-preview');
 const fullscreenImage = document.getElementById('fullscreen-image');
 const tagBtn = document.getElementById('tag-btn');
+const mentionBtn = document.getElementById('mention-btn');
 const tagMenu = document.getElementById('tag-menu');
 const tagMenuSearch = document.getElementById('tag-menu-search');
 const tagMenuList = document.getElementById('tag-menu-list');
+
+// @引用功能相关元素
+const mentionMenu = document.getElementById('mention-menu');
+const mentionMenuList = document.getElementById('mention-menu-list');
+const mentionMenuSearch = document.getElementById('mention-menu-search');
+const mentionPopover = document.getElementById('mention-popover');
+const mentionPopoverClose = document.getElementById('mention-popover-close');
+const mentionPopoverMeta = document.getElementById('mention-popover-meta');
+const mentionPopoverContent = document.getElementById('mention-popover-content');
 
 // 标签相关状态
 let allTags = []; // 所有存在的标签
 let recentTags = []; // 近期使用的标签（最多保存20个）
 let currentTagPrefix = ''; // 当前输入的标签前缀
+
+// @引用相关状态
+let currentMentionPrefix = ''; // 当前输入的@引用前缀
+let currentMentionNoteId = null; // 当前引用的笔记ID
 
 // 状态变量
 let currentSearchTerm = '';
@@ -239,6 +253,440 @@ function saveNotesToStorage() {
     }
 }
 
+// 显示@引用菜单
+function showMentionMenu() {
+    if (!mentionMenu || !mentionMenuSearch || !mentionMenuList) return;
+    
+    // 使用与标签菜单相同的定位逻辑
+    const rect = noteInput.getBoundingClientRect();
+    const containerRect = noteInput.parentElement.getBoundingClientRect();
+    
+    // 设置@引用菜单位置
+    mentionMenu.style.top = (containerRect.bottom - rect.top) + 'px';
+    mentionMenu.style.left = '0px';
+    
+    // 重置搜索框
+    mentionMenuSearch.value = currentMentionPrefix;
+    
+    // 填充菜单
+    populateMentionMenu();
+    
+    // 显示菜单
+    mentionMenu.style.display = 'block';
+    
+    // 聚焦搜索框
+    mentionMenuSearch.focus();
+    
+    // 添加键盘事件监听以处理ESC键
+    document.addEventListener('keydown', handleEscKeyForMentionMenu);
+}
+
+// 隐藏@引用菜单
+function hideMentionMenu() {
+    if (!mentionMenu) return;
+    mentionMenu.style.display = 'none';
+    
+    // 移除键盘事件监听
+    document.removeEventListener('keydown', handleEscKeyForMentionMenu);
+}
+
+// 处理ESC键隐藏@引用菜单
+function handleEscKeyForMentionMenu(e) {
+    if (e.key === 'Escape') {
+        // 删除输入框中的@符号
+        if (noteInput && currentMentionPrefix !== null) {
+            const value = noteInput.value;
+            const cursorPosition = noteInput.selectionStart;
+            const beforeCursor = value.substring(0, cursorPosition);
+            
+            // 找到最后一个@的位置
+            const lastMentionIndex = beforeCursor.lastIndexOf('@');
+            
+            if (lastMentionIndex !== -1) {
+                // 删除@符号及其后面的内容
+                const newBeforeCursor = beforeCursor.substring(0, lastMentionIndex);
+                const newValue = newBeforeCursor + value.substring(cursorPosition);
+                
+                // 更新输入值
+                noteInput.value = newValue;
+                
+                // 移动光标到@符号之前的位置
+                noteInput.setSelectionRange(lastMentionIndex, lastMentionIndex);
+                
+                // 触发输入事件以更新状态
+                noteInput.dispatchEvent(new Event('input'));
+            }
+        }
+        
+        hideMentionMenu();
+    }
+}
+
+// 过滤@引用菜单
+function filterMentionMenu() {
+    if (!mentionMenuSearch || !mentionMenuList) return;
+    
+    const searchTerm = mentionMenuSearch.value.toLowerCase();
+    currentMentionPrefix = searchTerm;
+    
+    // 重新填充菜单以应用过滤
+    populateMentionMenu();
+}
+
+// 显示toast提示
+function showToast(message, x, y) {
+    // 移除之前的toast
+    const oldToast = document.getElementById('custom-toast');
+    if (oldToast) {
+        oldToast.remove();
+    }
+    
+    // 创建toast元素
+    const toast = document.createElement('div');
+    toast.id = 'custom-toast';
+    toast.style.position = 'fixed';
+    toast.style.top = `${y + 10}px`;
+    toast.style.left = `${x}px`;
+    toast.style.maxWidth = '300px';
+    toast.style.padding = '8px 12px';
+    toast.style.backgroundColor = 'rgba(31, 41, 55, 0.95)';
+    toast.style.color = 'white';
+    toast.style.borderRadius = '6px';
+    toast.style.zIndex = '10000';
+    toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+    toast.style.fontSize = '12px';
+    toast.style.lineHeight = '1.4';
+    toast.style.wordBreak = 'break-word';
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.2s ease';
+    toast.textContent = message;
+    
+    document.body.appendChild(toast);
+    
+    // 显示toast
+    setTimeout(() => {
+        toast.style.opacity = '1';
+    }, 10);
+    
+    return toast;
+}
+
+// 隐藏toast
+function hideToast() {
+    const toast = document.getElementById('custom-toast');
+    if (toast) {
+        toast.style.opacity = '0';
+        setTimeout(() => {
+            if (document.body.contains(toast)) {
+                document.body.removeChild(toast);
+            }
+        }, 200);
+    }
+}
+
+// 填充@引用菜单
+function populateMentionMenu() {
+    if (!mentionMenuList) return;
+    
+    // 清空菜单
+    mentionMenuList.innerHTML = '';
+    
+    // 获取所有笔记并按创建时间排序（最新的在前）
+    const sortedNotes = [...notes].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    // 应用过滤
+    const filteredNotes = sortedNotes.filter(note => {
+        // 如果没有搜索词，显示所有笔记
+        if (!currentMentionPrefix) return true;
+        
+        // 检查笔记内容是否包含搜索词（不区分大小写）
+        const content = (note.content || '').toLowerCase();
+        return content.includes(currentMentionPrefix.toLowerCase());
+    });
+    
+    // 添加过滤后的笔记到菜单
+    filteredNotes.forEach(note => {
+        const noteItem = document.createElement('div');
+        noteItem.className = 'tag-menu-item';
+        
+        // 创建笔记内容预览
+        const preview = document.createElement('div');
+        preview.className = 'mention-preview';
+        
+        // 添加标题（如果内容不为空）
+        if (note.content) {
+            const title = document.createElement('div');
+            title.className = 'mention-title';
+            title.textContent = truncateText(note.content, 50);
+            preview.appendChild(title);
+        }
+        
+
+        
+        noteItem.appendChild(preview);
+        
+        // 添加点击事件
+        noteItem.addEventListener('click', () => {
+            insertMentionAtCursor(note);
+            hideMentionMenu();
+        });
+        
+        // 添加鼠标悬浮事件以显示完整笔记内容
+        noteItem.addEventListener('mouseenter', (e) => {
+            if (note.content) {
+                // 计算toast位置
+                const rect = noteItem.getBoundingClientRect();
+                const x = rect.left;
+                const y = rect.bottom;
+                
+                // 显示toast
+                showToast(note.content, x, y);
+            }
+        });
+        
+        noteItem.addEventListener('mouseleave', () => {
+            hideToast();
+        });
+        
+        mentionMenuList.appendChild(noteItem);
+    });
+    
+    // 如果没有匹配的笔记，显示提示
+    if (filteredNotes.length === 0) {
+        const noResults = document.createElement('div');
+        noResults.className = 'tag-menu-item tag-menu-item-disabled';
+        noResults.textContent = '没有找到匹配的笔记';
+        mentionMenuList.appendChild(noResults);
+    }
+}
+
+// 在光标位置插入@引用
+function insertMentionAtCursor(note) {
+    const input = noteInput;
+    const value = input.value;
+    const cursorPosition = input.selectionStart;
+    const beforeCursor = value.substring(0, cursorPosition);
+    const afterCursor = value.substring(cursorPosition);
+    
+    // 找到@的位置
+    const lastMentionIndex = beforeCursor.lastIndexOf('@');
+    
+    if (lastMentionIndex !== -1) {
+        // 创建引用标记格式：@[笔记内容预览](笔记ID)
+        const previewText = truncateText(note.content, 30);
+        const mentionText = `@[${previewText}](${note.id})`;
+        
+        // 替换@及其后面的内容为引用标记
+        const newBeforeCursor = beforeCursor.substring(0, lastMentionIndex) + mentionText;
+        const newValue = newBeforeCursor + afterCursor;
+        
+        // 更新输入值
+        input.value = newValue;
+        
+        // 移动光标到引用标记后面
+        const newCursorPosition = newBeforeCursor.length;
+        input.setSelectionRange(newCursorPosition, newCursorPosition);
+        
+        // 触发输入事件以更新状态
+        input.dispatchEvent(new Event('input'));
+        
+        // 保存笔记以便后续引用查看
+        currentMentionNoteId = note.id;
+    }
+}
+
+// 处理@引用标签点击事件
+function handleMentionClick(noteId) {
+    // 查找被引用的笔记
+    const mentionedNote = notes.find(note => note.id === noteId);
+    
+    if (mentionedNote) {
+        // 显示引用弹窗
+        showMentionPopover(mentionedNote);
+    }
+}
+
+// 显示@引用弹窗
+function showMentionPopover(note) {
+    if (!mentionPopover || !mentionPopoverMeta || !mentionPopoverContent) return;
+    
+    // 使用卡片本身的时间，确保时间显示正确
+    let formattedDate = '';
+    
+    // 尝试多种可能的时间字段
+    if (note.time) {
+        // 优先使用time字段
+        formattedDate = note.time;
+    } else if (note.timestamp && !isNaN(note.timestamp)) {
+        // 如果有timestamp字段，格式化它
+        formattedDate = formatTimeForInsight(note.timestamp);
+    } else if (note.createdAt && !isNaN(note.createdAt)) {
+        // 最后尝试createdAt字段
+        formattedDate = formatTimeForInsight(note.createdAt);
+    }
+    
+    // 简化显示格式，直接显示时间
+    mentionPopoverMeta.textContent = formattedDate || '未知时间';
+    
+    // 格式化显示笔记内容
+    mentionPopoverContent.innerHTML = '';
+    
+    // 创建内容元素
+    const contentElement = document.createElement('div');
+    contentElement.className = 'mention-popover-content-item';
+    
+    // 显示笔记文本内容
+    if (note.content) {
+        const textContent = document.createElement('p');
+        textContent.className = 'mention-popover-text';
+        textContent.textContent = note.content;
+        contentElement.appendChild(textContent);
+    }
+    
+    // 显示笔记中的图片（如果有）- 确保图片可以正常显示
+    // 检查单个图片
+    if (note.imageData) {
+        const imageContainer = document.createElement('div');
+        imageContainer.className = 'mention-popover-image-container';
+        
+        const image = document.createElement('img');
+        image.className = 'mention-popover-image';
+        image.alt = '笔记图片';
+        image.style.cursor = 'pointer'; // 添加光标样式
+        
+        // 设置Base64图片数据
+        image.src = note.imageData;
+        
+        // 添加图片加载错误处理
+        image.onerror = function() {
+            console.error('Failed to load image from imageData');
+            this.alt = '无法加载图片';
+            this.style.cursor = 'default'; // 加载失败时恢复默认光标
+        };
+        
+        // 添加点击预览事件
+        image.addEventListener('click', (e) => {
+            e.stopPropagation(); // 阻止事件冒泡，避免关闭弹窗
+            previewFullImage(note.imageData);
+        });
+        
+        imageContainer.appendChild(image);
+        contentElement.appendChild(imageContainer);
+    }
+    
+    // 检查多个图片
+    if (note.imagesData && note.imagesData.length > 0) {
+        const imagesContainer = document.createElement('div');
+        imagesContainer.className = 'mention-popover-images-grid';
+        
+        note.imagesData.forEach((imageData, index) => {
+            const imageContainer = document.createElement('div');
+            imageContainer.className = 'mention-popover-image-container';
+            
+            const image = document.createElement('img');
+            image.className = 'mention-popover-image';
+            image.alt = `笔记图片 ${index + 1}`;
+            image.style.cursor = 'pointer'; // 添加光标样式
+            
+            // 设置Base64图片数据
+            image.src = imageData;
+            
+            // 添加图片加载错误处理
+            image.onerror = function() {
+                console.error(`Failed to load image ${index + 1} from imagesData`);
+                this.alt = `无法加载图片 ${index + 1}`;
+                this.style.cursor = 'default'; // 加载失败时恢复默认光标
+            };
+            
+            // 添加点击预览事件
+            image.addEventListener('click', (e) => {
+                e.stopPropagation(); // 阻止事件冒泡，避免关闭弹窗
+                previewFullImage(imageData);
+            });
+            
+            imageContainer.appendChild(image);
+            imagesContainer.appendChild(imageContainer);
+        });
+        
+        contentElement.appendChild(imagesContainer);
+    }
+    
+    // 保持原有的imageUrl支持，以便兼容可能使用此格式的笔记
+    if (note.imageUrl && !note.imageData && (!note.imagesData || note.imagesData.length === 0)) {
+        const imageContainer = document.createElement('div');
+        imageContainer.className = 'mention-popover-image-container';
+        
+        const image = document.createElement('img');
+        image.className = 'mention-popover-image';
+        image.alt = '笔记图片';
+        image.style.cursor = 'pointer'; // 添加光标样式
+        
+        // 确保图片路径正确
+        try {
+            // 处理各种可能的图片路径格式
+            if (note.imageUrl.startsWith('/')) {
+                // 相对路径
+                image.src = window.location.origin + note.imageUrl;
+            } else if (note.imageUrl.startsWith('http://') || note.imageUrl.startsWith('https://')) {
+                // 绝对URL
+                image.src = note.imageUrl;
+            } else {
+                // 其他情况，尝试作为相对路径处理
+                image.src = note.imageUrl;
+            }
+        } catch (error) {
+            console.error('设置图片路径失败:', error);
+        }
+        
+        // 添加图片加载错误处理
+        image.onerror = function() {
+            console.error('Failed to load image:', this.src);
+            this.alt = '无法加载图片';
+            this.style.cursor = 'default'; // 加载失败时恢复默认光标
+        };
+        
+        // 添加点击预览事件
+        image.addEventListener('click', (e) => {
+            e.stopPropagation(); // 阻止事件冒泡，避免关闭弹窗
+            previewFullImage(image.src);
+        });
+        
+        imageContainer.appendChild(image);
+        contentElement.appendChild(imageContainer);
+    }
+    
+    mentionPopoverContent.appendChild(contentElement);
+    
+    // 显示弹窗
+    mentionPopover.style.display = 'block';
+    
+    // 确保弹窗在屏幕可见位置
+    positionMentionPopover();
+}
+
+// 隐藏@引用弹窗
+function hideMentionPopover() {
+    if (!mentionPopover) return;
+    mentionPopover.style.display = 'none';
+}
+
+// 定位引用弹窗 - 确保水平、竖直居中
+function positionMentionPopover() {
+    if (!mentionPopover) return;
+    
+    // 清除可能干扰居中的定位属性
+    mentionPopover.style.left = '';
+    mentionPopover.style.top = '';
+    mentionPopover.style.right = '';
+    mentionPopover.style.bottom = '';
+    mentionPopover.style.margin = '';
+    
+    // 确保应用了正确的CSS属性
+    mentionPopover.style.display = 'flex';
+    mentionPopover.style.alignItems = 'center';
+    mentionPopover.style.justifyContent = 'center';
+}
+
 // 应用初始化
 function initApp() {
     if (noteInput) {
@@ -250,6 +698,13 @@ function initApp() {
         noteInput.addEventListener('input', handleNoteInputChange);
         noteInput.addEventListener('blur', parseNoteTags);
     }
+    
+    // 添加ESC键关闭引用弹窗的功能
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && mentionPopover && mentionPopover.style.display === 'block') {
+            hideMentionPopover();
+        }
+    });
 
     if (addNoteBtn) {
         addNoteBtn.addEventListener('click', addNote);
@@ -280,6 +735,11 @@ function initApp() {
         if (!tagBtn.contains(e.target) && !tagMenu.contains(e.target)) {
             hideTagMenu();
         }
+        
+        // 点击页面其他区域关闭@引用菜单
+        if (!mentionMenu.contains(e.target) && e.target !== noteInput) {
+            hideMentionMenu();
+        }
     });
     
     // 阻止标签菜单内的点击事件冒泡
@@ -288,10 +748,45 @@ function initApp() {
             e.stopPropagation();
         });
     }
+
+    // @引用菜单搜索事件监听
+    if (mentionMenuSearch) {
+        mentionMenuSearch.addEventListener('input', filterMentionMenu);
+    }
     
-    // 为笔记容器添加事件委托，处理标签点击
+    // 阻止@引用菜单内的点击事件冒泡
+    if (mentionMenu) {
+        mentionMenu.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    }
+
+    // @引用弹窗关闭事件
+    if (mentionPopoverClose) {
+        mentionPopoverClose.addEventListener('click', hideMentionPopover);
+    }
+    
+    // 点击弹窗外部关闭@引用弹窗
+    if (mentionPopover) {
+        mentionPopover.addEventListener('click', (e) => {
+            if (e.target === mentionPopover) {
+                hideMentionPopover();
+            }
+        });
+        
+        // 阻止弹窗内容区域的点击事件冒泡
+        const popoverContent = mentionPopover.querySelector('.ai-insight-modal-content');
+        if (popoverContent) {
+            popoverContent.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        }
+    }
+    
+    // 为笔记容器添加事件委托，处理标签点击和@引用点击
     if (notesContainer) {
         notesContainer.addEventListener('click', (e) => {
+            // 处理#标签点击
             const tagElement = e.target.closest('.note-tag');
             if (tagElement) {
                 e.preventDefault();
@@ -301,6 +796,18 @@ function initApp() {
                 if (tagName && searchInput) {
                     searchInput.value = '#' + tagName;
                     handleSearchChange();
+                }
+            }
+            
+            // 处理@引用标签点击
+            const mentionElement = e.target.closest('.mention-tag');
+            if (mentionElement) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const noteId = mentionElement.dataset.noteId;
+                if (noteId) {
+                    handleMentionClick(noteId);
                 }
             }
         });
@@ -552,6 +1059,15 @@ function updateButtonState() {
   const hasSingle = !!noteInput.dataset.imageData;
   const hasMulti = !!noteInput.dataset.imagesData;
   addNoteBtn.disabled = !(hasText || hasSingle || hasMulti);
+  
+  // 控制@引用按钮和#标签按钮的显示（设置为隐藏）
+  if (tagBtn) {
+    tagBtn.style.display = 'none';
+  }
+  
+  if (mentionBtn) {
+    mentionBtn.style.display = 'none';
+  }
 }
 
 // 添加笔记
@@ -1209,7 +1725,7 @@ async function callRealAIAPI(dataset, aiCfg) {
 
 
 
-// 格式化笔记内容，处理#标签
+// 格式化笔记内容，处理#标签和@引用
 function formatNoteContent(content) {
     if (!content) return '';
     
@@ -1228,7 +1744,14 @@ function formatNoteContent(content) {
     
     // 再替换#标签（#后面跟任意非空白字符，符合要求）
     // 使用data-tag属性而不是内联onclick，避免CSP限制
-    return escapedContent.replace(/#([^\s]+)/g, '<span class="note-tag" data-tag="$1">#$1</span>');
+    escapedContent = escapedContent.replace(/#([^\s]+)/g, '<span class="note-tag" data-tag="$1">#$1</span>');
+    
+    // 处理@引用标记，格式为@[笔记内容预览](笔记ID)
+    // 使用data-note-id属性存储笔记ID
+    escapedContent = escapedContent.replace(/@\[([^\]]+)\]\(([^)]+)\)/g, 
+        '<span class="mention-tag" data-note-id="$2">@[$1]</span>');
+    
+    return escapedContent;
 }
 
 // 截断文本，添加省略号
@@ -1419,12 +1942,20 @@ function initializePage() {
     
     // 初始化时加载笔记
     loadNotesFromStorage();
+    
+    // @引用按钮事件监听
+    if (mentionBtn) {
+        mentionBtn.addEventListener('click', handleMentionButtonClick);
+    }
 }
 
 // 处理标签按钮点击事件
 function handleTagButtonClick(e) {
     e.preventDefault();
     e.stopPropagation();
+    
+    // 先隐藏@引用菜单
+    hideMentionMenu();
     
     // 获取光标位置
     const cursorPosition = noteInput.selectionStart;
@@ -1442,6 +1973,32 @@ function handleTagButtonClick(e) {
     
     // 显示标签菜单
     showTagMenu();
+}
+
+// 处理@引用按钮点击事件
+function handleMentionButtonClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // 先隐藏标签菜单
+    hideTagMenu();
+    
+    // 获取光标位置
+    const cursorPosition = noteInput.selectionStart;
+    
+    // 在光标位置插入 @
+    const text = noteInput.value;
+    const beforeCursor = text.substring(0, cursorPosition);
+    const afterCursor = text.substring(cursorPosition);
+    
+    noteInput.value = beforeCursor + '@' + afterCursor;
+    
+    // 设置光标位置在 @ 后面
+    noteInput.setSelectionRange(cursorPosition + 1, cursorPosition + 1);
+    noteInput.focus();
+    
+    // 显示@引用菜单
+    showMentionMenu();
 }
 
 // 显示标签菜单
@@ -1688,6 +2245,30 @@ function handleNoteInputChange() {
     } else {
         // 如果没有找到#，关闭菜单
         hideTagMenu();
+    }
+    
+    // 检查光标前是否有@符号
+    const lastMentionIndex = beforeCursor.lastIndexOf('@');
+    
+    // 如果找到了@，并且@后面没有空格（即正在输入引用）
+    if (lastMentionIndex !== -1) {
+        const afterMention = beforeCursor.substring(lastMentionIndex + 1);
+        if (afterMention.trim() === '') {
+            // 显示引用菜单
+            currentMentionPrefix = '';
+            showMentionMenu();
+        } else if (!/\s/.test(afterMention)) {
+            // 更新当前引用前缀并过滤菜单
+            currentMentionPrefix = afterMention;
+            showMentionMenu();
+            filterMentionMenu();
+        } else {
+            // 如果@后面有空格，关闭菜单
+            hideMentionMenu();
+        }
+    } else {
+        // 如果没有找到@，关闭菜单
+        hideMentionMenu();
     }
 }
 

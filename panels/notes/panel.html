@@ -104,6 +104,120 @@
       padding:12px; display:flex; flex-direction:column; gap:10px; background:#f3f4f6;
     }
 
+    /* @引用菜单特定样式 */
+    .mention-menu{
+      width:320px;
+    }
+    
+    .mention-menu-header > div {
+      font-size:12px;
+      color:var(--muted);
+      margin-bottom:4px;
+    }
+    
+    .mention-menu-item{
+      display:flex;
+      align-items:flex-start;
+      gap:8px;
+      border-bottom:1px solid #f3f4f6;
+    }
+    
+    .mention-menu-item:last-child {
+      border-bottom:none;
+    }
+    
+    .mention-menu-item-icon{
+      font-size:16px;
+      margin-top:1px;
+    }
+    
+    .mention-menu-item-content{
+      flex:1;
+    }
+    
+    .mention-menu-item-title{
+      font-weight:500;
+      margin-bottom:2px;
+    }
+    
+    .mention-menu-item-preview{
+      font-size:11px;
+      color:var(--muted);
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    
+    /* 多图网格布局 - 保留引用弹窗特有的图片样式 */
+    .mention-popover-images-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .mention-popover-images-grid .mention-popover-image-container {
+      margin-top: 0;
+    }
+
+    .mention-popover-images-grid .mention-popover-image {
+      width: 100%;
+      height: 100px;
+      object-fit: cover;
+    }
+    
+    .mention-menu-item-time{
+      font-size:10px;
+      color:#9ca3af;
+      margin-top:2px;
+    }
+    
+    /* 引用弹窗图片容器样式 - 保留特有的图片样式 */
+    .mention-popover-image-container {
+      margin-top: 8px;
+    }
+    
+    .mention-popover-image {
+      max-width: 100%;
+      height: auto;
+      border-radius: 4px;
+    }
+    
+    /* 引用弹窗内容样式 - 保留特有的内容样式 */
+    .mention-popover-content-item {
+      padding: 8px 0;
+    }
+    
+    .mention-popover-text {
+      margin: 0 0 8px 0;
+      word-wrap: break-word;
+      line-height: 1.4;
+    }
+    
+    .mention-popover-meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    
+    /* @引用标签样式 */
+    .mention-tag{
+      background:#e0f2fe;
+      color:#0ea5e9;
+      padding:2px 6px;
+      border-radius:4px;
+      font-weight:500;
+      cursor:pointer;
+      text-decoration:none;
+      margin:0 2px;
+      font-size:12px;
+      transition: background-color 0.2s ease;
+    }
+    
+    .mention-tag:hover{
+      background:#bae6fd;
+    }
+
     .note-card{
       padding:10px; background:var(--bg); border:1px solid var(--border);
       border-radius:8px; transition:box-shadow .15s ease, transform .15s ease;
@@ -171,6 +285,44 @@
 
     .tag-btn{
       display: none;
+      width: 24px;
+      height: 24px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .tag-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-hover);
+    }
+
+    .mention-btn{
+      display: none;
+      width: 24px;
+      height: 24px;
+      background: #3B82F6;
+      border: 1px solid #2563EB;
+      border-radius: 4px;
+      font-size: 14px;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+      margin-left: 4px;
+    }
+
+    .mention-btn:hover {
+      background: #2563EB;
+      border-color: #1D4ED8;
     }
 
     .add-note-btn{
@@ -182,12 +334,11 @@
 
     .more-menu-container{ position:relative; display:flex; justify-content:flex-end; }
 
-    /* 标签菜单样式 */
-    .tag-menu{
+    /* 通用下拉菜单样式 */
+    .dropdown-menu{
       position:absolute;
       top:100%;
       left:0;
-      width:280px;
       max-height:300px;
       background:var(--bg);
       border:1px solid var(--border);
@@ -198,13 +349,13 @@
       display:none;
     }
     
-    .tag-menu-header{
+    .dropdown-menu-header{
       padding:8px 12px;
       border-bottom:1px solid var(--border);
       background:var(--bg-muted);
     }
     
-    .tag-menu-search{
+    .dropdown-menu-search{
       width:100%;
       padding:6px 8px;
       border:1px solid var(--border);
@@ -212,15 +363,36 @@
       font-size:12px;
     }
     
-    .tag-menu-list{
+    .dropdown-menu-list{
       max-height:250px;
       overflow-y:auto;
+    }
+    
+    .dropdown-menu-item{
+      padding:8px 12px;
+      cursor:pointer;
+      font-size:13px;
+      transition: background-color 0.2s ease;
+    }
+    
+    .dropdown-menu-item:hover{
+      background:var(--bg-muted);
+    }
+    
+    /* 标签菜单特定样式 */
+    .tag-menu{
+      width:280px;
+    }
+    
+    /* @引用菜单特定样式 */
+    .mention-menu{
+      width:280px;
     }
     
     .tag-menu-item{
       padding:8px 12px;
       cursor:pointer;
-      font-size:13px;
+      font-size:11px;
       display:flex;
       align-items:center;
       gap:8px;
@@ -255,7 +427,7 @@
 
     .empty-state{ text-align:center; padding:28px 16px; color:var(--muted); font-size:13px; }
 
-    .fullscreen-preview{ position:fixed; inset:0; background:rgba(0,0,0,.9); display:flex; align-items:center; justify-content:center; z-index:1000; cursor:pointer; }
+    .fullscreen-preview{ position:fixed; inset:0; background:rgba(0,0,0,.9); display:flex; align-items:center; justify-content:center; z-index:3000; cursor:pointer; }
     .fullscreen-image{ max-width:90%; max-height:90vh; object-fit:contain; }
 
     .rail{
@@ -395,16 +567,27 @@
             <div class="add-note-wrapper">
               <textarea id="note-input" class="note-input" placeholder="记点啥…" rows="1"></textarea>
               <button id="tag-btn" class="tag-btn" title="添加标签">#</button>
+              <button id="mention-btn" class="mention-btn" title="引用笔记">@</button>
               <button id="add-note-btn" class="add-note-btn" style="display:none">添加</button>
             </div>
             
             <!-- 标签菜单 -->
-            <div id="tag-menu" class="tag-menu">
-              <div class="tag-menu-header">
-                <input type="text" id="tag-menu-search" class="tag-menu-search" placeholder="搜索标签..."/>
+            <div id="tag-menu" class="dropdown-menu tag-menu">
+              <div class="dropdown-menu-header tag-menu-header">
+                <input type="text" id="tag-menu-search" class="dropdown-menu-search tag-menu-search" placeholder="搜索标签..."/>
               </div>
-              <div id="tag-menu-list" class="tag-menu-list">
+              <div id="tag-menu-list" class="dropdown-menu-list tag-menu-list">
                 <!-- 标签列表将通过JavaScript动态生成 -->
+              </div>
+            </div>
+
+            <!-- @引用菜单 -->
+            <div id="mention-menu" class="dropdown-menu mention-menu">
+              <div class="dropdown-menu-header mention-menu-header">
+                <input type="text" id="mention-menu-search" class="dropdown-menu-search mention-menu-search" placeholder="搜索笔记..."/>
+              </div>
+              <div id="mention-menu-list" class="dropdown-menu-list mention-menu-list">
+                <!-- 笔记列表将通过JavaScript动态生成 -->
               </div>
             </div>
 
@@ -432,6 +615,20 @@
 
   <div id="fullscreen-preview" class="fullscreen-preview" style="display:none;">
     <img id="fullscreen-image" class="fullscreen-image" src="" alt="预览"/>
+  </div>
+
+  <!-- @引用弹窗 -->
+  <div id="mention-popover" class="ai-insight-modal" style="display:none;">
+    <div class="ai-insight-modal-content">
+      <div class="ai-insight-modal-header">
+        <h3>引用内容</h3>
+        <button id="mention-popover-close" class="ai-insight-close-btn">&times;</button>
+      </div>
+      <div class="ai-insight-modal-body">
+        <div class="mention-popover-meta" id="mention-popover-meta"></div>
+        <div id="mention-popover-content" class="mention-popover-content"></div>
+      </div>
+    </div>
   </div>
 
   <!-- AI洞察弹窗 -->
