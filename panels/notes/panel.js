@@ -911,8 +911,8 @@ function createNoteCard(note) {
     aiInsightOption.className = 'menu-option';
     aiInsightOption.textContent = '洞察';
     aiInsightOption.addEventListener('click', () => {
-        // 这里可以添加AI洞察功能的实现
-        alert('AI洞察功能正在开发中');
+        // 显示AI洞察弹窗
+        showAiInsightModal(note);
         dropMenu.style.display = 'none';
     });
     
@@ -990,6 +990,224 @@ function formatTime(timestamp) {
     
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
+
+// AI洞察功能相关函数
+function showAiInsightModal(currentNote) {
+  // 获取弹窗元素
+  const modal = document.getElementById('ai-insight-modal');
+  const loading = document.getElementById('ai-insight-loading');
+  const content = document.getElementById('ai-insight-content');
+  const closeBtn = document.getElementById('close-ai-insight-modal');
+  
+  // 重置弹窗状态
+  loading.style.display = 'block';
+  content.style.display = 'none';
+  content.textContent = '';
+  
+  // 显示弹窗
+  modal.style.display = 'flex';
+  
+  // 关闭弹窗事件
+  function closeModal() {
+    modal.style.display = 'none';
+  }
+  
+  closeBtn.onclick = closeModal;
+  
+  // 点击弹窗外部关闭
+  modal.onclick = (e) => {
+    if (e.target === modal) {
+      closeModal();
+    }
+  };
+  
+  // 阻止事件冒泡
+  modal.querySelector('.ai-insight-modal-content').onclick = (e) => {
+    e.stopPropagation();
+  };
+  
+  // 准备笔记数据
+  const dataset = prepareInsightDataset(currentNote);
+  
+  // 调用AI获取洞察结果
+  generateInsightWithAI(dataset).then(insightResult => {
+    try {
+      // 显示结果
+      loading.style.display = 'none';
+      content.style.display = 'block';
+      content.textContent = insightResult;
+    } catch (error) {
+      console.error('处理AI结果失败:', error);
+      content.textContent = '生成洞察时出错，请重试。';
+      content.style.display = 'block';
+      loading.style.display = 'none';
+    }
+  }).catch(error => {
+    console.error('获取AI洞察失败:', error);
+    // 显示用户要求的统一错误提示
+    content.textContent = 'AI 调用 失败';
+    content.style.display = 'block';
+    loading.style.display = 'none';
+  });
+}
+
+// 准备发送给AI的数据集
+function prepareInsightDataset(currentNote) {
+  // 构建当前卡片数据
+  const nowCard = {
+    content: currentNote.content || '',
+    timestamp: currentNote.timestamp,
+    date: formatTimeForInsight(currentNote.timestamp),
+    hasImages: currentNote.hasImages || false
+  };
+  
+  // 收集历史笔记（排除当前笔记且不包含图片base64）
+  const historyNotes = notes.filter(note => note.id !== currentNote.id)
+    .map(note => ({
+      content: note.content || '',
+      timestamp: note.timestamp,
+      date: formatTimeForInsight(note.timestamp),
+      hasImages: note.hasImages || false
+    }))
+    .sort((a, b) => b.timestamp - a.timestamp); // 按时间倒序排列
+  
+  return {
+    now_card: nowCard,
+    history_notes: historyNotes,
+    total_count: notes.length
+  };
+}
+
+// 格式化时间用于洞察显示
+function formatTimeForInsight(timestamp) {
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}`;
+}
+
+// 加载AI配置
+function loadAiCfg() {
+  return new Promise(res => {
+    try {
+      // 检查扩展上下文是否有效
+      if (chrome.runtime && chrome.runtime.id) {
+        chrome.storage.local.get({ aiCfg: null }, got => res(got.aiCfg || null));
+      } else {
+        // 上下文无效，直接返回null
+        res(null);
+      }
+    } catch (error) {
+      // 捕获Extension context invalidated等错误
+      console.warn('无法访问存储，扩展上下文可能已失效:', error);
+      res(null);
+    }
+  });
+}
+
+// 生成AI洞察
+async function generateInsightWithAI(dataset) {
+  // 尝试调用真实AI API
+  try {
+    const aiCfg = await loadAiCfg();
+    if (aiCfg && aiCfg.base && aiCfg.model && aiCfg.key) {
+      const result = await callRealAIAPI(dataset, aiCfg);
+      return result;
+    }
+    // 配置不完整
+    throw new Error('AI配置不完整');
+  } catch (error) {
+    console.error('AI调用失败:', error);
+    // AI调用失败时直接返回失败提示
+    throw new Error('AI 调用 失败');
+  }
+}
+
+// 调用真实AI API
+async function callRealAIAPI(dataset, aiCfg) {
+  const prompt = `你是一位清明克制的“洞察向导”。对象是笔记作者本人。不是给答案，而是在他的文字里扶一盏小灯：围绕【当前卡片】从历年笔记中看见2–3条长期脉络，点出各自的张力或突破口，用温和的追问与可验证的小步方向，促成更澄明的自我看见。（要有哲学性和引导性）
+写作方式
+ - 对话体，统一第二人称“你”。不标题、不列表、不编号，不要 Markdown。
+ - 多段落、渐进式表达：4–6 段，每段 1–4 句。段与段之间必须有空行。全文 400–700 字。
+ - 证据织入：把 1–3 个来自输入的日期或原话短语自然嵌入语句中（如“在 2025-01-15 你写到……”或用引号点亮原词），不要做清单。
+ - 语气宁静，不评判；允许留白与停顿。多用“看见/体察/呼吸/试试看”等温和动词；可偶尔用类似公案的提问，但避免玄而又玄的空话。
+ - 在文中分散提出 2–3 个开放式问题；给 1–2 个一两天内可验证的小步方向（邀请式，如“要不要先……看看会发生什么”）。
+ - 只使用输入中的事实、日期、原词与标签；不得新增书名、概念或外部信息。拿不准用“可能/似乎/倾向于”。
+段落节奏（描述给你，不要写出小标题或编号）
+ 1) 开场定锚：用当前卡片把当下心念落地，并点出时间跨度或最近一次关键记录。
+ 2) 脉络 A：说出一条长期线索的演进与当下张力，嵌入一个日期或原句，落到一个开放式追问。
+ 3) 脉络 B（可选脉络 C）：同上，但换一个维度（方法/动机/情绪/场域），避免重复措辞。
+ 4) 收束与下一步：提炼一个更高处的看见，给 1–2 个可验证的小步方向，以温和邀请收尾。
+反模板（出现请自行改写后再输出）
+ - 禁用套话：如“可以看到几个明显的脉络”“体现了清晰的演进”“建议你可以尝试”“形成呼应”“值得思考的问题”等。
+ - 禁用命令式与感叹号；避免流水账复述与空洞总结。
+材料不足时
+ - 在第一段开头半句注明“材料有限，以下为保守观照”，其余要求不变。
+输入
+ - 将笔记数据（含时间、内容）作证据，不能虚构
+输出
+ - 仅一段落序列的自由中文文本，严格按“多段落、渐进式”写作。不要任何标题、列表、编号、标记或额外说明。
+ - 若未满足段落数或字数上限，请自我重写直至满足。
+`;
+  
+  // 准备历史笔记内容，最多使用10条最近的笔记
+  const historyNotesText = dataset.history_notes
+    .slice(0, 10)
+    .map(note => `[${note.date}] ${note.content.substring(0, 200)}${note.content.length > 200 ? '...' : ''}`)
+    .join('\n');
+  
+  // 构建完整的用户消息
+  const userMessage = `当前卡片（${dataset.now_card.date}）：${dataset.now_card.content}\n\n历史笔记摘要：\n${historyNotesText}\n\n请按照要求生成个人知识洞察。`;
+  
+  const url = `${aiCfg.base.replace(/\/+$/, '')}/chat/completions`;
+  const body = {
+    model: aiCfg.model,
+    messages: [
+      { role: "system", content: prompt },
+      { role: "user", content: userMessage }
+    ],
+    temperature: 0.3,
+    max_tokens: 1000,
+    stream: false
+  };
+  
+  // 添加日志：显示当前使用的AI配置
+  console.log("[Notes AI Request] 使用的配置:", {
+    base: aiCfg.base,
+    model: aiCfg.model,
+    key: aiCfg.key ? "[REDACTED]" : "未设置"
+  });
+  
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${aiCfg.key}` },
+      body: JSON.stringify(body)
+    });
+    
+    if (!resp.ok) {
+      throw new Error(`API请求失败: ${resp.status}`);
+    }
+    
+    const data = await resp.json();
+    const text = data?.choices?.[0]?.message?.content?.trim() || '';
+    const usage = data?.usage || {};
+    
+    // 添加日志：显示实际使用的模型和返回内容
+    const usedModel = data?.model || aiCfg.model;
+    console.log("[Notes AI Response] 实际使用的模型:", usedModel);
+    console.log("[Notes AI Response] 返回内容:", text);
+    
+    return text || '';
+  } catch (error) {
+    console.error("[Notes AI Error]", error);
+    throw error;
+  }
+}
+
+
 
 // 格式化笔记内容，处理#标签
 function formatNoteContent(content) {

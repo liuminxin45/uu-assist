@@ -276,6 +276,103 @@
     *::-webkit-scrollbar-thumb{ background:#CBD5E1; border-radius:8px; }
     *::-webkit-scrollbar-thumb:hover{ background:#94A3B8; }
     *::-webkit-scrollbar-track{ background:transparent; }
+
+  /* AI洞察弹窗样式 */
+  .ai-insight-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 20px;
+  }
+  
+  .ai-insight-modal-content {
+    background: var(--bg);
+    border-radius: var(--radius);
+    width: 100%;
+    max-width: 600px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  }
+  
+  .ai-insight-modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .ai-insight-modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  
+  .ai-insight-close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+  }
+  
+  .ai-insight-close-btn:hover {
+    background: var(--bg-muted);
+    color: var(--text);
+  }
+  
+  .ai-insight-modal-body {
+    padding: 20px;
+    flex: 1;
+    overflow-y: auto;
+  }
+  
+  .ai-insight-loading {
+    text-align: center;
+    padding: 40px 20px;
+  }
+  
+  .loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-top: 3px solid var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 16px;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  .ai-insight-content {
+    line-height: 1.7;
+    color: var(--text);
+  }
+  
+  .ai-insight-content p {
+    margin-bottom: 16px;
+  }
+  
+  .ai-insight-content p:last-child {
+    margin-bottom: 0;
+  }
   </style>
 </head>
 <body>
@@ -335,6 +432,23 @@
 
   <div id="fullscreen-preview" class="fullscreen-preview" style="display:none;">
     <img id="fullscreen-image" class="fullscreen-image" src="" alt="预览"/>
+  </div>
+
+  <!-- AI洞察弹窗 -->
+  <div id="ai-insight-modal" class="ai-insight-modal" style="display:none;">
+    <div class="ai-insight-modal-content">
+      <div class="ai-insight-modal-header">
+        <h3>AI洞察</h3>
+        <button id="close-ai-insight-modal" class="ai-insight-close-btn">&times;</button>
+      </div>
+      <div class="ai-insight-modal-body">
+        <div id="ai-insight-loading" class="ai-insight-loading" style="display:block;">
+          <div class="loading-spinner"></div>
+          <p>正在生成洞察报告...</p>
+        </div>
+        <div id="ai-insight-content" class="ai-insight-content" style="display:none;"></div>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="../persist-init.js"></script>
