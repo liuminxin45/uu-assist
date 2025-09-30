@@ -648,6 +648,23 @@
     </div>
   </div>
 
+  <!-- 关联报告弹窗 -->
+  <div id="relate-report-modal" class="ai-insight-modal" style="display:none;">
+    <div class="ai-insight-modal-content">
+      <div class="ai-insight-modal-header">
+        <h3>关联报告</h3>
+        <button id="close-relate-report-modal" class="ai-insight-close-btn">&times;</button>
+      </div>
+      <div class="ai-insight-modal-body">
+        <div id="relate-report-loading" class="ai-insight-loading" style="display:block;">
+          <div class="loading-spinner"></div>
+          <p>正在生成关联报告...</p>
+        </div>
+        <div id="relate-report-content" class="ai-insight-content" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="../persist-init.js"></script>
   <script src="panel.js"></script>
   <script src="../../rail.js" type="module"></script>

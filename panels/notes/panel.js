@@ -1446,8 +1446,8 @@ function createNoteCard(note) {
     relateOption.className = 'menu-option';
     relateOption.textContent = '关联';
     relateOption.addEventListener('click', () => {
-        // 这里可以添加关联功能的实现
-        alert('查找相关笔记功能正在开发中');
+        // 显示关联报告弹窗
+        showRelateReportModal(note);
         dropMenu.style.display = 'none';
     });
     
@@ -1791,6 +1791,208 @@ function removeImagePreview() {
     noteInput.removeAttribute('data-images-data');
     previewContainer.style.display = 'none';
     updateButtonState();
+}
+
+// 关联报告功能相关函数
+function showRelateReportModal(currentNote) {
+  // 获取弹窗元素
+  const modal = document.getElementById('relate-report-modal');
+  const loading = document.getElementById('relate-report-loading');
+  const content = document.getElementById('relate-report-content');
+  const closeBtn = document.getElementById('close-relate-report-modal');
+  
+  // 重置弹窗状态
+  loading.style.display = 'block';
+  content.style.display = 'none';
+  content.textContent = '';
+  
+  // 显示弹窗
+  modal.style.display = 'flex';
+  
+  // 关闭弹窗事件
+  function closeModal() {
+    modal.style.display = 'none';
+  }
+  
+  closeBtn.onclick = closeModal;
+  
+  // 点击弹窗外部关闭
+  modal.onclick = (e) => {
+    if (e.target === modal) {
+      closeModal();
+    }
+  };
+  
+  // 阻止事件冒泡
+  modal.querySelector('.ai-insight-modal-content').onclick = (e) => {
+    e.stopPropagation();
+  };
+  
+  // 准备笔记数据
+  const prompt = prepareRelateReportPrompt(currentNote);
+  
+  // 调用AI获取关联报告结果
+  generateRelateReportWithAI(prompt).then(reportResult => {
+    try {
+      // 显示结果
+      loading.style.display = 'none';
+      content.style.display = 'block';
+      content.textContent = reportResult;
+    } catch (error) {
+      console.error('处理AI结果失败:', error);
+      content.textContent = '生成关联报告时出错，请重试。';
+      content.style.display = 'block';
+      loading.style.display = 'none';
+    }
+  }).catch(error => {
+    console.error('获取AI关联报告失败:', error);
+    // 显示错误提示
+    content.textContent = 'AI 调用 失败';
+    content.style.display = 'block';
+    loading.style.display = 'none';
+  });
+}
+
+// 准备关联报告的prompt
+function prepareRelateReportPrompt(nowCard) {
+  // 验证nowCard参数
+  if (!nowCard || typeof nowCard !== 'object') {
+    return '';
+  }
+  
+  // 准备所有笔记数据
+  const allNotes = notes.map(note => {
+    if (!note || typeof note !== 'object') {
+      return null;
+    }
+    return {
+      id: note.id || '',
+      date: formatTimeForInsight(note.timestamp),
+      content: note.content || '',
+      title: truncateText(note.content || '', 20)
+    };
+  }).filter(Boolean);
+  
+  // 验证数据
+  if (!allNotes || !Array.isArray(allNotes)) {
+    return '';
+  }
+  
+  const nowCardTitle = truncateText(nowCard.content || '', 20);
+  
+  // 准备notes数据字符串
+  let notesData = 'notes:\n';
+  allNotes.forEach(note => {
+    if (!note || typeof note !== 'object') {
+      return;
+    }
+    notesData += `- id: ${note.id || ''}\n`;
+    notesData += `  date: ${note.date || ''}\n`;
+    notesData += `  title: ${note.title || ''}\n`;
+    notesData += `  content: ${note.content || ''}\n\n`;
+  });
+  
+  // 根据用户提供的模板构建prompt
+  const prompt = `你是一位"关联编纂器+洞察向导"。任务：围绕【now_card】在notes中发现隐藏联系，发现其中隐藏的价值，生成可直接发布的「关联报告」。约束：仅使用输入数据；所有结论必须可追溯到notes片段与日期；摘录≤180字；报告总长≤900字。输出结构严格如下：
+# 关联报告 · ${nowCardTitle}
+## 摘要（≤120字）
+<一句点出核心关切与主脉络/张力，若材料不足写"材料有限"。>
+## 主题脉络（2–3条）
+### <主题名>
+- 脉络：<一句话演进与意义>
+- 时间线：<YYYY-MM-DD→YYYY-MM-DD>
+- 代表证据：[YYYY-MM-DD｜标题](app://note/{id})："<摘录≤120字>"
+## 强关联清单（Top 8）
+1. [YYYY-MM-DD｜标题](app://note/{id}) —— 关联理由：<一句话>
+    > <摘录≤180字，关键术语可**加粗**>
+2. …（共8条，时间多样化）
+## 张力与空白
+- 张力：<1–2对，如效率vs留白，各≤30字>
+- 未覆盖空白：<假设语气，指出缺口>
+## 下一步
+- [ ] <小步实验1，24–48h可验证>
+- [ ] <小步实验2，具体到对象/场景>
+- 参考切入：<1–2个观察角度/写作起笔方向，短语>
+## 建议交叉链接与标签（可选）
+- 加链：<id1>↔<id2>，理由：<8–12字>
+- 标签：#tag1 #tag2
+风格：Markdown渲染，中文，克制清晰，不用感叹号，不写空话或不可验证内容。
+
+${notesData}
+
+now_card:
+- id: ${nowCard.id || ''}
+- date: ${nowCard.timestamp ? formatTimeForInsight(nowCard.timestamp) : ''}
+- title: ${nowCardTitle}
+- content: ${truncateText(nowCard.content || '', 300)}`;
+  
+  return prompt;
+}
+
+// 生成关联报告
+async function generateRelateReportWithAI(prompt) {
+  // 尝试调用真实AI API
+  try {
+    const aiCfg = await loadAiCfg();
+    if (aiCfg && aiCfg.base && aiCfg.model && aiCfg.key) {
+      const result = await callRelateReportAIAPI(prompt, aiCfg);
+      return result;
+    }
+    // 配置不完整
+    throw new Error('AI配置不完整');
+  } catch (error) {
+    console.error('AI调用失败:', error);
+    // AI调用失败时直接返回失败提示
+    throw new Error('AI 调用 失败');
+  }
+}
+
+// 调用AI API生成关联报告
+async function callRelateReportAIAPI(prompt, aiCfg) {
+  const url = `${aiCfg.base.replace(/\/+$/, '')}/chat/completions`;
+  const body = {
+    model: aiCfg.model,
+    messages: [
+      { role: "system", content: "你是一位'关联编纂器+洞察向导'。" },
+      { role: "user", content: prompt }
+    ],
+    temperature: 0.3,
+    max_tokens: 1500,
+    stream: false
+  };
+  
+  // 添加日志：显示当前使用的AI配置
+  console.log("[Notes Relate AI Request] 使用的配置:", {
+    base: aiCfg.base,
+    model: aiCfg.model,
+    key: aiCfg.key ? "[REDACTED]" : "未设置"
+  });
+  
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${aiCfg.key}` },
+      body: JSON.stringify(body)
+    });
+    
+    if (!resp.ok) {
+      throw new Error(`API请求失败: ${resp.status}`);
+    }
+    
+    const data = await resp.json();
+    const text = data?.choices?.[0]?.message?.content?.trim() || '';
+    const usage = data?.usage || {};
+    
+    // 添加日志：显示实际使用的模型和返回内容
+    const usedModel = data?.model || aiCfg.model;
+    console.log("[Notes Relate AI Response] 实际使用的模型:", usedModel);
+    console.log("[Notes Relate AI Response] 返回内容:", text);
+    
+    return text || '';
+  } catch (error) {
+    console.error("[Notes Relate AI Error]", error);
+    throw error;
+  }
 }
 
 // 全屏预览图片
