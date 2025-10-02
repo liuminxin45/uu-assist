@@ -461,6 +461,11 @@
     padding: 20px;
   }
   
+  /* 笔记卡片弹窗样式 - 确保在最顶层 */
+  #mention-popover {
+    z-index: 2100;
+  }
+  
   .ai-insight-modal-content {
     background: var(--bg);
     border-radius: var(--radius);
@@ -544,6 +549,41 @@
   
   .ai-insight-content p:last-child {
     margin-bottom: 0;
+  }
+  
+  /* 关联报告样式 */
+  .relate-report {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text);
+  }
+  
+  .relate-report .report-paragraph {
+    margin: 0 0 16px 0;
+    padding: 0;
+  }
+  
+  .relate-report .report-paragraph:last-child {
+    margin-bottom: 0;
+  }
+  
+  .relate-report a {
+    color: var(--primary);
+    text-decoration: none;
+  }
+  
+  .relate-report a:hover {
+    text-decoration: underline;
+  }
+  
+  .error-message {
+    color: var(--danger);
+    background-color: rgba(239, 68, 68, 0.1);
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid var(--danger);
+    text-align: center;
+    font-weight: 500;
   }
   </style>
 </head>

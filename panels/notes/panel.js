@@ -1837,17 +1837,34 @@ function showRelateReportModal(currentNote) {
       // 显示结果
       loading.style.display = 'none';
       content.style.display = 'block';
-      content.textContent = reportResult;
+      
+      // 将Markdown转换为HTML并显示
+      content.innerHTML = markdownToHtml(reportResult);
+      
+      // 为生成的链接添加点击事件
+      const links = content.querySelectorAll('a');
+      links.forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          const href = link.getAttribute('href');
+          if (href && href.startsWith('app://note/')) {
+            const noteId = href.replace('app://note/', '');
+            handleMentionClick(noteId);
+          } else if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+            window.open(href, '_blank');
+          }
+        });
+      });
     } catch (error) {
       console.error('处理AI结果失败:', error);
-      content.textContent = '生成关联报告时出错，请重试。';
+      content.innerHTML = '<div class="error-message">生成关联报告时出错，请重试。</div>';
       content.style.display = 'block';
       loading.style.display = 'none';
     }
   }).catch(error => {
     console.error('获取AI关联报告失败:', error);
     // 显示错误提示
-    content.textContent = 'AI 调用 失败';
+    content.innerHTML = '<div class="error-message">AI 调用失败</div>';
     content.style.display = 'block';
     loading.style.display = 'none';
   });
@@ -1893,30 +1910,13 @@ function prepareRelateReportPrompt(nowCard) {
   });
   
   // 根据用户提供的模板构建prompt
-  const prompt = `你是一位"关联编纂器+洞察向导"。任务：围绕【now_card】在notes中发现隐藏联系，发现其中隐藏的价值，生成可直接发布的「关联报告」。约束：仅使用输入数据；所有结论必须可追溯到notes片段与日期；摘录≤180字；报告总长≤900字。输出结构严格如下：
-# 关联报告 · ${nowCardTitle}
-## 摘要（≤120字）
-<一句点出核心关切与主脉络/张力，若材料不足写"材料有限"。>
-## 主题脉络（2–3条）
-### <主题名>
-- 脉络：<一句话演进与意义>
-- 时间线：<YYYY-MM-DD→YYYY-MM-DD>
-- 代表证据：[YYYY-MM-DD｜标题](app://note/{id})："<摘录≤120字>"
-## 强关联清单（Top 8）
-1. [YYYY-MM-DD｜标题](app://note/{id}) —— 关联理由：<一句话>
-    > <摘录≤180字，关键术语可**加粗**>
-2. …（共8条，时间多样化）
-## 张力与空白
-- 张力：<1–2对，如效率vs留白，各≤30字>
-- 未覆盖空白：<假设语气，指出缺口>
-## 下一步
-- [ ] <小步实验1，24–48h可验证>
-- [ ] <小步实验2，具体到对象/场景>
-- 参考切入：<1–2个观察角度/写作起笔方向，短语>
-## 建议交叉链接与标签（可选）
-- 加链：<id1>↔<id2>，理由：<8–12字>
-- 标签：#tag1 #tag2
-风格：Markdown渲染，中文，克制清晰，不用感叹号，不写空话或不可验证内容。
+  const prompt = `你是一位"关联编纂器+洞察向导"。任务：围绕【now_card】在notes中发现隐藏联系，发现其中隐藏的价值，生成可直接发布的「关联报告」。约束：仅使用输入数据；所有结论必须可追溯到notes片段与日期；摘录≤180字；报告总长≤900字。
+
+请按以下要求生成报告：
+1. 只使用段落区分内容，不要使用任何标题、列表、特殊格式标记（如#、*、-等）
+2. 报告内容应包含对当前笔记与其他笔记的关联分析
+3. 如需引用具体笔记，请使用[YYYY-MM-DD｜标题](app://note/{id})格式
+4. 保持语言简洁清晰，使用中文，不写空话或不可验证内容
 
 ${notesData}
 
@@ -2532,4 +2532,39 @@ function updateRecentTags(tagName) {
     
     // 保存标签数据
     saveTagsToStorage();
+}
+
+// Markdown转HTML的简单实现，用于关联报告的格式化显示
+function markdownToHtml(markdown) {
+    if (!markdown) return '';
+    
+    // 转义HTML特殊字符
+    let html = markdown
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    
+    // 处理链接 [text](url)
+    html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>');
+    
+    // 将连续换行符转换为段落分隔符
+    const paragraphs = html.split(/\n\s*\n/).filter(p => p.trim());
+    
+    // 对每个段落添加适当的样式和换行处理
+    const formattedParagraphs = paragraphs.map(paragraph => {
+        // 将段落内的换行符转换为<br>
+        const formattedText = paragraph.replace(/\n/g, '<br>');
+        return `<p class="report-paragraph">${formattedText}</p>`;
+    });
+    
+    // 为关联报告添加特殊样式
+    const styledHtml = `
+        <div class="relate-report">
+            ${formattedParagraphs.join('')}
+        </div>
+    `;
+    
+    return styledHtml;
 }
