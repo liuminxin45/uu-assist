@@ -40,9 +40,11 @@ let trashButton = null; // 回收站按钮元素
 let currentSearchTerm = '';
 let isDropdownMenuOpen = false; // 添加全局变量来跟踪子菜单状态
 let currentEditNoteId = null; // 跟踪当前正在编辑的笔记ID
+let isTrashView = false; // 是否处于回收站视图模式
 
 // 笔记数据
 let notes = [];
+let trashNotes = []; // 回收站中的笔记
 
 // 从上下文菜单添加笔记的全局函数
 window.addNoteFromContext = function(data) {
@@ -155,7 +157,7 @@ function loadNotesFromStorage() {
     try {
         // 尝试从Chrome存储加载数据
         if (typeof chrome !== 'undefined' && chrome.storage) {
-            chrome.storage.local.get(['notes_data', 'tags_data'], (result) => {
+            chrome.storage.local.get(['notes_data', 'tags_data', 'trash_notes_data'], (result) => {
                 if (result && result.notes_data) {
                     notes = result.notes_data;
                 }
@@ -164,8 +166,16 @@ function loadNotesFromStorage() {
                     recentTags = result.tags_data.recentTags || [];
                 }
                 
+                // 加载回收站数据
+                if (result && result.trash_notes_data) {
+                    trashNotes = result.trash_notes_data;
+                }
+                
                 // 从所有笔记中提取标签，确保标签列表完整
                 extractAllTagsFromNotes();
+                
+                // 清理超过30天的回收站笔记
+                cleanupOldTrashNotes();
                 
                 renderNotes();
             });
@@ -183,8 +193,17 @@ function loadNotesFromStorage() {
                 recentTags = tagsData.recentTags || [];
             }
             
+            // 加载回收站数据
+            const savedTrashNotes = localStorage.getItem('trash_notes_data');
+            if (savedTrashNotes) {
+                trashNotes = JSON.parse(savedTrashNotes);
+            }
+            
             // 从所有笔记中提取标签，确保标签列表完整
             extractAllTagsFromNotes();
+            
+            // 清理超过30天的回收站笔记
+            cleanupOldTrashNotes();
             
             renderNotes();
         }
@@ -253,6 +272,32 @@ function saveNotesToStorage() {
         saveTagsToStorage();
     } catch (error) {
         console.error('保存笔记数据失败:', error);
+    }
+}
+
+// 保存回收站数据到存储
+function saveTrashNotesToStorage() {
+    try {
+        // 尝试保存到Chrome存储
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+            chrome.storage.local.set({ 'trash_notes_data': trashNotes });
+        } else {
+            // 如果没有Chrome API，保存到localStorage
+            localStorage.setItem('trash_notes_data', JSON.stringify(trashNotes));
+        }
+    } catch (error) {
+        console.error('保存回收站数据失败:', error);
+    }
+}
+
+// 清理超过30天的回收站笔记
+function cleanupOldTrashNotes() {
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const remainingNotes = trashNotes.filter(note => note.trashTimestamp > thirtyDaysAgo);
+    
+    if (remainingNotes.length !== trashNotes.length) {
+        trashNotes = remainingNotes;
+        saveTrashNotesToStorage();
     }
 }
 
@@ -370,6 +415,16 @@ function showToast(message, x, y) {
     setTimeout(() => {
         toast.style.opacity = '1';
     }, 10);
+    
+    // 3秒后自动隐藏
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => {
+            if (document.body.contains(toast)) {
+                document.body.removeChild(toast);
+            }
+        }, 200);
+    }, 3000);
     
     return toast;
 }
@@ -809,11 +864,27 @@ function initApp() {
         });
     }
     
-    // 回收站按钮事件监听（功能后续实现）
+    // 回收站按钮事件监听
     if (trashButton) {
         trashButton.addEventListener('click', () => {
-            console.log('回收站功能将在后续实现');
-            // 可以在这里添加提示信息或占位符功能
+            // 切换回收站视图状态
+            isTrashView = !isTrashView;
+            
+            // 更新按钮样式
+            if (isTrashView) {
+                trashButton.classList.add('active');
+            } else {
+                trashButton.classList.remove('active');
+            }
+            
+            // 控制笔记输入框的显示和隐藏，保留搜索和回收站按钮
+            const addNoteWrapper = document.querySelector('.add-note-wrapper');
+            if (addNoteWrapper) {
+                addNoteWrapper.style.display = isTrashView ? 'none' : 'block';
+            }
+            
+            // 重新渲染笔记列表
+            renderNotes();
         });
     }
     
@@ -1365,6 +1436,10 @@ function createNoteCard(note) {
     if (note.isArchived) {
         card.classList.add('archived');
     }
+    // 在回收站视图中添加特殊样式
+    if (isTrashView) {
+        card.classList.add('trash-note');
+    }
     card.dataset.id = note.id;
     
     // 先创建时间元素和来源信息元素的容器
@@ -1377,7 +1452,12 @@ function createNoteCard(note) {
     if (note.isArchived) {
         timeDiv.classList.add('archived-text');
     }
-    timeDiv.textContent = formatTime(note.timestamp);
+    if (isTrashView && note.trashTimestamp) {
+        timeDiv.textContent = `删除于: ${formatTime(note.trashTimestamp)}`;
+        timeDiv.classList.add('trash-time');
+    } else {
+        timeDiv.textContent = formatTime(note.timestamp);
+    }
     headerContainer.appendChild(timeDiv);
     
     // 创建来源信息元素（如果有来源信息）
@@ -1522,59 +1602,73 @@ function createNoteCard(note) {
     dropMenu.className = 'drop-menu';
     dropMenu.style.display = 'none';
     
-    // 创建编辑选项
-    const editOption = document.createElement('div');
-    editOption.className = 'menu-option';
-    editOption.textContent = '编辑';
-    editOption.addEventListener('click', () => {
-        editNote(note);
-        dropMenu.style.display = 'none';
-    });
-    
-    // 创建归档选项
-    const archiveOption = document.createElement('div');
-    archiveOption.className = 'menu-option';
-    archiveOption.textContent = note.isArchived ? '取消归档' : '归档';
-    archiveOption.addEventListener('click', () => {
-        archiveNote(note.id, !note.isArchived);
-        dropMenu.style.display = 'none';
-    });
-    
-    // 创建AI洞察选项
-    const aiInsightOption = document.createElement('div');
-    aiInsightOption.className = 'menu-option';
-    aiInsightOption.textContent = '洞察';
-    aiInsightOption.addEventListener('click', () => {
-        // 显示AI洞察弹窗
-        showAiInsightModal(note);
-        dropMenu.style.display = 'none';
-    });
-    
-    // 创建删除选项
-    const deleteOption = document.createElement('div');
-    deleteOption.className = 'menu-option delete';
-    deleteOption.textContent = '删除';
-    deleteOption.addEventListener('click', () => {
-        deleteNote(note.id);
-        dropMenu.style.display = 'none';
-    });
-    
-    // 创建关联选项
-    const relateOption = document.createElement('div');
-    relateOption.className = 'menu-option';
-    relateOption.textContent = '关联';
-    relateOption.addEventListener('click', () => {
-        // 显示关联报告弹窗
-        showRelateReportModal(note);
-        dropMenu.style.display = 'none';
-    });
-    
-    // 组装下拉菜单
-    dropMenu.appendChild(editOption);
-    dropMenu.appendChild(archiveOption);
-    dropMenu.appendChild(aiInsightOption);
-    dropMenu.appendChild(relateOption);
-    dropMenu.appendChild(deleteOption);
+    // 根据是否在回收站视图显示不同的菜单选项
+    if (isTrashView) {
+        // 回收站视图只显示恢复选项
+        const restoreOption = document.createElement('div');
+        restoreOption.className = 'menu-option';
+        restoreOption.textContent = '恢复';
+        restoreOption.addEventListener('click', () => {
+            restoreNote(note.id);
+            dropMenu.style.display = 'none';
+        });
+        dropMenu.appendChild(restoreOption);
+    } else {
+        // 正常视图显示完整菜单
+        // 创建编辑选项
+        const editOption = document.createElement('div');
+        editOption.className = 'menu-option';
+        editOption.textContent = '编辑';
+        editOption.addEventListener('click', () => {
+            editNote(note);
+            dropMenu.style.display = 'none';
+        });
+        
+        // 创建归档选项
+        const archiveOption = document.createElement('div');
+        archiveOption.className = 'menu-option';
+        archiveOption.textContent = note.isArchived ? '取消归档' : '归档';
+        archiveOption.addEventListener('click', () => {
+            archiveNote(note.id, !note.isArchived);
+            dropMenu.style.display = 'none';
+        });
+        
+        // 创建AI洞察选项
+        const aiInsightOption = document.createElement('div');
+        aiInsightOption.className = 'menu-option';
+        aiInsightOption.textContent = '洞察';
+        aiInsightOption.addEventListener('click', () => {
+            // 显示AI洞察弹窗
+            showAiInsightModal(note);
+            dropMenu.style.display = 'none';
+        });
+        
+        // 创建关联选项
+        const relateOption = document.createElement('div');
+        relateOption.className = 'menu-option';
+        relateOption.textContent = '关联';
+        relateOption.addEventListener('click', () => {
+            // 显示关联报告弹窗
+            showRelateReportModal(note);
+            dropMenu.style.display = 'none';
+        });
+        
+        // 创建删除选项
+        const deleteOption = document.createElement('div');
+        deleteOption.className = 'menu-option delete';
+        deleteOption.textContent = '删除';
+        deleteOption.addEventListener('click', () => {
+            deleteNote(note.id);
+            dropMenu.style.display = 'none';
+        });
+        
+        // 组装下拉菜单
+        dropMenu.appendChild(editOption);
+        dropMenu.appendChild(archiveOption);
+        dropMenu.appendChild(aiInsightOption);
+        dropMenu.appendChild(relateOption);
+        dropMenu.appendChild(deleteOption);
+    }
     
     // 将更多按钮和下拉菜单添加到容器
     moreMenuContainer.appendChild(moreBtn);
@@ -2161,16 +2255,62 @@ function archiveNote(noteId, isArchived) {
     }
 }
 
-// 删除笔记
+// 删除笔记（移动到回收站）
 function deleteNote(noteId) {
-    // 从笔记列表中删除
-    notes = notes.filter(note => note.id !== noteId);
-    
-    // 保存到存储
-    saveNotesToStorage();
-    
-    // 重新渲染笔记列表
-    renderNotes();
+    // 从笔记列表中找到要删除的笔记
+    const noteIndex = notes.findIndex(note => note.id === noteId);
+    if (noteIndex !== -1) {
+        // 获取要删除的笔记
+        const noteToDelete = notes[noteIndex];
+        
+        // 为笔记添加回收站时间戳
+        noteToDelete.trashTimestamp = Date.now();
+        
+        // 从笔记列表中移除
+        notes.splice(noteIndex, 1);
+        
+        // 添加到回收站
+        trashNotes.push(noteToDelete);
+        
+        // 保存到存储
+        saveNotesToStorage();
+        saveTrashNotesToStorage();
+        
+        // 重新渲染笔记列表
+        renderNotes();
+        
+        // 显示提示
+        showToast('笔记已移至回收站', 10, 10);
+    }
+}
+
+// 恢复回收站中的笔记
+function restoreNote(noteId) {
+    // 从回收站中找到要恢复的笔记
+    const noteIndex = trashNotes.findIndex(note => note.id === noteId);
+    if (noteIndex !== -1) {
+        // 获取要恢复的笔记
+        const restoredNote = trashNotes[noteIndex];
+        
+        // 删除回收站时间戳
+        delete restoredNote.trashTimestamp;
+        
+        // 将笔记添加回主列表
+        notes.push(restoredNote);
+        
+        // 从回收站中移除
+        trashNotes.splice(noteIndex, 1);
+        
+        // 保存到存储
+        saveNotesToStorage();
+        saveTrashNotesToStorage();
+        
+        // 重新渲染笔记列表
+        renderNotes();
+        
+        // 显示提示
+        showToast('笔记已恢复', 10, 10);
+    }
 }
 
 // 渲染笔记列表
@@ -2180,7 +2320,10 @@ function renderNotes() {
     // 清空容器
     notesContainer.innerHTML = '';
     
-    if (notes.length === 0) {
+    // 确定当前要显示的笔记列表
+    let currentNotes = isTrashView ? trashNotes : notes;
+    
+    if (currentNotes.length === 0) {
         showEmptyState();
         return;
     }
@@ -2188,11 +2331,11 @@ function renderNotes() {
     // 隐藏空状态
     emptyState.style.display = 'none';
     
-    let filteredNotes = notes;
+    let filteredNotes = currentNotes;
     
-    // 如果有搜索词，则过滤笔记
-    if (currentSearchTerm) {
-        filteredNotes = notes.filter(note => {
+    // 如果有搜索词且不是回收站视图，则过滤笔记
+    if (currentSearchTerm && !isTrashView) {
+        filteredNotes = filteredNotes.filter(note => {
             // 对于同时有图片和文字的笔记，搜索文字部分
             if (note.hasImage && note.content) {
                 return note.content.toLowerCase().includes(currentSearchTerm);
@@ -2213,17 +2356,22 @@ function renderNotes() {
         }
     }
     
-    // 按归档状态和时间排序：非归档笔记在前，归档笔记在后，均按时间倒序排列
-    filteredNotes.sort((a, b) => {
-        // 首先按归档状态排序：非归档在前，归档在后
-        if (a.isArchived !== b.isArchived) {
-            return a.isArchived ? 1 : -1;
-        }
-        
-        // 然后按时间戳倒序排列（最新的在前）
-        // 直接使用时间戳进行比较，确保排序的稳定性和准确性
-        return b.timestamp - a.timestamp;
-    });
+    // 排序：根据是否为回收站视图使用不同的排序逻辑
+    if (isTrashView) {
+        // 回收站视图：按回收站时间戳倒序排列（最新删除的在前）
+        filteredNotes.sort((a, b) => b.trashTimestamp - a.trashTimestamp);
+    } else {
+        // 正常视图：按归档状态和时间排序
+        filteredNotes.sort((a, b) => {
+            // 首先按归档状态排序：非归档在前，归档在后
+            if (a.isArchived !== b.isArchived) {
+                return a.isArchived ? 1 : -1;
+            }
+            
+            // 然后按时间戳倒序排列（最新的在前）
+            return b.timestamp - a.timestamp;
+        });
+    }
     
     // 渲染每条笔记
     filteredNotes.forEach(note => {
@@ -2272,6 +2420,20 @@ function initializePage() {
     // 设置拖拽相关事件监听
     noteInput.addEventListener('dragover', handleDragOver);
     noteInput.addEventListener('dragleave', handleDragLeave);
+    
+    // 初始化时隐藏搜索输入框
+    const searchInputElement = document.getElementById('search-input');
+    const searchButtonElement = searchButton || document.querySelector('.search-button');
+    if (searchInputElement && searchButtonElement) {
+        searchInputElement.style.display = 'none';
+        searchButtonElement.classList.remove('active');
+    }
+    
+    // 初始化时确保笔记输入区域显示
+    const inputSection = document.querySelector('.input-section');
+    if (inputSection) {
+        inputSection.style.display = 'block';
+    }
     
     // 初始化时加载笔记
     loadNotesFromStorage();

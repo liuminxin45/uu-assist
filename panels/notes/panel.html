@@ -73,24 +73,7 @@
     
     /* 搜索输入框的显示/隐藏已通过JavaScript控制 */
     
-    .trash-button {
-      width: 32px;
-      height: 32px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      font-size: 16px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background-color 0.15s ease, border-color 0.15s ease;
-    }
-    
-    .trash-button:hover {
-      background: var(--bg-hover);
-      border-color: var(--border-hover);
-    }
+    .trash-button {      width: 32px;      height: 32px;      background: var(--bg);      border: 1px solid var(--border);      border-radius: var(--radius);      font-size: 16px;      cursor: pointer;      display: flex;      align-items: center;      justify-content: center;      transition: background-color 0.15s ease, border-color 0.15s ease;    }        .trash-button:hover {      background: var(--bg-hover);      border-color: var(--border-hover);    }        /* 回收站按钮激活状态样式 */    .trash-button.active {      background: #fef2f2;      border-color: #fecaca;      color: #dc2626;      box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);    }        /* 回收站笔记卡片样式 */    .note-card.trash-note {      background: #fef2f2;      border-color: #fecaca;      opacity: 0.9;      transition: opacity 0.2s ease;    }        .note-card.trash-note:hover {      opacity: 1;    }        /* 回收站时间显示样式 */    .note-time.trash-time {      color: #b91c1c;      font-style: italic;    }
     
     .search-input,
     .note-input{
