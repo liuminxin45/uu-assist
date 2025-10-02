@@ -394,14 +394,26 @@
   }
 
   function importAllFromFile(file) {
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const obj = JSON.parse(String(reader.result || "{}"));
-        await importPayload(obj);
-      } catch (e) { console.error(e); setStatus("导入失败：JSON 解析错误"); }
-    };
-    reader.readAsText(file, "utf-8");
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const obj = JSON.parse(String(reader.result || "{}"));
+          await importPayload(obj);
+          resolve();
+        } catch (e) { 
+          console.error(e); 
+          setStatus("导入失败：JSON 解析错误");
+          reject(e);
+        }
+      };
+      reader.onerror = (e) => {
+        console.error('文件读取失败:', e);
+        setStatus("导入失败：文件读取错误");
+        reject(e);
+      };
+      reader.readAsText(file, "utf-8");
+    });
   }
 
   /* ===== 重置 ===== */
@@ -410,12 +422,58 @@
     renderAll();
     markDirty();
     setStatus("已重置未保存");
+    return Promise.resolve(); // 确保返回Promise以便链式调用
   }
 
+  /**
+   * 格式化字节数为人类可读的格式
+   * @param {number} bytes 字节数
+   * @returns {string} 格式化后的字符串
+   */
+  function formatBytes(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+  
+  /**
+   * 计算并显示 chrome.storage.local 占用
+   * 注意：不统计 IndexedDB / Cache Storage / storage.sync
+   */
+  async function updateStorageUsage() {
+    try {
+      // 统计 local 存储
+      const localAll = await chrome.storage.local.get(null);
+      const localBytes = await chrome.storage.local.getBytesInUse(null);
+
+      // 渲染
+      const storageUsageEl = document.getElementById('storageUsage');
+      if (storageUsageEl) {
+        storageUsageEl.innerHTML = 
+          `已用: ${formatBytes(localBytes)}，键数: ${Object.keys(localAll).length}<br>` + 
+          `<small style="color:#666;">storage.local: 无固定字节上限，主要受磁盘与实现策略影响</small>`;
+      }
+    } catch (error) {
+      console.error('计算存储空间使用情况失败:', error);
+      const storageUsageEl = document.getElementById('storageUsage');
+      if (storageUsageEl) {
+        storageUsageEl.textContent = '无法计算存储空间使用情况';
+      }
+    }
+  }
+  
   /* ===== 绑定事件 ===== */
   document.addEventListener("DOMContentLoaded", () => {
     // 初始加载
-    loadAll().then(() => setStatus(""));
+    loadAll().then(() => {
+      setStatus("");
+      // 加载完成后更新存储空间使用情况
+      updateStorageUsage();
+    });
 
     // 下拉切换
     $("#vendorSelect").addEventListener("change", e => onVendorChanged(e.target.value));
@@ -441,8 +499,12 @@
     bindFieldSync();
 
     // 保存/重置
-    $("#btnSave").addEventListener("click", () => void saveAll());
-    $("#btnReset").addEventListener("click", () => void resetAll());
+    $("#btnSave").addEventListener("click", () => {
+      saveAll().then(() => updateStorageUsage());
+    });
+    $("#btnReset").addEventListener("click", () => {
+      resetAll().then(() => updateStorageUsage());
+    });
 
     // 导入/导出
     $("#btnExport").addEventListener("click", () => void exportAll());
@@ -451,7 +513,7 @@
     });
     $("#importFile").addEventListener("change", e => {
       const f = e.target.files?.[0];
-      if (f) importAllFromFile(f);
+      if (f) importAllFromFile(f).then(() => updateStorageUsage());
       e.target.value = "";
     });
 
