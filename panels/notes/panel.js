@@ -982,9 +982,24 @@ function initApp() {
                 
                 const tagName = tagElement.dataset.tag;
                 const inputElement = document.getElementById('search-input');
-                if (tagName && inputElement) {
+                const searchBtn = document.getElementById('search-button');
+                if (tagName && inputElement && searchBtn) {
+                    // 设置搜索框的值
                     inputElement.value = '#' + tagName;
+                    
+                    // 设置搜索按钮为激活状态
+                    searchBtn.classList.add('active');
+                    
+                    // 显示搜索输入框
+                    inputElement.style.display = 'block';
+                    
+                    // 执行搜索筛选
                     handleSearchChange({target: inputElement});
+                    
+                    // 聚焦搜索框
+                    setTimeout(() => {
+                        inputElement.focus();
+                    }, 10);
                 }
             }
             
