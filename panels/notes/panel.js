@@ -33,7 +33,10 @@ let currentTagPrefix = ''; // 当前输入的标签前缀
 let currentMentionPrefix = ''; // 当前输入的@引用前缀
 let currentMentionNoteId = null; // 当前引用的笔记ID
 
-// 状态变量
+// 状态变量和元素引用
+let searchButton = null; // 搜索按钮元素
+let searchDropdown = null; // 搜索下拉框元素
+let trashButton = null; // 回收站按钮元素
 let currentSearchTerm = '';
 let isDropdownMenuOpen = false; // 添加全局变量来跟踪子菜单状态
 let currentEditNoteId = null; // 跟踪当前正在编辑的笔记ID
@@ -712,9 +715,123 @@ function initApp() {
         updateButtonState();
     }
 
-    if (searchInput) {
-        searchInput.addEventListener('input', handleSearchChange);
+    // 获取搜索和回收站按钮元素
+    searchButton = document.getElementById('search-button');
+    trashButton = document.getElementById('trash-button');
+    
+    // 添加一个函数来清空搜索框内容
+    function clearSearchInput() {
+        const input = document.getElementById('search-input');
+        if (input) {
+            input.value = '';
+            // 重置搜索状态
+            currentSearchTerm = '';
+            // 重新渲染所有笔记
+            renderNotes();
+        }
     }
+    
+    // 搜索按钮事件监听
+    if (searchButton) {
+        searchButton.addEventListener('click', (e) => {
+            e.stopPropagation(); // 阻止冒泡，避免触发document的点击事件
+            
+            // 获取搜索输入框
+            const input = document.getElementById('search-input');
+            if (input) {
+                // 检查当前搜索按钮是否处于激活状态
+                const isActive = searchButton.classList.contains('active');
+                
+                // 如果按钮未激活或搜索框隐藏，点击后显示并激活
+                if (!isActive || input.style.display === 'none' || input.style.display === '') {
+                    searchButton.classList.add('active');
+                    input.style.display = 'block';
+                    setTimeout(() => {
+                        input.focus();
+                    }, 10);
+                } else {
+                    // 如果按钮已激活且搜索框显示，点击后根据输入内容决定行为
+                    // 如果输入框为空，隐藏搜索框并取消选中状态
+                    if (!input.value.trim()) {
+                        searchButton.classList.remove('active');
+                        input.style.display = 'none';
+                        clearSearchInput();
+                    } else {
+                        // 如果输入框有内容，保持搜索框显示和选中状态
+                        // 不执行任何操作
+                    }
+                }
+            }
+        });
+    }
+    
+    // 搜索输入框事件监听 - 重新获取元素确保正确绑定
+    const searchInputElement = document.getElementById('search-input');
+    if (searchInputElement) {
+        searchInputElement.addEventListener('input', handleSearchChange);
+        
+        // 回车键处理 - 不自动清空搜索文本
+        searchInputElement.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                
+                // 如果输入框为空，隐藏搜索框并取消选中状态
+                if (!searchInputElement.value.trim() && searchButton) {
+                    searchButton.classList.remove('active');
+                    searchInputElement.style.display = 'none';
+                    clearSearchInput();
+                }
+                // 如果输入框有内容，保持搜索框显示和选中状态
+                // 不执行任何隐藏操作
+            }
+        });
+        
+        // 失焦事件处理 - 确保显隐状态与选中状态一致
+        searchInputElement.addEventListener('blur', () => {
+            if (searchButton) {
+                setTimeout(() => {
+                    // 如果输入框为空，隐藏搜索框并取消选中状态
+                    if (!searchInputElement.value.trim()) {
+                        searchButton.classList.remove('active');
+                        searchInputElement.style.display = 'none';
+                        clearSearchInput();
+                    } else {
+                        // 如果输入框有内容，保持搜索框显示并保持选中状态
+                        // 不执行任何隐藏操作
+                    }
+                }, 200); // 延迟执行，避免点击其他按钮时立即隐藏
+            }
+        });
+        
+        // 阻止搜索输入框的点击事件冒泡，避免点击输入框时关闭搜索
+        searchInputElement.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    }
+    
+    // 回收站按钮事件监听（功能后续实现）
+    if (trashButton) {
+        trashButton.addEventListener('click', () => {
+            console.log('回收站功能将在后续实现');
+            // 可以在这里添加提示信息或占位符功能
+        });
+    }
+    
+    // 点击页面其他区域处理逻辑
+    document.addEventListener('click', (e) => {
+        const searchInput = document.getElementById('search-input');
+        if (searchButton && !searchButton.contains(e.target) && 
+            searchInput && !searchInput.contains(e.target)) {
+            // 确保显隐状态与选中状态一致
+            // 只有当输入框为空时才隐藏搜索框并取消选中状态
+            if (!searchInput.value.trim()) {
+                searchButton.classList.remove('active');
+                searchInput.style.display = 'none';
+                clearSearchInput();
+            }
+            // 输入框有内容时保持搜索框显示和搜索按钮的选中状态
+        }
+    });
 
     if (fullscreenPreview) {
         fullscreenPreview.addEventListener('click', hideFullscreenPreview);
@@ -793,9 +910,10 @@ function initApp() {
                 e.stopPropagation();
                 
                 const tagName = tagElement.dataset.tag;
-                if (tagName && searchInput) {
-                    searchInput.value = '#' + tagName;
-                    handleSearchChange();
+                const inputElement = document.getElementById('search-input');
+                if (tagName && inputElement) {
+                    inputElement.value = '#' + tagName;
+                    handleSearchChange({target: inputElement});
                 }
             }
             
@@ -1768,11 +1886,12 @@ function handleTagClick(event, tagName) {
     event.stopPropagation();
     
     // 将标签写入搜索框
-    if (searchInput) {
-        searchInput.value = '#' + tagName;
+    const inputElement = document.getElementById('search-input');
+    if (inputElement) {
+        inputElement.value = '#' + tagName;
         
         // 执行筛选
-        handleSearchChange();
+        handleSearchChange({target: inputElement});
     }
 }
 
@@ -2009,9 +2128,11 @@ function hideFullscreenPreview() {
 }
 
 // 处理搜索变化
-function handleSearchChange() {
-    if (!searchInput) return;
-    currentSearchTerm = searchInput.value.trim().toLowerCase();
+function handleSearchChange(e) {
+    // 优先从事件对象中获取目标元素，如果没有则重新获取
+    const inputElement = e?.target || document.getElementById('search-input');
+    if (!inputElement) return;
+    currentSearchTerm = inputElement.value.trim().toLowerCase();
     renderNotes();
 }
 

@@ -36,7 +36,62 @@
 
     .input-section{ flex:0 0 auto; padding:10px 12px; background:var(--bg-muted); border-bottom:1px solid var(--border); }
     .search-container{ width:100%; max-width:300px; margin-bottom:10px; }
-
+    
+    .search-header {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      position: relative;
+    }
+    
+    .search-button {
+      width: 32px;
+      height: 32px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+      position: relative;
+    }
+    
+    .search-button:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-hover);
+    }
+    
+    /* 搜索按钮激活状态样式（checked样式） */
+    .search-button.active {
+      background: var(--bg-active);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+    }
+    
+    /* 搜索输入框的显示/隐藏已通过JavaScript控制 */
+    
+    .trash-button {
+      width: 32px;
+      height: 32px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+    
+    .trash-button:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-hover);
+    }
+    
     .search-input,
     .note-input{
       width:100%; background:var(--bg); border:1px solid var(--border);
@@ -589,7 +644,7 @@
 </head>
 <body>
   <div class="container">
-    <div class="content-wrapper">
+      <div class="content-wrapper">
       <div class="notes-wrapper">
         <div class="header">
           <div class="header-top">
@@ -600,7 +655,11 @@
 
         <div class="input-section">
           <div class="search-container">
-            <input type="text" id="search-input" class="search-input" placeholder="🔍 搜索"/>
+            <div class="search-header">
+              <button id="search-button" class="search-button">🔍</button>
+              <button id="trash-button" class="trash-button" title="回收站">🗑️</button>
+            </div>
+            <input type="text" id="search-input" class="search-input" placeholder="搜索笔记..." style="margin-top:4px;"/>
           </div>
 
           <div class="note-input-wrapper">
