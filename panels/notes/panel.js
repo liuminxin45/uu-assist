@@ -1843,7 +1843,7 @@ async function callRealAIAPI(dataset, aiCfg) {
 
 
 
-// 格式化笔记内容，处理#标签和@引用
+// 格式化笔记内容，处理#标签和@引用，以及搜索文本高亮
 function formatNoteContent(content) {
     if (!content) return '';
     
@@ -1868,6 +1868,16 @@ function formatNoteContent(content) {
     // 使用data-note-id属性存储笔记ID
     escapedContent = escapedContent.replace(/@\[([^\]]+)\]\(([^)]+)\)/g, 
         '<span class="mention-tag" data-note-id="$2">@[$1]</span>');
+    
+    // 如果有搜索词，添加搜索文本高亮（黄色背景）
+    if (currentSearchTerm && currentSearchTerm.trim()) {
+        // 转义搜索词中的特殊字符，避免影响正则表达式
+        const escapedSearchTerm = currentSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // 使用不区分大小写的正则表达式全局匹配
+        const regex = new RegExp(`(${escapedSearchTerm})`, 'gi');
+        // 将匹配的文本用黄色背景的span标签包裹
+        escapedContent = escapedContent.replace(regex, '<span style="background-color: #FFF76A;">$1</span>');
+    }
     
     return escapedContent;
 }
