@@ -2333,8 +2333,8 @@ function renderNotes() {
     
     let filteredNotes = currentNotes;
     
-    // 如果有搜索词且不是回收站视图，则过滤笔记
-    if (currentSearchTerm && !isTrashView) {
+    // 如果有搜索词，则过滤笔记（适用于普通视图和回收站视图）
+    if (currentSearchTerm) {
         filteredNotes = filteredNotes.filter(note => {
             // 对于同时有图片和文字的笔记，搜索文字部分
             if (note.hasImage && note.content) {
