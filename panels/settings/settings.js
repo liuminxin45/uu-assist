@@ -5,6 +5,18 @@
   /* ===== 默认与迁移 ===== */
   const builtinPrompt =
     '你是助手。请根据给定正文：1) 生成≤40字的小标题；2) 生成简洁概述。以严格JSON返回：{"title":"...", "reply":"..."}';
+  
+  // 主题设置键名
+  const THEME_STORAGE_KEY = 'theme_preference';
+  const THEME_SYSTEM = 'system';
+  const THEME_LIGHT = 'light';
+  const THEME_DARK = 'dark';
+  
+  // 默认首选项 - 合并旧的默认首选项
+  const defaultPrefs = { autoOpen: false, useAI: true };
+  
+  // 主题设置
+  let currentTheme = THEME_SYSTEM;
 
   // 新结构：aiCfg2
   // {
@@ -57,7 +69,6 @@
   }
 
   /* ===== 状态与持久化 ===== */
-  const defaultPrefs = { autoOpen: false, useAI: true };
   let aiCfg2 = null; // 工作内存
   let dirty = false;
 
@@ -66,7 +77,14 @@
   function setStatus(t) { const el = $("#importExportStatus"); if (el) el.textContent = t || ""; }
 
   async function loadAll() {
-    const got = await chrome.storage.local.get({ aiCfg2: null, aiCfg: null, prefs: defaultPrefs }).catch(() => ({}));
+    // 同时加载AI配置和主题设置
+    const got = await chrome.storage.local.get({ 
+      aiCfg2: null, 
+      aiCfg: null, 
+      prefs: defaultPrefs, 
+      [THEME_STORAGE_KEY]: THEME_SYSTEM 
+    }).catch(() => ({}));
+    
     if (got.aiCfg2 && got.aiCfg2.vendors) {
       aiCfg2 = got.aiCfg2;
     } else if (got.aiCfg) {
@@ -74,16 +92,63 @@
     } else {
       aiCfg2 = makeDefaultCfg2();
     }
+    
+    // 加载主题设置
+    currentTheme = got[THEME_STORAGE_KEY] || THEME_SYSTEM;
+    
     renderAll();
+    renderThemeSelect();
   }
 
   async function saveAll() {
     if (!aiCfg2 || !aiCfg2.vendors || !aiCfg2.activeVendorId) return;
     // 同步旧 aiCfg 以兼容现有调用处
     const flat = flattenToLegacy(aiCfg2);
-    await chrome.storage.local.set({ aiCfg2, aiCfg: flat });
+    // 同时保存AI配置和主题设置
+    await chrome.storage.local.set({ 
+      aiCfg2, 
+      aiCfg: flat, 
+      [THEME_STORAGE_KEY]: currentTheme 
+    });
     dirty = false;
     setStatus("已保存");
+    
+    // 保存后重新应用主题，确保UI立即更新
+    if (window.themeManager && window.themeManager.setTheme) {
+      try {
+        // 确保传入正确的主题值
+        const themeToApply = currentTheme === THEME_LIGHT ? THEME_LIGHT : 
+                            currentTheme === THEME_DARK ? THEME_DARK : THEME_SYSTEM;
+        
+        await window.themeManager.setTheme(themeToApply);
+        
+        // 强制重新渲染文档以确保样式更新
+        document.documentElement.style.display = 'none';
+        setTimeout(() => {
+          document.documentElement.style.display = '';
+        }, 0);
+      } catch (error) {
+        console.error('保存后应用主题失败:', error);
+        
+        // 如果主题管理器失败，手动应用主题类
+        try {
+          // 移除所有主题相关的类
+          document.documentElement.classList.remove('theme-light', 'theme-dark', 'theme-system', 'theme-effective-light', 'theme-effective-dark');
+          
+          // 添加当前主题类
+          document.documentElement.classList.add(`theme-${currentTheme}`);
+          
+          // 添加有效的主题类
+          let effectiveTheme = currentTheme;
+          if (currentTheme === THEME_SYSTEM) {
+            effectiveTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? THEME_DARK : THEME_LIGHT;
+          }
+          document.documentElement.classList.add(`theme-effective-${effectiveTheme}`);
+        } catch (manualError) {
+          console.error('手动应用主题也失败:', manualError);
+        }
+      }
+    }
   }
 
   function markDirty() { dirty = true; setStatus("有未保存修改"); }
@@ -142,6 +207,33 @@
     renderModels();
     renderVendorFields();
     renderModelFields();
+    renderThemeSelect();
+  }
+  
+  /**
+   * 更新主题选择下拉框的显示
+   */
+  function renderThemeSelect() {
+    const themeSelect = document.getElementById('themeSelect');
+    if (themeSelect) {
+      themeSelect.value = currentTheme;
+    }
+  }
+  
+  /**
+   * 处理主题变更
+   * @param {string} theme 新的主题值
+   */
+  function onThemeChanged(theme) {
+    currentTheme = theme;
+    markDirty();
+    
+    // 如果页面中有themeManager，立即应用主题变更
+    if (window.themeManager && window.themeManager.setTheme) {
+      window.themeManager.setTheme(theme).catch(error => {
+        console.error('应用主题失败:', error);
+      });
+    }
   }
 
   /* ===== 事件处理：供应商 ===== */
@@ -328,6 +420,12 @@
     // 下拉切换
     $("#vendorSelect").addEventListener("change", e => onVendorChanged(e.target.value));
     $("#modelSelect").addEventListener("change", e => onModelChanged(e.target.value));
+    
+    // 主题选择
+    const themeSelect = $("#themeSelect");
+    if (themeSelect) {
+      themeSelect.addEventListener("change", e => onThemeChanged(e.target.value));
+    }
 
     // 供应商 CRUD
     $("#btnAddVendor").addEventListener("click", addVendor);

@@ -260,7 +260,7 @@ async function loadAICfg() {
     base: "https://api.deepseek.com/v1",
     model: "deepseek-chat",
     key: "",
-    prompt: '你是助手。请根据给定正文：1) 生成≤40字的小标题；2) 生成简洁回复。以严格JSON返回：{"title":"...", "reply":"..."}'
+    prompt: '你是任务记录助手。请根据给定正文：1) 提炼一个≤40字的小标题，语言自然、不生硬；2) 写一段简洁回复，突出输入中的价值点、关键要点或潜在意义，避免格式化语气。以严格JSON返回：{"title":"...", "reply":"..."}'
   };
 }
 function substituteTemplate(tpl, vars) {

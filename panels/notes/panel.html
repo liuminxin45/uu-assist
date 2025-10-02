@@ -4,6 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Notes</title>
+  <script src="../../shared/theme.js" defer></script>
   <style>
     :root{
       --primary:#2563eb; --primary-weak:rgba(37,99,235,.12);
@@ -13,12 +14,94 @@
       --shadow-sm:0 1px 2px rgba(0,0,0,.05);
       --shadow-md:0 4px 10px rgba(0,0,0,.10);
       --radius:10px; --radius-sm:8px;
+      
+      /* 主题控制变量 */
+      --theme:light;
+      --theme-dark:0;
+      --theme-light:1;
+    }
+    
+    /* 深色模式支持 */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        /* 深色模式下的颜色变量 */
+        --primary:#3b82f6; --primary-weak:rgba(59,130,246,.12);
+        --text:#f1f5f9; --muted:#94a3b8;
+        --bg:#1e293b; --bg-muted:#0f172a; --page:#0f172a;
+        --border:#334155; --error:#ef4444;
+        --shadow-sm:0 1px 2px rgba(0,0,0,.5);
+        --shadow-md:0 4px 10px rgba(0,0,0,.7);
+        
+        /* 主题控制变量 */
+        --theme:dark;
+        --theme-dark:1;
+        --theme-light:0;
+      }
+      
+      /* 复选框深色模式样式 */
+      input[type="checkbox"] {
+        accent-color: var(--primary);
+      }
+      
+      /* 深色模式rail样式 */
+      .rail {
+        background:var(--bg-muted);
+        border-color:var(--border);
+      }
+      
+      .railbtn {
+        background:transparent;
+        color:var(--text);
+      }
+      
+      .railbtn:hover {
+        background:var(--bg);
+      }
+      
+      .railbtn.active {
+        background:var(--primary-weak);
+        color:var(--primary);
+      }
+      
+      /* 深色模式回收站样式 */
+      .theme-dark .trash-button.active,
+      .theme-effective-dark .trash-button.active {
+        background:rgba(239, 68, 68, 0.1) !important;
+        border-color:var(--error) !important;
+        color:var(--error) !important;
+        box-shadow:0 0 0 2px rgba(239, 68, 68, 0.2) !important;
+      }
+      
+      .theme-dark .note-card.trash-note,
+      .theme-effective-dark .note-card.trash-note {
+        background:var(--bg) !important;
+        border-color:var(--error) !important;
+        opacity: 0.9;
+      }
+      
+      .theme-dark .note-time.trash-time,
+      .theme-effective-dark .note-time.trash-time {
+        color:var(--error) !important;
+        font-style: italic;
+      }
+      
+      /* 深色模式菜单和更多按钮样式 */
+      .theme-dark .more-btn:hover,
+      .theme-effective-dark .more-btn:hover {
+        background:var(--bg-muted) !important;
+        border-color:var(--primary) !important;
+      }
+      
+      .theme-dark .menu-option:hover,
+      .theme-effective-dark .menu-option:hover {
+        background:var(--bg-muted) !important;
+      }
     }
     *,*::before,*::after{ box-sizing:border-box; }
     html,body{ height:100%; }
     body{ 
       margin:0; font:13px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
-      color:#374151; background:var(--page); display:flex; flex-direction:column;
+      color:var(--text); background:var(--page); display:flex; flex-direction:column;
     }
 
     .container{ display:flex; height:100vh; width:100%; }
@@ -60,28 +143,30 @@
     }
     
     .search-button:hover {
-      background: var(--bg-hover);
-      border-color: var(--border-hover);
+      background: var(--bg);
+      border-color: var(--primary);
     }
     
     /* 搜索按钮激活状态样式（checked样式） */
     .search-button.active {
-      background: var(--bg-active);
-      border-color: var(--accent);
+      background: var(--primary-weak);
+      border-color: var(--primary);
       box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
     }
     
     /* 搜索输入框的显示/隐藏已通过JavaScript控制 */
     
-    .trash-button {      width: 32px;      height: 32px;      background: var(--bg);      border: 1px solid var(--border);      border-radius: var(--radius);      font-size: 16px;      cursor: pointer;      display: flex;      align-items: center;      justify-content: center;      transition: background-color 0.15s ease, border-color 0.15s ease;    }        .trash-button:hover {      background: var(--bg-hover);      border-color: var(--border-hover);    }        /* 回收站按钮激活状态样式 */    .trash-button.active {      background: #fef2f2;      border-color: #fecaca;      color: #dc2626;      box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);    }        /* 回收站笔记卡片样式 */    .note-card.trash-note {      background: #fef2f2;      border-color: #fecaca;      opacity: 0.9;      transition: opacity 0.2s ease;    }        .note-card.trash-note:hover {      opacity: 1;    }        /* 回收站时间显示样式 */    .note-time.trash-time {      color: #b91c1c;      font-style: italic;    }
+    .trash-button {      width: 32px;      height: 32px;      background: var(--bg);      border: 1px solid var(--border);      border-radius: var(--radius);      font-size: 16px;      cursor: pointer;      display: flex;      align-items: center;      justify-content: center;      transition: background-color 0.15s ease, border-color 0.15s ease;    }        .trash-button:hover {      background: var(--bg);      border-color: var(--primary);    }        /* 回收站按钮激活状态样式 */    .trash-button.active {      background: #fef2f2;      border-color: #fecaca;      color: #dc2626;      box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);    }        /* 回收站笔记卡片样式 */    .note-card.trash-note {      background: #fef2f2;      border-color: #fecaca;      opacity: 0.9;      transition: opacity 0.2s ease;    }        .note-card.trash-note:hover {      opacity: 1;    }        /* 回收站时间显示样式 */    .note-time.trash-time {      color: #b91c1c;      font-style: italic;    }
     
     .search-input,
     .note-input{
       width:100%; background:var(--bg); border:1px solid var(--border);
       border-radius:var(--radius); padding:8px 10px; font:inherit; outline:none;
       box-shadow:var(--shadow-sm); transition:border-color .15s ease, box-shadow .15s ease;
+      color:var(--text);
     }
-    .search-input::placeholder{ color:#9ca3af; }
+    .search-input::placeholder,
+    .note-input::placeholder{ color:var(--muted); }
     .search-input:focus,.note-input:focus{ border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-weak); }
     .note-input{ padding:10px 72px 10px 10px; min-height:56px; max-height:120px; resize:vertical; }
 
@@ -91,7 +176,7 @@
       background:var(--bg); border:1px solid var(--border); border-radius:6px; font-size:13px; cursor:pointer;
       transition:background-color .15s ease, border-color .15s ease, transform .1s ease; box-shadow:var(--shadow-sm);
     }
-    .add-note-btn:hover{ background:#f9fafb; border-color:var(--primary); }
+    .add-note-btn:hover{ background:var(--bg); border-color:var(--primary); }
     .add-note-btn:active{ transform:translateY(1px); }
     .add-note-btn:disabled{ opacity:.5; cursor:not-allowed; }
 
@@ -102,7 +187,7 @@
     .image-preview-input{ width:100%; display:block; max-height:280px; object-fit:contain; }
     .remove-image-btn{
       position:absolute; top:8px; right:8px; width:22px; height:22px;
-      background:rgba(255,255,255,.95); border:none; border-radius:50%; color:var(--error);
+      background:var(--bg); border:1px solid var(--border); border-radius:50%; color:var(--error);
       font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1; box-shadow:var(--shadow-sm);
       z-index:10;
     }
@@ -139,7 +224,7 @@
 
     .notes-list{
       flex:1 1 auto; min-height:0; overflow:auto;
-      padding:12px; display:flex; flex-direction:column; gap:10px; background:#f3f4f6;
+      padding:12px; display:flex; flex-direction:column; gap:10px; background:var(--bg-muted);
     }
 
     /* @引用菜单特定样式 */
@@ -257,8 +342,9 @@
     }
 
     .note-card{
-      padding:10px; background:var(--bg); border:1px solid var(--border);
-      border-radius:8px; transition:box-shadow .15s ease, transform .15s ease;
+      background:var(--bg); border:1px solid var(--border);
+      border-radius:var(--radius); padding:12px; box-shadow:var(--shadow-sm);
+      transition:transform .15s ease, box-shadow .15s ease;
     }
     .note-card:hover{ box-shadow:var(--shadow-md); transform:translateY(-1px); }
     .menu-open .note-card:hover{ box-shadow:none; transform:none; }
@@ -336,10 +422,7 @@
       transition: background-color 0.15s ease, border-color 0.15s ease;
     }
 
-    .tag-btn:hover {
-      background: var(--bg-hover);
-      border-color: var(--border-hover);
-    }
+    .tag-btn:hover {      background: var(--bg);      border-color: var(--primary);    }
 
     .mention-btn{
       display: none;
@@ -477,9 +560,9 @@
       font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center;
       transition:background-color .15s ease, transform .1s ease;
     }
-    .railbtn:hover{ background:#f0f0f0; }
+    .railbtn:hover{ background:var(--bg); }
     .railbtn:active{ transform:translateY(1px); }
-    .railbtn.active{ background:#e3f2fd; color:#1976d2; }
+    .railbtn.active{ background:var(--primary-weak); color:var(--primary); }
 
     *{ scrollbar-width:thin; scrollbar-color:#CBD5E1 transparent; }
     *::-webkit-scrollbar{ width:8px; height:8px; }
@@ -687,7 +770,7 @@
       </div>
     </div>
 
-    <nav class="rail" aria-label="面板切换">
+    <nav class="rail" aria-label="面板切换" style="background:var(--bg-muted); border:1px solid var(--border);">
       <button class="railbtn" data-target="pha-panel" title="PHA" aria-label="PHA">👁️</button>
       <button class="railbtn" data-target="rocket-panel" title="Rocket" aria-label="Rocket">🚀</button>
       <button class="railbtn active" data-target="notes-panel" title="笔记" aria-label="笔记">📝</button>
