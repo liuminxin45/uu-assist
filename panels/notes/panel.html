@@ -156,7 +156,124 @@
     
     /* 搜索输入框的显示/隐藏已通过JavaScript控制 */
     
-    .trash-button {      width: 32px;      height: 32px;      background: var(--bg);      border: 1px solid var(--border);      border-radius: var(--radius);      font-size: 16px;      cursor: pointer;      display: flex;      align-items: center;      justify-content: center;      transition: background-color 0.15s ease, border-color 0.15s ease;    }        .trash-button:hover {      background: var(--bg);      border-color: var(--primary);    }        /* 回收站按钮激活状态样式 */    .trash-button.active {      background: #fef2f2;      border-color: #fecaca;      color: #dc2626;      box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);    }        /* 回收站笔记卡片样式 */    .note-card.trash-note {      background: #fef2f2;      border-color: #fecaca;      opacity: 0.9;      transition: opacity 0.2s ease;    }        .note-card.trash-note:hover {      opacity: 1;    }        /* 回收站时间显示样式 */    .note-time.trash-time {      color: #b91c1c;      font-style: italic;    }
+    .trash-button {      width: 32px;      height: 32px;      background: var(--bg);      border: 1px solid var(--border);      border-radius: var(--radius);      font-size: 16px;      cursor: pointer;      display: flex;      align-items: center;      justify-content: center;      transition: background-color 0.15s ease, border-color 0.15s ease;    }        .trash-button:hover {      background: var(--bg);      border-color: var(--primary);    }        /* 回收站按钮激活状态样式 */    .trash-button.active {      background: #fef2f2;      border-color: #fecaca;      color: #dc2626;      box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);    }
+
+    /* AI按钮样式 */
+    .ai-button {
+      width: 32px;
+      height: 32px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+    
+    .ai-button:hover {
+      background: var(--bg);
+      border-color: var(--primary);
+    }
+    
+    .ai-button.active {
+      background: #e6f7ff;
+      border-color: #40a9ff;
+      color: #096dd9;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+    
+    /* AI输入容器样式 */
+    .ai-input-container {
+      margin-top: 10px;
+      padding: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .ai-tag-selection {
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .ai-tag-selection label,
+    .ai-prompt-input-wrapper label {
+      font-size: 12px;
+      color: var(--text);
+      font-weight: 500;
+      min-width: 70px;
+    }
+    
+    .ai-tag-input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      font: inherit;
+      outline: none;
+      box-shadow: var(--shadow-sm);
+      transition: border-color .15s ease;
+      color: var(--text);
+    }
+    
+    .ai-tag-input:focus {
+      border-color: var(--primary);
+    }
+    
+    .ai-prompt-input-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .ai-prompt-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      font: inherit;
+      outline: none;
+      box-shadow: var(--shadow-sm);
+      transition: border-color .15s ease;
+      color: var(--text);
+      resize: vertical;
+    }
+    
+    .ai-prompt-input:focus {
+      border-color: var(--primary);
+    }
+    
+    .ai-submit-btn {
+      align-self: flex-end;
+      padding: 6px 12px;
+      background: var(--primary);
+      border: 1px solid var(--primary);
+      border-radius: 6px;
+      color: white;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+    }
+    
+    .ai-submit-btn:hover {
+      background: #1d4ed8;
+    }
+    
+    /* 回收站笔记卡片样式 */
+    .note-card.trash-note {      background: #fef2f2;      border-color: #fecaca;      opacity: 0.9;      transition: opacity 0.2s ease;    }
+    
+    .note-card.trash-note:hover {      opacity: 1;    }
+    
+    /* 回收站时间显示样式 */
+    .note-time.trash-time {      color: #b91c1c;      font-style: italic;    }
     
     .search-input,
     .note-input{
@@ -724,6 +841,7 @@
             <div class="search-header">
               <button id="search-button" class="search-button">🔍</button>
               <button id="trash-button" class="trash-button" title="回收站">🗑️</button>
+              <button id="ai-button" class="ai-button" title="AI助手">🤖</button>
             </div>
             <input type="text" id="search-input" class="search-input" placeholder="搜索笔记..." style="margin-top:4px;"/>
           </div>
@@ -734,6 +852,19 @@
               <button id="tag-btn" class="tag-btn" title="添加标签">#</button>
               <button id="mention-btn" class="mention-btn" title="引用笔记">@</button>
               <button id="add-note-btn" class="add-note-btn" style="display:none">添加</button>
+            </div>
+            
+            <!-- AI功能输入区 -->
+            <div id="ai-input-container" class="ai-input-container" style="display:none;">
+              <div class="ai-tag-selection">
+                <label for="ai-tag-input">选择标签：</label>
+                <input type="text" id="ai-tag-input" class="ai-tag-input" placeholder="输入或选择标签..." />
+              </div>
+              <div class="ai-prompt-input-wrapper">
+                <label for="ai-prompt-input">输入Prompt：</label>
+                <textarea id="ai-prompt-input" class="ai-prompt-input" placeholder="请输入您的问题或需求..." rows="3"></textarea>
+                <button id="ai-submit-btn" class="ai-submit-btn">发送</button>
+              </div>
             </div>
             
             <!-- 标签菜单 -->
