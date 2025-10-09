@@ -540,7 +540,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const dlgTpl = $("dlgTpl");
     const taTpl = $("tplArea");
     if (taTpl && !taTpl.value.trim()) {
-      taTpl.value = "> {{timestamp}}\n# {{AITitle}}\n\n{{AIResponse}}\n\n--------\n\n{{正文}}";
+      taTpl.value = "> {{timestamp}}\n(NOTE) # {{AITitle}}\n\n{{AIResponse}}\n\n--------\n\n{{正文}}";
     }
     if (btnTpl && dlgTpl) {
       const closeTpl = () => { try { dlgTpl.close(); } catch (_) { dlgTpl.open = false; } };
@@ -635,7 +635,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
       });
     }
-    if (tpl && !tpl.value.trim()) tpl.value = "{{timestamp}}\n# {{AITitle}}\n\n{{AIResponse}}\n\n{{正文}}";
+    if (tpl && !tpl.value.trim()) tpl.value = "> {{timestamp}}\n(NOTE) # {{AITitle}}\n\n{{AIResponse}}\n\n--------\n\n{{正文}}";
 
     const btnEdit = $("btnEditPrompt");
     const dlg = $("dlgAI");
@@ -701,7 +701,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (ai?.ok) { AITitle = ai.title || ""; AIResponse = ai.reply || ""; setStatus("AI 处理完成"); }
             else { setStatus("AI 处理失败: " + (ai?.error || "")); }
           }
-          const tpl = $("tplArea")?.value || "{{timestamp}}\n# {{AITitle}}\n\n{{AIResponse}}\n\n{{正文}}";
+          const tpl = $("tplArea")?.value || "> {{timestamp}}\n(NOTE) # {{AITitle}}\n\n{{AIResponse}}\n\n--------\n\n{{正文}}";
           content = substituteTemplate(tpl, { timestamp, AITitle, AIResponse, body: bodyContent });
         } catch (e) { console.warn("AI/template compose fail:", e); }
 
