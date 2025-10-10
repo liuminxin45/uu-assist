@@ -116,4 +116,6 @@ import { persistField } from '../../shared/persist.js';
   $limit.addEventListener('change', notifyContentScript);
   $autoListen.addEventListener('change', notifyContentScript);
   $prompt.addEventListener('change', notifyContentScript);
+  
+  // 下拉菜单功能由公共组件 shared/dropdown-menu.js 提供
 })();

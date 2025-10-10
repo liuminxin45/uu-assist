@@ -6,256 +6,748 @@
   <title>PHA</title>
   <script src="../../shared/theme.js" defer></script>
   <style>
-  /* ===== 基础一致性 ===== */
-  *,*::before,*::after{ box-sizing:border-box; }
-  html,body{ height:100%; }
-  :root{
-    --rail-btn:38px;
-    --radius:10px; --radius-sm:8px;
-    --primary:#2563eb; --primary-weak:rgba(37,99,235,.12);
-    --text:#0f172a; --muted:#6b7280;
-    --bg:#ffffff; --bg-muted:#f8fafc;
-    --border:#e5e7eb;
-    --shadow-sm:0 1px 2px rgba(0,0,0,.08);
-    --shadow-md:0 2px 6px rgba(0,0,0,.25);
-    
-    /* 主题控制变量 */
-    --theme:light;
-    --theme-dark:0;
-    --theme-light:1;
-  }
-  
-  /* 深色模式支持 */
-  @media (prefers-color-scheme: dark) {
+    /* 设计系统：CSS变量重构 */
     :root {
-      /* 深色模式下的颜色变量 */
-      --primary:#3b82f6; --primary-weak:rgba(59,130,246,.12);
-      --text:#f1f5f9; --muted:#94a3b8;
-      --bg:#1e293b; --bg-muted:#0f172a; --page:#0f172a;
-      --border:#334155;
-      --shadow-sm:0 1px 2px rgba(0,0,0,.5);
-      --shadow-md:0 2px 6px rgba(0,0,0,.7);
+      /* 主题颜色 */
+      --primary: #3b82f6;       /* 主色：蓝色 */
+      --primary-hover: #2563eb; /* 主色悬浮 */
+      --primary-active: #1d4ed8; /* 主色激活 */
+      --primary-light: #dbeafe; /* 主色浅色 */
+      --primary-weak: rgba(59, 130, 246, 0.12); /* 主色弱色 */
+      
+      /* 文本颜色 */
+      --text-primary: #111827;  /* 主要文本 */
+      --text-secondary: #374151; /* 次要文本 */
+      --text-muted: #6b7280;    /* -muted文本 */
+      --text-disabled: #9ca3af; /* 禁用文本 */
+      
+      /* 背景颜色 */
+      --bg-primary: #ffffff;    /* 主要背景 */
+      --bg-secondary: #f9fafb;  /* 次要背景 */
+      --bg-tertiary: #f3f4f6;   /* 第三级背景 */
+      --bg-muted: #f8fafc;      /* -muted背景 */
+      --bg-overlay: rgba(255, 255, 255, 0.8); /* 覆盖层背景 */
+      
+      /* 边框颜色 */
+      --border-light: #e5e7eb;  /* 浅色边框 */
+      --border-default: #d1d5db; /* 默认边框 */
+      --border-dark: #9ca3af;   /* 深色边框 */
+      
+      /* 状态颜色 */
+      --success: #10b981;       /* 成功色 */
+      --warning: #f59e0b;       /* 警告色 */
+      --error: #ef4444;         /* 错误色 */
+      
+      /* 阴影 */
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      --shadow-focus: 0 0 0 3px var(--primary-weak);
+      
+      /* 圆角 */
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-lg: 10px;
+      --radius-xl: 12px;
+      --radius-full: 9999px;
+      
+      /* 间距 */
+      --space-xs: 4px;
+      --space-sm: 8px;
+      --space-md: 12px;
+      --space-lg: 16px;
+      --space-xl: 20px;
+      --space-2xl: 24px;
+      
+      /* 过渡动画 */
+      --transition-fast: 100ms ease;
+      --transition-normal: 150ms ease;
+      --transition-slow: 200ms ease;
+      
+      /* 侧边栏按钮尺寸 */
+      --rail-btn: 48px;
       
       /* 主题控制变量 */
-      --theme:dark;
-      --theme-dark:1;
-      --theme-light:0;
-    }
-  }
-  
-  /* 为深色模式添加一些特定的样式调整 */
-  @media (prefers-color-scheme: dark) {
-    body {
-      background:var(--page);
-      color:var(--text);
+      --theme: light;
+      --theme-dark: 0;
+      --theme-light: 1;
     }
     
+    /* 深色模式支持 */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        /* 主题颜色 - 深色模式 */
+        --primary: #3b82f6;
+        --primary-hover: #60a5fa;
+        --primary-active: #93c5fd;
+        --primary-light: #1e3a8a;
+        --primary-weak: rgba(59, 130, 246, 0.15);
+        
+        /* 文本颜色 - 深色模式 */
+        --text-primary: #f9fafb;
+        --text-secondary: #f3f4f6;
+        --text-muted: #9ca3af;
+        --text-disabled: #6b7280;
+        
+        /* 背景颜色 - 深色模式 */
+        --bg-primary: #111827;
+        --bg-secondary: #1f2937;
+        --bg-tertiary: #374151;
+        --bg-muted: #0f172a;
+        --bg-overlay: rgba(15, 23, 42, 0.8);
+        
+        /* 边框颜色 - 深色模式 */
+        --border-light: #374151;
+        --border-default: #4b5563;
+        --border-dark: #6b7280;
+        
+        /* 阴影 - 深色模式 */
+        --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+        
+        /* 主题控制变量 */
+        --theme: dark;
+        --theme-dark: 1;
+        --theme-light: 0;
+      }
+    }
+    
+    /* 基础样式重置 */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+        sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    
+    body {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text-primary);
+      background: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+      flex-direction:column;
+    }
+    
+    /* 容器 */
+    .container{
+      display:flex;
+      height:100vh;
+      width:100%;
+      gap:var(--space-md);
+      padding:var(--space-md);
+    }
+    
+    .content-wrapper{
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      background:var(--bg);
+      border-radius:var(--radius-lg);
+      box-shadow:var(--shadow-md);
+      overflow:hidden;
+    }
+    
+    /* 头部样式 */
     .header {
-      background:var(--bg-muted);
-      border-bottom-color:var(--border);
+      flex: 0 0 auto;
+      padding: var(--space-md) var(--space-lg);
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border-light);
+      box-shadow: var(--shadow-sm);
+      z-index: 10;
+    }
+    
+    .header-top {
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      gap: var(--space-md);
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      margin-left: auto;
     }
     
     .header h2 {
-      color:var(--text);
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      flex: 1;
     }
     
+    /* 下拉菜单样式 */
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    
+    /* 响应式设计 */
+    @media (max-width: 640px) {
+      .dropdown-content {
+        min-width: 100px;
+        right: auto;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+    }
+    
+    .dropdown-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: var(--space-sm) var(--space-md);
+      background: var(--bg-primary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text-primary);
+      transition: all var(--transition-normal);
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .dropdown-btn:hover {
+      background: var(--bg-secondary);
+      border-color: var(--primary);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .dropdown-arrow {
+      font-size: 10px;
+      transition: transform var(--transition-fast);
+    }
+    
+    .dropdown.active .dropdown-arrow {
+      transform: rotate(180deg);
+    }
+    
+    .dropdown-content {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      min-width: 120px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      z-index: 1000;
+      display: none;
+      padding: var(--space-xs) 0;
+      margin-top: var(--space-xs);
+    }
+    
+    .dropdown.active .dropdown-content {
+      display: block;
+    }
+    
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      color: var(--text-secondary);
+      text-decoration: none;
+      cursor: pointer;
+      transition: background-color var(--transition-fast);
+      font-size: 13px;
+    }
+    
+    .dropdown-item:hover {
+      background-color: var(--bg-secondary);
+      color: var(--primary);
+    }
+    
+    .dropdown-item.active {
+      background-color: var(--primary-weak);
+      color: var(--primary);
+      font-weight: 500;
+    }
+    
+    .pill{
+      display:inline-block;
+      padding:3px 10px;
+      border-radius:9999px;
+      background-color:var(--primary-weak);
+      color:var(--primary);
+      font-size:12px;
+      font-weight:500;
+      border:1px solid var(--primary-weak);
+    }
+    
+    /* 主内容区域 */
+    .inner-pad {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      padding: var(--space-lg);
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-dark) transparent;
+    }
+    
+    /* 行与分栏 */
+    .row{
+      margin-bottom:var(--space-lg);
+    }
+    
+    .split{
+      display:flex;
+      gap:var(--space-md);
+      align-items:center;
+    }
+    
+    .split>:first-child{
+      flex:1;
+      min-width:0;
+    }
+    
+    .muted{
+      color:var(--text-secondary);
+    }
+    
+    /* 链接、卡片 */
+    .link{
+      color:var(--primary);
+      text-decoration:none;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      transition:opacity var(--transition-fast);
+    }
+    
+    .link:hover{
+      text-decoration:underline;
+    }
+    
+    .card{
+      background:var(--bg);
+      border:1px solid var(--border);
+      border-radius:var(--radius-md);
+      box-shadow:var(--shadow-sm);
+      transition:box-shadow var(--transition-normal), border-color var(--transition-normal);
+    }
+    
+    .card:hover{
+      box-shadow:var(--shadow-md);
+      border-color:var(--border-hover);
+    }
+    
+    /* 状态区域 */
+    .status{
+      white-space:pre-wrap;
+      background:var(--bg);
+      border:1px solid var(--border);
+      border-radius:var(--radius-md);
+      padding:var(--space-md);
+      min-height:120px;
+      max-height:220px;
+      overflow:auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size:13px;
+      line-height:1.6;
+    }
+    
+    /* 输入与选择 */
     .input-common,
     .select-common,
     input[type="text"],
-    textarea {
+    textarea{
       background:var(--bg);
-      color:var(--text);
-      border-color:var(--border);
+      border:1px solid var(--border);
+      outline:none;
+      width:100%;
+      padding:var(--space-md) var(--space-md);
+      border-radius:var(--radius-md);
+      box-shadow:var(--shadow-sm);
+      transition:box-shadow var(--transition-normal), border-color var(--transition-normal), background-color var(--transition-normal);
+      font-family: inherit;
+      font-size: inherit;
+      color: var(--text);
     }
     
     .input-common::placeholder,
     input::placeholder,
-    textarea::placeholder {
-      color:var(--muted);
+    textarea::placeholder{
+      color:var(--text-tertiary);
     }
     
-    .card {
-      background:var(--bg);
+    .input-common:focus,
+    .select-common:focus,
+    input:focus,
+    textarea:focus{
+      box-shadow:0 0 0 3px var(--primary-weak);
+      border-color:var(--primary);
+      outline:none;
     }
     
-    .status {
+    .input-common:disabled,
+    .select-common:disabled,
+    input:disabled,
+    textarea:disabled{
+      opacity:.6;
+      cursor:not-allowed;
+      background-color:var(--bg-tertiary);
+    }
+    
+    /* 选择框特殊样式 */
+    .select-common{
+      padding-right:2.5rem;
+      appearance:none;
+      -webkit-appearance:none;
+      -moz-appearance:none;
+      background-image:
+        linear-gradient(transparent,transparent),
+        url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5" fill="none" stroke="%2364748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+      background-repeat:no-repeat;
+      background-position:right 12px center;
+      background-size:16px 16px;
+    }
+    
+    /* 文本域与工具栏 */
+    #txtContent{
+      font:inherit;
+      line-height:inherit;
+      white-space:pre-wrap;
+      min-height:280px;
+      resize: vertical;
+    }
+    
+    .mdbar{
+      display:flex;
+      gap:var(--space-xs);
+      flex-wrap:wrap;
+      border:1px solid var(--border);
+      border-bottom:none;
+      border-radius:var(--radius-md) var(--radius-md) 0 0;
+      padding:var(--space-sm);
+      background:var(--bg-tertiary);
+    }
+    
+    .mdbtn{
+      padding:var(--space-xs) var(--space-sm);
+      border:1px solid var(--border);
+      border-radius:var(--radius-sm);
       background:var(--bg);
-      border-color:var(--border);
+      cursor:pointer;
+      font-size:13px;
+      user-select:none;
+      transition:all var(--transition-fast);
+      display:flex;
+      align-items:center;
+      gap:4px;
+    }
+    
+    .mdbtn:hover{
+      background:var(--bg-hover);
+      border-color:var(--primary);
+      transform: translateY(-1px);
+    }
+    
+    .mdbtn:active{
+      transform: translateY(0);
+    }
+    
+    /* 复选框样式 */
+    .switch-ai{
+      display:flex;
+      align-items:center;
+      gap:var(--space-md);
+      padding:var(--space-sm) 0;
+    }
+    
+    .switch-ai input[type="checkbox"]{
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      background-color: var(--bg);
+      cursor: pointer;
+      position: relative;
+      transition: all var(--transition-fast);
+    }
+    
+    .switch-ai input[type="checkbox"]:checked{
+      background-color: var(--primary);
+      border-color: var(--primary);
+    }
+    
+    .switch-ai input[type="checkbox"]:checked::after{
+      content: '✓';
+      color: white;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 12px;
+      font-weight: bold;
+    }
+    
+    .switch-ai input[type="checkbox"]:hover{
+      border-color: var(--primary);
+    }
+    
+    .switch-ai label{
+      margin:0;
+      font-weight:600;
       color:var(--text);
+      font-size:13px;
+      cursor: pointer;
     }
     
-    .btn-common {
-      background:var(--bg);
-      color:var(--text);
-      border-color:var(--border);
-    }
-    
-    .rail {
-      background:var(--bg-muted);
-      border-color:var(--border);
-    }
-    
-    .railbtn {
-      background:transparent;
-      color:var(--text);
-    }
-    
-    .railbtn:hover {
+    .textarea-wrap{
+      border:1px solid var(--border);
+      border-radius:0 0 var(--radius-md) var(--radius-md);
+      overflow:hidden;
       background:var(--bg);
     }
     
-    .railbtn.active {
+    .textarea-wrap textarea{
+      border:none;
+      border-radius:0;
+      box-shadow: none;
+      resize: vertical;
+    }
+    
+    .drop{
+      min-height:140px;
+    }
+    
+    /* 按钮 */
+    .btn-common{
+      background:var(--bg);
+      border:1px solid var(--border);
+      padding:var(--space-sm) var(--space-md);
+      border-radius:var(--radius-md);
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      font:inherit;
+      font-weight:500;
+      line-height:1.2;
+      transition:all var(--transition-fast);
+      box-shadow:var(--shadow-sm);
+      color:var(--text);
+      gap:var(--space-xs);
+    }
+    
+    .btn-common:hover:not(:disabled){
+      background:var(--bg-hover);
+      border-color:var(--primary);
+      color:var(--primary);
+      transform: translateY(-1px);
+      box-shadow:var(--shadow-md);
+    }
+    
+    .btn-common:active:not(:disabled){
+      transform: translateY(0);
+    }
+    
+    .btn-common[disabled]{
+      opacity:.6;
+      cursor:not-allowed;
+      transform: none;
+    }
+    
+    /* 图标按钮 */
+    .btn-icon{
+      width:var(--rail-btn);
+      min-width:var(--rail-btn);
+      height:var(--rail-btn);
+      padding:0;
+      background:var(--bg);
+      border:1px solid var(--border);
+      border-radius:var(--radius-md);
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:16px;
+      transition:all var(--transition-fast);
+      box-shadow:var(--shadow-sm);
+    }
+    
+    .btn-icon:hover:not(:disabled){
+      background:var(--bg-hover);
+      border-color:var(--primary);
+      color:var(--primary);
+      transform: translateY(-1px);
+      box-shadow:var(--shadow-md);
+    }
+    
+    /* 侧边栏 */
+    .rail{
+      display:flex;
+      flex-direction:column;
+      gap:var(--space-sm);
+      padding:var(--space-md);
+      background:var(--bg);
+      border-radius:var(--radius-lg);
+      box-shadow:var(--shadow-md);
+      height:fit-content;
+      align-self:flex-start;
+      min-width:var(--rail-btn);
+    }
+    
+    .railbtn{
+      width:var(--rail-btn);
+      height:var(--rail-btn);
+      border:2px solid transparent;
+      background:var(--bg-tertiary);
+      border-radius:var(--radius-md);
+      font-size:18px;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      transition:all var(--transition-fast);
+      color:var(--text-secondary);
+    }
+    
+    .railbtn:hover{
+      background:var(--bg-hover);
+      color:var(--text);
+      transform: translateY(-1px);
+    }
+    
+    .railbtn:active{
+      transform: translateY(0);
+    }
+    
+    .railbtn.active{
       background:var(--primary-weak);
       color:var(--primary);
+      border-color:var(--primary);
     }
     
-    dialog {
+    /* 对话框 */
+    dialog{
+      border:none;
+      border-radius:var(--radius-lg);
+      padding:var(--space-xl);
+      box-shadow:var(--shadow-lg);
       background:var(--bg);
       color:var(--text);
+      max-width:90vw;
+      width:500px;
     }
     
-    dialog h3 {
+    dialog::backdrop{
+      background:rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+    }
+    
+    dialog h3{
+      margin:0 0 var(--space-lg) 0;
+      font-size:18px;
       color:var(--text);
-    }
-  }
-  body{
-    margin:0; font:13px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
-    color:var(--text); background:var(--page); display:flex; flex-direction:column;
-  }
-
-  /* 容器 */
-  .container{ display:flex; height:100vh; width:100%; }
-  .content-wrapper{ 
-    flex:1; display:flex; flex-direction:column; padding:12px; overflow:hidden;
-    background:var(--bg-muted);
-  }
-
-  /* 头部 */
-  .header{ flex:0 0 auto; padding:10px 12px; background:var(--bg-muted); border-bottom:1px solid var(--border); }
-  .header-top{ display:flex; justify-content:space-between; align-items:center; }
-  .header h2{ margin:0; font-size:16px; font-weight:600; color:var(--text); }
-  .pill{ display:inline-block; padding:2px 8px; border-radius:999px; background:#eef2ff; color:#3730a3; font-size:12px; border:1px solid #c7d2fe; }
-
-  /* 行与分栏 */
-  .inner-pad{ flex:1 1 auto; min-height:0; overflow:auto; padding:12px; }
-  .row{ margin-top:10px; }
-  .split{ display:flex; gap:8px; align-items:center; }
-  .split>:first-child{ flex:1; min-width:0; }
-  .muted{ color:var(--muted); }
-
-  /* 链接、卡片、状态 */
-  .link{ color:var(--primary); text-decoration:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .link:hover{ text-decoration:underline; }
-  .card{ background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-sm); }
-  .status{ white-space:pre-wrap; background:var(--bg); border:1px dashed var(--border); border-radius:var(--radius); padding:8px; min-height:120px; max-height:220px; overflow:auto; }
-
-  /* 输入与选择 */
-  .input-common{
-    background:var(--bg); border:1px solid var(--border); outline:none; width:100%;
-    padding:8px 10px; border-radius:var(--radius); box-shadow:var(--shadow-sm);
-    transition:box-shadow .15s ease, border-color .15s ease;
-  }
-  .input-common::placeholder{ color:var(--muted); }
-  .input-common:focus{ box-shadow:0 0 0 3px var(--primary-weak); border-color:var(--primary); }
-  .input-common:disabled{ opacity:.6; cursor:not-allowed; }
-
-  .select-common{
-    background:var(--bg); border:1px solid var(--border); outline:none; width:100%;
-    padding:8px 34px 8px 10px; border-radius:var(--radius);
-    appearance:none; -webkit-appearance:none; -moz-appearance:none;
-    background-image:
-      linear-gradient(transparent,transparent),
-      url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5" fill="none" stroke="%236b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>');
-    background-repeat:no-repeat; background-position:right 10px center; background-size:14px 14px;
-    box-shadow:var(--shadow-sm); transition:box-shadow .15s ease, border-color .15s ease;
-  }
-  .select-common:focus{ box-shadow:0 0 0 3px var(--primary-weak); border-color:var(--primary); }
-  .select-common:disabled{ opacity:.6; cursor:not-allowed; }
-
-  /* 文本域与工具栏 */
-  #txtContent{ font:inherit; line-height:inherit; white-space:pre-wrap; min-height:240px; }
-  .mdbar{
-    display:flex; gap:6px; flex-wrap:wrap;
-    border:1px solid var(--border); border-bottom:none;
-    border-radius:var(--radius) var(--radius) 0 0; padding:6px; background:var(--bg-muted);
-  }
-  .mdbtn{
-    padding:6px 8px; border:1px solid var(--border); border-radius:var(--radius-sm);
-    background:var(--bg); cursor:pointer; font-size:12px; user-select:none;
-    transition:transform .12s ease, border-color .12s ease, background-color .12s ease;
-  }
-  .mdbtn:hover{ background:var(--bg); border-color:var(--primary); }
-  .mdbtn:active{ transform:translateY(1px); }
-
-  /* 复选框深色模式样式 */
-  @media (prefers-color-scheme: dark) {
-    .switch-ai input[type="checkbox"] {
-      accent-color: var(--primary);
+      font-weight:600;
     }
     
-    .switch-ai label {
-      color: var(--text);
+    /* 任务元信息 */
+    #taskMetaBox{
+      padding:var(--space-lg);
     }
-  }
-  .textarea-wrap{ border:1px solid var(--border); border-radius:0 0 var(--radius) var(--radius); overflow:hidden; background:var(--bg); }
-  .textarea-wrap textarea{ border:none; border-radius:0; }
-  .drop{ min-height:140px; }
-
-  /* 按钮 */
-  .btn-common{
-    background:var(--bg); border:1px solid var(--border);
-    padding:6px 10px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
-    font:inherit; line-height:1.2; transition:transform .15s ease, border-color .15s ease, background-color .15s ease;
-    box-shadow:var(--shadow-sm);
-  }
-  .btn-common:hover{ background:var(--bg); border-color:var(--primary); }
-  .btn-common:active{ transform:translateY(1px); }
-  .btn-common[disabled]{ opacity:.6; cursor:not-allowed; }
-  #btnLoad,#btnBind{ width:var(--rail-btn); min-width:var(--rail-btn); height:var(--rail-btn); padding:0; }
-
-  /* 侧边栏 */
-  .rail{
-    display:flex; flex-direction:column; gap:3px; padding:6px 3px;
-    background:rgb(255, 255, 255); border-radius:10px; margin:12px 6px 12px 0;
-  }
-  .railbtn{
-    width:32px; height:32px; border:none; background:transparent; border-radius:6px;
-    font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;
-    transition:background-color .15s ease, transform .1s ease;
-  }
-  .railbtn:hover{ background:var(--bg); }
-  .railbtn:active{ transform:translateY(1px); }
-  .railbtn.active{ background:var(--primary-weak); color:var(--primary); }
-
-  /* 对话框 */
-  dialog{ border:none; border-radius:12px; padding:12px; box-shadow:0 4px 12px rgba(0,0,0,.12); background:#fff; }
-  dialog::backdrop{ background:rgba(17,24,39,.35); }
-  dialog h3{ margin:0 0 8px; font-size:16px; color:#111827; }
-  #tplArea{ font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace; }
-
-  /* 开关 */
-  .switch-ai{ display:flex; align-items:center; gap:8px; }
-  .switch-ai input[type="checkbox"]{ appearance:auto; accent-color:var(--primary); width:16px; height:16px; }
-  .switch-ai label{ margin:0; font-weight:600; color:#1f2937; font-size:12px; }
-
-  /* 滚动条 */
-  *{ scrollbar-width:thin; scrollbar-color:#CBD5E1 transparent; }
-  *::-webkit-scrollbar{ width:8px; height:8px; }
-  *::-webkit-scrollbar-thumb{ background:#CBD5E1; border-radius:8px; }
-  *::-webkit-scrollbar-thumb:hover{ background:#94A3B8; }
-  *::-webkit-scrollbar-track{ background:transparent; }
+    
+    #taskTitle{
+      font-weight:600;
+      word-break:break-all;
+      font-size:15px;
+      margin-bottom:var(--space-xs);
+    }
+    
+    #taskMetaMore{
+      margin-top:var(--space-lg);
+      padding-top:var(--space-lg);
+      border-top:1px solid var(--border);
+      animation: fadeIn var(--transition-normal);
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* 按钮组 */
+    .btn-group{
+      display:flex;
+      gap:var(--space-md);
+      flex-wrap:wrap;
+    }
+    
+    /* 滚动条 */
+    *{
+      scrollbar-width:thin;
+      scrollbar-color:var(--text-tertiary) var(--bg-tertiary);
+    }
+    
+    *::-webkit-scrollbar{
+      width:6px;
+      height:6px;
+    }
+    
+    *::-webkit-scrollbar-track{
+      background:var(--bg-tertiary);
+      border-radius:3px;
+    }
+    
+    *::-webkit-scrollbar-thumb{
+      background:var(--text-tertiary);
+      border-radius:3px;
+      transition:background-color var(--transition-fast);
+    }
+    
+    *::-webkit-scrollbar-thumb:hover{
+      background:var(--text-secondary);
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="content-wrapper">
-
+      <div class="header">
+        <div class="header-top">
+          <h2>PHA 助手</h2>
+          <div class="header-controls">
+            <!-- 下拉菜单按钮 -->
+            <div class="dropdown">
+            <button id="panelSwitchBtn" class="dropdown-btn">
+              👁️
+              <span class="dropdown-arrow">▼</span>
+            </button>
+            <div id="panelDropdown" class="dropdown-content">
+              <a href="#" data-target="pha-panel" class="dropdown-item active">👁️ PHA</a>
+              <a href="#" data-target="rocket-panel" class="dropdown-item">🚀 Rocket</a>
+              <a href="#" data-target="notes-panel" class="dropdown-item">📝 笔记</a>
+              <a href="#" data-target="settings-panel" class="dropdown-item">⚙️ 设置</a>
+</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
       <div class="inner-pad">
         <div class="row">
           <div class="split">
             <input id="listUrl" class="input-common" type="text" value="http://pha.tp-link.com.cn/maniphest/query/AGNGtvQS84UK/#R" placeholder="列表页 URL">
-            <button id="btnLoad" class="btn-common" title="拉取">📥</button>
-            <button id="btnBind" class="btn-common" title="绑定" style="display:none">🔗</button>
+            <button id="btnLoad" class="btn-icon" title="拉取">📥</button>
+            <button id="btnBind" class="btn-icon" title="绑定" style="display:none">🔗</button>
           </div>
         </div>
 
@@ -267,17 +759,17 @@
         </div>
 
         <div class="row" id="taskMeta" style="display:none">
-          <div id="taskMetaBox" class="card" style="padding:8px">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div id="taskMetaBox" class="card">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-md)">
               <div style="min-width:0">
-                <div id="taskTitle" style="font-weight:600;word-break:break-all"></div>
-                <div class="muted" style="margin-top:4px;font-size:12px">
+                <div id="taskTitle"></div>
+                <div class="muted" style="margin-top:var(--space-xs);font-size:13px">
                   <span id="taskStatus"></span><span style="margin:0 6px">·</span><span id="taskPriority"></span>
                 </div>
               </div>
               <button id="metaToggle" class="btn-common" title="展开/收起">▾</button>
             </div>
-            <div id="taskMetaMore" style="margin-top:6px;display:none"></div>
+            <div id="taskMetaMore" style="margin-top:0;display:none"></div>
           </div>
         </div>
 
@@ -285,21 +777,43 @@
           <div class="mdbar" id="mdBar">
             <button class="mdbtn" data-md="h1" title="H1">H1</button>
             <button class="mdbtn" data-md="h2" title="H2">H2</button>
-            <button class="mdbtn" data-md="bold" title="加粗">B</button>
-            <button class="mdbtn" data-md="italic" title="斜体">I</button>
-            <button class="mdbtn" data-md="link" title="链接">Link</button>
-            <button class="mdbtn" data-md="ul" title="无序">◾</button>
-            <button class="mdbtn" data-md="quote" title="引用">&gt;</button>
-            <button class="mdbtn" data-md="code" title="行内">`</button>
-            <button class="mdbtn" data-md="codeblock" title="代码">&lt;/&gt;</button>
-            <button class="mdbtn" data-md="checkbox" title="复选">Todo</button>
-            <button class="mdbtn" data-md="table" title="表格">Table</button>
-            <button class="mdbtn" data-md="important" title="重要">!</button>
+            <button class="mdbtn" data-md="bold" title="加粗">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.5 4H7.5C5.84 4 4.5 5.34 4.5 7V17C4.5 18.66 5.84 20 7.5 20H16.5C18.16 20 19.5 18.66 19.5 17V7C19.5 5.34 18.16 4 16.5 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 15L11 7L13.5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>B</span>
+            </button>
+            <button class="mdbtn" data-md="italic" title="斜体">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4V6H11V4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 20H20V18H14V20Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 8L14 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 8L5 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>I</span>
+            </button>
+            <button class="mdbtn" data-md="link" title="链接">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 13C10.5523 13 11 12.5523 11 12C11 11.4477 10.5523 11 10 11C9.44772 11 9 11.4477 9 12C9 12.5523 9.44772 13 10 13Z" fill="currentColor" fill-opacity="0.5"/><path d="M14 13C14.5523 13 15 12.5523 15 12C15 11.4477 14.5523 11 14 11C13.4477 11 13 11.4477 13 12C13 12.5523 13.4477 13 14 13Z" fill="currentColor" fill-opacity="0.5"/><path d="M19 8.5C19 9.88071 17.8807 11 16.5 11H7.5C6.11929 11 5 9.88071 5 8.5C5 7.11929 6.11929 6 7.5 6H16.5C17.8807 6 19 7.11929 19 8.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Link</span>
+            </button>
+            <button class="mdbtn" data-md="ul" title="无序">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 12H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 6H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 6V8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12V14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 18H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 18V20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>UL</span>
+            </button>
+            <button class="mdbtn" data-md="quote" title="引用">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 8H12V16H8V8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 12H20V20H16V12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Quote</span>
+            </button>
+            <button class="mdbtn" data-md="code" title="行内">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 2H6C4.89 2 4 2.89 4 4V20C4 21.11 4.89 22 6 22H18C19.11 22 20 21.11 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 16H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 12H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 8H10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Code</span>
+            </button>
+            <button class="mdbtn" data-md="codeblock" title="代码">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 18H17V20H7V18Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 6H17V8H7V6Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 12H17V14H14V12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 12H10V14H7V12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Block</span>
+            </button>
+            <button class="mdbtn" data-md="checkbox" title="复选">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 16L13 21L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 12.5L8 16.5L4 20.5V12.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 3.5V7.5L8 3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Todo</span>
+            </button>
           </div>
 
-          <div class="row">
+          <div class="row" style="margin-bottom:var(--space-sm)">
             <div class="textarea-wrap">
-              <textarea id="txtContent" class="input-common drop" rows="7" placeholder="记录…"></textarea>
+              <textarea id="txtContent" class="input-common drop" rows="7" placeholder="在此记录您的内容..."></textarea>
             </div>
           </div>
         </div>
@@ -307,17 +821,32 @@
         <div class="row">
           <div class="switch-ai">
             <input type="checkbox" id="chkAI" title="启用 AI 分析">
-            <label for="chkAI">AI</label>
+            <label for="chkAI">AI 辅助分析</label>
           </div>
         </div>
 
         <div class="row">
-          <div>
-            <button id="btnGerrit" class="btn-common" title="Gerrit 模板">Gerrit</button>
-            <button id="btnTpl" class="btn-common" title="编辑模板">模板</button>
-            <button id="btnSumWL" class="btn-common" title="统计工作量">统计</button>
-            <button id="btnWeekly" class="btn-common" title="周报生成">周报</button>
-            <button id="btnSend" class="btn-common" title="提交评论">推送</button>
+          <div class="btn-group">
+            <button id="btnGerrit" class="btn-common" title="Gerrit 模板">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 13C10.5523 13 11 12.5523 11 12C11 11.4477 10.5523 11 10 11C9.44772 11 9 11.4477 9 12C9 12.5523 9.44772 13 10 13Z" fill="currentColor" fill-opacity="0.5"/><path d="M14 13C14.5523 13 15 12.5523 15 12C15 11.4477 14.5523 11 14 11C13.4477 11 13 11.4477 13 12C13 12.5523 13.4477 13 14 13Z" fill="currentColor" fill-opacity="0.5"/><path d="M19 8.5C19 9.88071 17.8807 11 16.5 11H7.5C6.11929 11 5 9.88071 5 8.5C5 7.11929 6.11929 6 7.5 6H16.5C17.8807 6 19 7.11929 19 8.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Gerrit
+            </button>
+            <button id="btnTpl" class="btn-common" title="编辑模板">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 7H17V17H7V7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 17H17V19H7V17Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 5H17V7H7V5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 7V17H7V7H5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 7V17H19V7H17Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              模板
+            </button>
+            <button id="btnSumWL" class="btn-common" title="统计工作量">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 18V12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              统计
+            </button>
+            <button id="btnWeekly" class="btn-common" title="周报生成">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 21V19C8 17.9391 8.42143 16.9217 9.17157 16.1716C9.92172 15.4214 10.9391 15 12 15C13.0609 15 14.0783 15.4214 14.8284 16.1716C15.5786 16.9217 16 17.9391 16 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 13H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 9H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 3V13H20V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              周报
+            </button>
+            <button id="btnSend" class="btn-common" title="提交评论" style="background-color:var(--primary);color: white;border-color:var(--primary)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C13.8882 2 15.6629 2.63214 17.1421 3.75736L22 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 22L12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              推送
+            </button>
           </div>
         </div>
 
@@ -327,7 +856,8 @@
       </div>
     </div>
 
-    <nav class="rail" aria-label="面板切换">
+    <!-- 隐藏的侧边栏导航，保留以确保rail.js的功能正常 -->
+    <nav class="rail" aria-label="面板切换" style="display: none;">
       <button class="railbtn active" data-target="pha-panel" title="PHA" aria-label="PHA">👁️</button>
       <button class="railbtn" data-target="rocket-panel" title="Rocket" aria-label="Rocket">🚀</button>
       <button class="railbtn" data-target="notes-panel" title="笔记" aria-label="笔记">📝</button>
@@ -346,7 +876,7 @@
       <option>3D</option>
       <option>5D</option>
     </select>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+    <div style="display:flex;gap:var(--space-md);justify-content:flex-end;margin-top:var(--space-lg)">
       <button id="effortCancel" class="btn-common">取消</button>
     </div>
   </dialog>
@@ -354,16 +884,17 @@
   <!-- POST 模板编辑弹窗 -->
   <dialog id="dlgTpl" style="max-width:640px;width:90vw">
     <h3>模板</h3>
-    <textarea id="tplArea" class="input-common" rows="10"
+    <textarea id="tplArea" class="input-common" rows="12"
       placeholder="> {{timestamp}}\n(NOTE) {{AITitle}}\n\n{{AIResponse}}\n------\n{{正文}}"></textarea>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+    <div style="display:flex;gap:var(--space-md);justify-content:flex-end;margin-top:var(--space-lg)">
       <button id="tplCancel" class="btn-common">取消</button>
-      <button id="tplSave" class="btn-common">保存</button>
+      <button id="tplSave" class="btn-common" style="background-color:var(--primary);color: white;border-color:var(--primary)">保存</button>
     </div>
   </dialog>
 
   <script type="module" src="../persist-init.js"></script>
   <script defer src="panel.js"></script>
   <script defer src="../../rail.js"></script>
+  <script defer src="../../shared/dropdown-menu.js"></script>
 </body>
 </html>
