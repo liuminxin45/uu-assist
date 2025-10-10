@@ -98,6 +98,20 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   }
 });
 
+// 新标签页创建时自动应用全局面板状态
+chrome.tabs.onCreated.addListener(async (tab) => {
+  if (tab.id) {
+    // 延迟一小段时间，确保标签页完全加载
+    setTimeout(async () => {
+      try {
+        await openPanelByName(globalActivePanel, tab.id, { fromSidePanel: false });
+      } catch (error) {
+        console.warn(`为新标签页 ${tab.id} 设置面板失败:`, error);
+      }
+    }, 100);
+  }
+});
+
 
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -900,21 +914,58 @@ async function openPanelByName(name, tabId, opts = {}) {
 }
 
 
-// 点击扩展图标 → 打开默认面板
+// 点击扩展图标 → 打开当前全局面板
 chrome.action.onClicked.addListener(async (tab) => {
   const tid = tab?.id || await spGetStableTabId();
   if (tid) await spSetLastTab(tid);
-  await openPanelByName("pha-panel", tid, { fromSidePanel: false });
+  await openPanelByName(globalActivePanel, tid, { fromSidePanel: false });
 });
 
+
+// 全局面板状态管理
+let globalActivePanel = "pha-panel"; // 默认面板
+
+// 保存全局面板状态到存储
+async function saveGlobalPanelState(panelName) {
+  globalActivePanel = panelName;
+  try {
+    await chrome.storage.session.set({ __uu_assist_global_panel: panelName });
+  } catch (_) { }
+}
+
+// 从存储加载全局面板状态
+async function loadGlobalPanelState() {
+  try {
+    const o = await chrome.storage.session.get('__uu_assist_global_panel');
+    return o?.__uu_assist_global_panel || "pha-panel";
+  } catch (_) { return "pha-panel"; }
+}
+
+// 初始化时加载全局面板状态
+(async function initGlobalPanelState() {
+  globalActivePanel = await loadGlobalPanelState();
+})();
 
 // 面板请求切换
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async () => {
     if (msg?.type === "switchPanel") {
-      const tid = await spGetStableTabId(sender);
-      const ret = await openPanelByName(msg.name, tid, { fromSidePanel: isFromSidePanel(sender) });
-      sendResponse(ret);
+      // 更新全局面板状态
+      await saveGlobalPanelState(msg.name);
+      
+      // 为所有标签页应用相同的面板
+      const tabs = await chrome.tabs.query({});
+      for (const tab of tabs) {
+        if (tab.id) {
+          try {
+            await openPanelByName(msg.name, tab.id, { fromSidePanel: false });
+          } catch (error) {
+            console.warn(`为标签页 ${tab.id} 设置面板失败:`, error);
+          }
+        }
+      }
+      
+      sendResponse({ ok: true, appliedTo: tabs.length });
     }
   })();
   return true;
