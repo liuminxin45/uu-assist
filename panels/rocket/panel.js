@@ -4,7 +4,6 @@ import { persistField } from '../../shared/persist.js';
 (async () => {
   const $ = s => document.querySelector(s);
   const statusEl = $('#status');
-  const badgeEl  = $('#badge');
   const $limit   = $('#msgLimit');
   const $prompt  = $('#prompt');
   const $autoListen = $('#autoListen');
@@ -21,46 +20,8 @@ import { persistField } from '../../shared/persist.js';
     statusEl.textContent += `[${ts()}] ${line}\n`; 
     statusEl.scrollTop = statusEl.scrollHeight; 
   };
-  const setBadge = (t, ok) => {
-    badgeEl.textContent = t;
-    badgeEl.style.background = ok ? '#ecfdf5' : '#eef2ff';
-    badgeEl.style.color = ok ? '#065f46' : '#3730a3';
-    badgeEl.style.borderColor = ok ? '#a7f3d0' : '#c7d2fe';
-  };
 
-  // 获取当前AI供应商和模型信息
-  async function getCurrentAIInfo() {
-    if (typeof chrome === 'undefined' || !chrome.storage) {
-      return { vendor: '未知', model: '未知' };
-    }
-    try {
-      const data = await chrome.storage.local.get(['aiCfg2']);
-      if (data.aiCfg2 && data.aiCfg2.vendors) {
-        const aiCfg2 = data.aiCfg2;
-        const activeVendorId = aiCfg2.activeVendorId;
-        const vendor = aiCfg2.vendors[activeVendorId];
-        if (vendor) {
-          const activeModelId = vendor.activeModelId;
-          const model = vendor.models[activeModelId];
-          if (model) {
-            return {
-              vendor: vendor.name,
-              model: model.name || model.model
-            };
-          }
-        }
-      }
-    } catch (e) {
-      console.error('获取AI信息失败:', e);
-    }
-    return { vendor: '未知', model: '未知' };
-  }
 
-  // 更新状态标签显示AI供应商和模型
-  async function updateBadgeWithAIInfo() {
-    const aiInfo = await getCurrentAIInfo();
-    setBadge(`${aiInfo.vendor} | ${aiInfo.model}`, true);
-  }
 
   // 监听来自service worker的消息
   if (typeof chrome !== 'undefined' && chrome.runtime) {
@@ -108,17 +69,7 @@ import { persistField } from '../../shared/persist.js';
     log('AI回复已清空');
   });
 
-  // 页面加载时更新状态标签
-  updateBadgeWithAIInfo();
 
-  // 监听存储变化以更新状态标签
-  if (typeof chrome !== 'undefined' && chrome.storage) {
-    chrome.storage.onChanged.addListener((changes, namespace) => {
-      if (namespace === 'local' && (changes.aiCfg2 || changes.aiCfg)) {
-        updateBadgeWithAIInfo();
-      }
-    });
-  }
 
   // --- helpers
   async function getActiveTab() {
@@ -153,8 +104,6 @@ import { persistField } from '../../shared/persist.js';
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       notifyContentScript();
-      // 页面重新可见时也更新状态标签
-      updateBadgeWithAIInfo();
     }
   });
   
