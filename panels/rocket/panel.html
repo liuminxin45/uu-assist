@@ -108,15 +108,13 @@
     *,*::before,*::after{ box-sizing:border-box; }
     html,body{ height:100%; }
     body{ margin:0; font:13px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
-      color:var(--text); background:var(--page); display:flex; flex-direction:column;
+      color:var(--text); background:transparent; display:flex; flex-direction:column;
     }
 
     .container{ display:flex; height:100vh; width:100%; }
-    .content-wrapper{ flex:1; display:flex; flex-direction:column; padding:12px; overflow:hidden; }
-    .rocket-wrapper{
-      display:flex; flex-direction:column; min-height:0; height:100%;
-      background:var(--bg-muted); border-radius:12px; overflow:hidden;
-      border:1px solid var(--border); box-shadow:var(--shadow-sm);
+    .content-wrapper{ 
+      flex:1; display:flex; flex-direction:column; padding:12px; overflow:hidden;
+      background:var(--bg-muted);
     }
 
     .header{ flex:0 0 auto; padding:10px 12px; background:var(--bg-muted); border-bottom:1px solid var(--border); }
@@ -166,18 +164,19 @@
     .switch-ai input[type="checkbox"]{ appearance:auto; accent-color:var(--primary); width:16px; height:16px; }
     .switch-ai label{ margin:0; font-weight:600; color:#1f2937; font-size:12px; }
 
-    .rail{
-      display:flex; flex-direction:column; gap:4px; padding:8px 4px;
-      background:var(--bg-muted); border-radius:12px; margin:16px 8px 16px 0; border:1px solid var(--border);
-    }
-    .railbtn{
-      width:40px; height:40px; border:none; background:transparent; border-radius:8px;
-      font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center;
-      transition:background-color .15s ease, transform .1s ease;
-    }
-    .railbtn:hover{ background:var(--bg); }
-    .railbtn:active{ transform:translateY(1px); }
-    .railbtn.active{ background:var(--primary-weak); color:var(--primary); }
+  /* 侧边栏 */
+  .rail{
+    display:flex; flex-direction:column; gap:3px; padding:6px 3px;
+    background:rgb(255, 255, 255); border-radius:10px; margin:12px 6px 12px 0;
+  }
+  .railbtn{
+    width:32px; height:32px; border:none; background:transparent; border-radius:6px;
+    font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:background-color .15s ease, transform .1s ease;
+  }
+  .railbtn:hover{ background:var(--bg); }
+  .railbtn:active{ transform:translateY(1px); }
+  .railbtn.active{ background:var(--primary-weak); color:var(--primary); }
 
     *{ scrollbar-width:thin; scrollbar-color:#CBD5E1 transparent; }
     *::-webkit-scrollbar{ width:8px; height:8px; }
@@ -189,42 +188,40 @@
 <body>
   <div class="container">
     <div class="content-wrapper">
-      <div class="rocket-wrapper">
-        <div class="header">
-          <div class="header-top">
-            <h2>Rocket</h2>
+      <div class="header">
+        <div class="header-top">
+          <h2>Rocket</h2>
+        </div>
+      </div>
+
+      <div class="inner-pad">
+        <div class="row">
+          <label for="msgLimit">数量</label>
+          <input id="msgLimit" type="number" min="1" max="200" step="1" value="20" />
+        </div>
+
+        <div class="row">
+          <div class="switch-ai">
+            <input id="autoListen" type="checkbox" checked title="自动监听生成开关" />
+            <label for="autoListen">监听</label>
           </div>
         </div>
 
-        <div class="inner-pad">
-          <div class="row">
-            <label for="msgLimit">数量</label>
-            <input id="msgLimit" type="number" min="1" max="200" step="1" value="20" />
-          </div>
+        <div class="row">
+          <label for="prompt">Prompt</label>
+          <textarea id="prompt" placeholder="留空则使用预置"></textarea>
+        </div>
 
-          <div class="row">
-            <div class="switch-ai">
-              <input id="autoListen" type="checkbox" checked title="自动监听生成开关" />
-              <label for="autoListen">监听</label>
-            </div>
-          </div>
+        <div class="row">
+          <div id="status" class="status"></div>
+        </div>
 
-          <div class="row">
-            <label for="prompt">Prompt</label>
-            <textarea id="prompt" placeholder="留空则使用预置"></textarea>
-          </div>
-
-          <div class="row">
-            <div id="status" class="status"></div>
-          </div>
-
-          <div class="row">
-            <label for="aiReply">输出</label>
-            <textarea id="aiReply" class="status" readonly placeholder="AI 输出"></textarea>
-            <div class="actions">
-              <button id="btnCopyAIReply" class="btn-common" title="复制AI回复">复制</button>
-              <button id="btnClearAIReply" class="btn-common" title="清空AI回复">清空</button>
-            </div>
+        <div class="row">
+          <label for="aiReply">输出</label>
+          <textarea id="aiReply" class="status" readonly placeholder="AI 输出"></textarea>
+          <div class="actions">
+            <button id="btnCopyAIReply" class="btn-common" title="复制AI回复">复制</button>
+            <button id="btnClearAIReply" class="btn-common" title="清空AI回复">清空</button>
           </div>
         </div>
       </div>

@@ -50,11 +50,6 @@
       color:var(--text);
     }
     
-    .pha-wrapper {
-      background:var(--bg-muted);
-      border-color:var(--border);
-    }
-    
     .header {
       background:var(--bg-muted);
       border-bottom-color:var(--border);
@@ -130,11 +125,9 @@
 
   /* 容器 */
   .container{ display:flex; height:100vh; width:100%; }
-  .content-wrapper{ flex:1; display:flex; flex-direction:column; padding:12px; overflow:hidden; }
-  .pha-wrapper{
-    display:flex; flex-direction:column; min-height:0; height:100%;
-    background:var(--bg-muted); border-radius:12px; overflow:hidden;
-    border:1px solid var(--border); box-shadow:var(--shadow-sm);
+  .content-wrapper{ 
+    flex:1; display:flex; flex-direction:column; padding:12px; overflow:hidden;
+    background:var(--bg-muted);
   }
 
   /* 头部 */
@@ -222,12 +215,12 @@
 
   /* 侧边栏 */
   .rail{
-    display:flex; flex-direction:column; gap:4px; padding:8px 4px;
-    background:var(--bg-muted); border-radius:12px; margin:16px 8px 16px 0; border:1px solid var(--border);
+    display:flex; flex-direction:column; gap:3px; padding:6px 3px;
+    background:rgb(255, 255, 255); border-radius:10px; margin:12px 6px 12px 0;
   }
   .railbtn{
-    width:40px; height:40px; border:none; background:transparent; border-radius:8px;
-    font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    width:32px; height:32px; border:none; background:transparent; border-radius:6px;
+    font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;
     transition:background-color .15s ease, transform .1s ease;
   }
   .railbtn:hover{ background:var(--bg); }
@@ -256,87 +249,85 @@
 <body>
   <div class="container">
     <div class="content-wrapper">
-      <div class="pha-wrapper">
-        <div class="header">
-          <div class="header-top">
-            <h2>PHA</h2>
+      <div class="header">
+        <div class="header-top">
+          <h2>PHA</h2>
+        </div>
+      </div>
+
+      <div class="inner-pad">
+        <div class="row">
+          <div class="split">
+            <input id="listUrl" class="input-common" type="text" value="http://pha.tp-link.com.cn/maniphest/query/AGNGtvQS84UK/#R" placeholder="列表页 URL">
+            <button id="btnLoad" class="btn-common" title="拉取">📥</button>
+            <button id="btnBind" class="btn-common" title="绑定" style="display:none">🔗</button>
           </div>
         </div>
 
-        <div class="inner-pad">
-          <div class="row">
-            <div class="split">
-              <input id="listUrl" class="input-common" type="text" value="http://pha.tp-link.com.cn/maniphest/query/AGNGtvQS84UK/#R" placeholder="列表页 URL">
-              <button id="btnLoad" class="btn-common" title="拉取">📥</button>
-              <button id="btnBind" class="btn-common" title="绑定" style="display:none">🔗</button>
-            </div>
+        <div class="row">
+          <div class="split">
+            <select id="selItems" class="select-common"></select>
+            <a id="taskLink" href="#" target="_blank" rel="noopener" class="link"></a>
           </div>
+        </div>
 
-          <div class="row">
-            <div class="split">
-              <select id="selItems" class="select-common"></select>
-              <a id="taskLink" href="#" target="_blank" rel="noopener" class="link"></a>
-            </div>
-          </div>
-
-          <div class="row" id="taskMeta" style="display:none">
-            <div id="taskMetaBox" class="card" style="padding:8px">
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-                <div style="min-width:0">
-                  <div id="taskTitle" style="font-weight:600;word-break:break-all"></div>
-                  <div class="muted" style="margin-top:4px;font-size:12px">
-                    <span id="taskStatus"></span><span style="margin:0 6px">·</span><span id="taskPriority"></span>
-                  </div>
+        <div class="row" id="taskMeta" style="display:none">
+          <div id="taskMetaBox" class="card" style="padding:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+              <div style="min-width:0">
+                <div id="taskTitle" style="font-weight:600;word-break:break-all"></div>
+                <div class="muted" style="margin-top:4px;font-size:12px">
+                  <span id="taskStatus"></span><span style="margin:0 6px">·</span><span id="taskPriority"></span>
                 </div>
-                <button id="metaToggle" class="btn-common" title="展开/收起">▾</button>
               </div>
-              <div id="taskMetaMore" style="margin-top:6px;display:none"></div>
+              <button id="metaToggle" class="btn-common" title="展开/收起">▾</button>
             </div>
+            <div id="taskMetaMore" style="margin-top:6px;display:none"></div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="mdbar" id="mdBar">
+            <button class="mdbtn" data-md="h1" title="H1">H1</button>
+            <button class="mdbtn" data-md="h2" title="H2">H2</button>
+            <button class="mdbtn" data-md="bold" title="加粗">B</button>
+            <button class="mdbtn" data-md="italic" title="斜体">I</button>
+            <button class="mdbtn" data-md="link" title="链接">Link</button>
+            <button class="mdbtn" data-md="ul" title="无序">◾</button>
+            <button class="mdbtn" data-md="quote" title="引用">&gt;</button>
+            <button class="mdbtn" data-md="code" title="行内">`</button>
+            <button class="mdbtn" data-md="codeblock" title="代码">&lt;/&gt;</button>
+            <button class="mdbtn" data-md="checkbox" title="复选">Todo</button>
+            <button class="mdbtn" data-md="table" title="表格">Table</button>
+            <button class="mdbtn" data-md="important" title="重要">!</button>
           </div>
 
           <div class="row">
-            <div class="mdbar" id="mdBar">
-              <button class="mdbtn" data-md="h1" title="H1">H1</button>
-              <button class="mdbtn" data-md="h2" title="H2">H2</button>
-              <button class="mdbtn" data-md="bold" title="加粗">B</button>
-              <button class="mdbtn" data-md="italic" title="斜体">I</button>
-              <button class="mdbtn" data-md="link" title="链接">Link</button>
-              <button class="mdbtn" data-md="ul" title="无序">◾</button>
-              <button class="mdbtn" data-md="quote" title="引用">&gt;</button>
-              <button class="mdbtn" data-md="code" title="行内">`</button>
-              <button class="mdbtn" data-md="codeblock" title="代码">&lt;/&gt;</button>
-              <button class="mdbtn" data-md="checkbox" title="复选">Todo</button>
-              <button class="mdbtn" data-md="table" title="表格">Table</button>
-              <button class="mdbtn" data-md="important" title="重要">!</button>
-            </div>
-
-            <div class="row">
-              <div class="textarea-wrap">
-                <textarea id="txtContent" class="input-common drop" rows="7" placeholder="记录…"></textarea>
-              </div>
+            <div class="textarea-wrap">
+              <textarea id="txtContent" class="input-common drop" rows="7" placeholder="记录…"></textarea>
             </div>
           </div>
+        </div>
 
-          <div class="row">
-            <div class="switch-ai">
-              <input type="checkbox" id="chkAI" title="启用 AI 分析">
-              <label for="chkAI">AI</label>
-            </div>
+        <div class="row">
+          <div class="switch-ai">
+            <input type="checkbox" id="chkAI" title="启用 AI 分析">
+            <label for="chkAI">AI</label>
           </div>
+        </div>
 
-          <div class="row">
-            <div>
-              <button id="btnGerrit" class="btn-common" title="Gerrit 模板">Gerrit</button>
-              <button id="btnTpl" class="btn-common" title="编辑模板">模板</button>
-              <button id="btnSumWL" class="btn-common" title="统计工作量">统计</button>
-              <button id="btnWeekly" class="btn-common" title="周报生成">周报</button>
-              <button id="btnSend" class="btn-common" title="提交评论">推送</button>
-            </div>
+        <div class="row">
+          <div>
+            <button id="btnGerrit" class="btn-common" title="Gerrit 模板">Gerrit</button>
+            <button id="btnTpl" class="btn-common" title="编辑模板">模板</button>
+            <button id="btnSumWL" class="btn-common" title="统计工作量">统计</button>
+            <button id="btnWeekly" class="btn-common" title="周报生成">周报</button>
+            <button id="btnSend" class="btn-common" title="提交评论">推送</button>
           </div>
+        </div>
 
-          <div class="row">
-            <div id="status" class="status"></div>
-          </div>
+        <div class="row">
+          <div id="status" class="status"></div>
         </div>
       </div>
     </div>

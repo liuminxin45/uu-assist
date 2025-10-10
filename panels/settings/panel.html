@@ -100,15 +100,13 @@
     html,body{ height:100%; }
     body{
       margin:0; font:13px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
-      color:var(--text); background:var(--page); display:flex; flex-direction:column;
+      color:var(--text); background:transparent; display:flex; flex-direction:column;
     }
 
     .container{ display:flex; height:100vh; width:100%; }
-    .content-wrapper{ flex:1; display:flex; flex-direction:column; padding:12px; overflow:hidden; }
-    .settings-wrapper{
-      display:flex; flex-direction:column; min-height:0; height:100%;
-      background:var(--bg-muted); border-radius:12px; overflow:hidden;
-      border:1px solid var(--border); box-shadow:var(--shadow-sm);
+    .content-wrapper{ 
+      flex:1; display:flex; flex-direction:column; padding:12px; overflow:hidden;
+      background:var(--bg-muted);
     }
 
     .header{
@@ -159,18 +157,19 @@
     .right-actions{ display:flex; gap:8px; justify-content:space-between; align-items:center; }
     .status{ font-size:12px; color:var(--muted); }
 
-    .rail{
-      display:flex; flex-direction:column; gap:4px; padding:8px 4px;
-      background:var(--bg-muted); border-radius:12px; margin:16px 8px 16px 0; border:1px solid var(--border);
-    }
-    .railbtn{
-      width:40px; height:40px; border:none; background:transparent; border-radius:8px;
-      font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center;
-      transition:background-color .15s ease, transform .1s ease;
-    }
-    .railbtn:hover{ background:var(--bg); }
-    .railbtn:active{ transform:translateY(1px); }
-    .railbtn.active{ background:var(--primary-weak); color:var(--primary); }
+  /* 侧边栏 */
+  .rail{
+    display:flex; flex-direction:column; gap:3px; padding:6px 3px;
+    background:rgb(255, 255, 255); border-radius:10px; margin:12px 6px 12px 0;
+  }
+  .railbtn{
+    width:32px; height:32px; border:none; background:transparent; border-radius:6px;
+    font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:background-color .15s ease, transform .1s ease;
+  }
+  .railbtn:hover{ background:var(--bg); }
+  .railbtn:active{ transform:translateY(1px); }
+  .railbtn.active{ background:var(--primary-weak); color:var(--primary); }
 
     *{ scrollbar-width:thin; scrollbar-color:#CBD5E1 transparent; }
     *::-webkit-scrollbar{ width:8px; height:8px; }
@@ -182,102 +181,100 @@
 <body>
   <div class="container">
     <div class="content-wrapper">
-      <div class="settings-wrapper">
-        <div class="header">
-          <div class="header-top">
-            <h2>Settings</h2>
+      <div class="header">
+        <div class="header-top">
+          <h2>Settings</h2>
+        </div>
+      </div>
+
+      <div class="inner-pad">
+        <!-- 主题设置 -->
+        <div class="card" style="display: none;">
+          <div class="row">
+            <label>主题设置</label>
+            <select id="themeSelect" class="input-common">
+              <option value="system">跟随系统</option>
+              <option value="light">浅色模式</option>
+              <option value="dark">深色模式</option>
+            </select>
+            <div class="hint">选择扩展程序的主题模式，默认为跟随系统设置</div>
           </div>
         </div>
 
-        <div class="inner-pad">
-          <!-- 主题设置 -->
-          <div class="card" style="display: none;">
-            <div class="row">
-              <label>主题设置</label>
-              <select id="themeSelect" class="input-common">
-                <option value="system">跟随系统</option>
-                <option value="light">浅色模式</option>
-                <option value="dark">深色模式</option>
-              </select>
-              <div class="hint">选择扩展程序的主题模式，默认为跟随系统设置</div>
-            </div>
-          </div>
-
-          <!-- 供应商 -->
-          <div class="row">
-            <div class="card">
-              <label>供应商</label>
-              <div class="split">
-                <select id="vendorSelect"></select>
-                <div class="toolbar">
-                  <button id="btnAddVendor" class="btn-common">新增</button>
-                  <button id="btnRenameVendor" class="btn-common">改名</button>
-                  <button id="btnDelVendor" class="btn-common">删</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 供应商参数 -->
-          <div class="row grid-2">
-            <div class="card">
-              <label for="aiBase">URL</label>
-              <input id="aiBase" class="input-common" type="text" placeholder="https://api.xxx.com/v1"/>
-              <label for="aiKey" style="margin-top:10px">Key</label>
-              <input id="aiKey" class="input-common" type="text" placeholder="sk-****"/>
-            </div>
-            <div class="card">
-              <label for="aiVendorPrompt">提示词（供应商）</label>
-              <textarea id="aiVendorPrompt" class="input-common" rows="6" placeholder="留空=默认"></textarea>
-            </div>
-          </div>
-
-          <!-- 模型 -->
-          <div class="row card">
-            <label>模型</label>
+        <!-- 供应商 -->
+        <div class="row">
+          <div class="card">
+            <label>供应商</label>
             <div class="split">
-              <select id="modelSelect"></select>
+              <select id="vendorSelect"></select>
               <div class="toolbar">
-                <button id="btnAddModel" class="btn-common">新增</button>
-                <button id="btnRenameModel" class="btn-common">改名</button>
-                <button id="btnDelModel" class="btn-common">删</button>
+                <button id="btnAddVendor" class="btn-common">新增</button>
+                <button id="btnRenameVendor" class="btn-common">改名</button>
+                <button id="btnDelVendor" class="btn-common">删</button>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- 模型参数 -->
-          <div class="row grid-2">
-            <div class="card">
-              <label for="aiModel">模型ID</label>
-              <input id="aiModel" class="input-common" type="text" placeholder="deepseek-chat"/>
-              <div class="status" style="margin-top:6px">仅名称，不含路径</div>
-            </div>
-            <div class="card">
-              <label for="modelPrompt">提示词（模型）</label>
-              <textarea id="modelPrompt" class="input-common" rows="6" placeholder="留空=继承供应商"></textarea>
+        <!-- 供应商参数 -->
+        <div class="row grid-2">
+          <div class="card">
+            <label for="aiBase">URL</label>
+            <input id="aiBase" class="input-common" type="text" placeholder="https://api.xxx.com/v1"/>
+            <label for="aiKey" style="margin-top:10px">Key</label>
+            <input id="aiKey" class="input-common" type="text" placeholder="sk-****"/>
+          </div>
+          <div class="card">
+            <label for="aiVendorPrompt">提示词（供应商）</label>
+            <textarea id="aiVendorPrompt" class="input-common" rows="6" placeholder="留空=默认"></textarea>
+          </div>
+        </div>
+
+        <!-- 模型 -->
+        <div class="row card">
+          <label>模型</label>
+          <div class="split">
+            <select id="modelSelect"></select>
+            <div class="toolbar">
+              <button id="btnAddModel" class="btn-common">新增</button>
+              <button id="btnRenameModel" class="btn-common">改名</button>
+              <button id="btnDelModel" class="btn-common">删</button>
             </div>
           </div>
+        </div>
 
-          <!-- 导入导出 / 保存 -->
-          <div class="row right-actions">
-            <div style="display:flex;gap:8px;align-items:center">
-              <button id="btnExport" class="btn-common" title="导出配置与历史Post">导出</button>
-              <input id="importFile" type="file" accept="application/json" style="display:none"/>
-              <button id="btnImport" class="btn-common" title="导入配置与历史Post">导入</button>
-              <span id="importExportStatus" class="status"></span>
-            </div>
-            <div style="display:flex;gap:8px">
-              <button id="btnReset" class="btn-common">重置</button>
-              <button id="btnSave" class="btn-common btn-primary">保存</button>
-            </div>
+        <!-- 模型参数 -->
+        <div class="row grid-2">
+          <div class="card">
+            <label for="aiModel">模型ID</label>
+            <input id="aiModel" class="input-common" type="text" placeholder="deepseek-chat"/>
+            <div class="status" style="margin-top:6px">仅名称，不含路径</div>
           </div>
-          
-          <!-- 存储空间使用情况 -->
-          <div class="row" style="margin-top:16px;">
-            <div class="card">
-              <label style="margin-bottom:4px;">存储空间使用情况</label>
-              <div id="storageUsage" class="status">加载中...</div>
-            </div>
+          <div class="card">
+            <label for="modelPrompt">提示词（模型）</label>
+            <textarea id="modelPrompt" class="input-common" rows="6" placeholder="留空=继承供应商"></textarea>
+          </div>
+        </div>
+
+        <!-- 导入导出 / 保存 -->
+        <div class="row right-actions">
+          <div style="display:flex;gap:8px;align-items:center">
+            <button id="btnExport" class="btn-common" title="导出配置与历史Post">导出</button>
+            <input id="importFile" type="file" accept="application/json" style="display:none"/>
+            <button id="btnImport" class="btn-common" title="导入配置与历史Post">导入</button>
+            <span id="importExportStatus" class="status"></span>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button id="btnReset" class="btn-common">重置</button>
+            <button id="btnSave" class="btn-common btn-primary">保存</button>
+          </div>
+        </div>
+        
+        <!-- 存储空间使用情况 -->
+        <div class="row" style="margin-top:16px;">
+          <div class="card">
+            <label style="margin-bottom:4px;">存储空间使用情况</label>
+            <div id="storageUsage" class="status">加载中...</div>
           </div>
         </div>
       </div>
