@@ -1,267 +1,126 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Settings</title>
+  <title>设置</title>
   <script src="../../shared/theme.js" defer></script>
+  <link rel="stylesheet" href="../../shared/styles.css">
   <style>
-    :root{
-      --primary:#2563eb; --primary-weak:rgba(37,99,235,.12);
-      --text:#111827; --muted:#6b7280;
-      --bg:#ffffff; --bg-muted:#f8fafc; --page:#F3F4F6;
-      --border:#e5e7eb; --error:#EF4444; --success:#10B981;
-      --shadow-sm:0 1px 2px rgba(0,0,0,.05);
-      --shadow-md:0 4px 10px rgba(0,0,0,.10);
-      --radius:10px; --radius-sm:8px; --radius-lg:12px;
-      
-      /* 主题控制变量 */
-      --theme:light;
-      --theme-dark:0;
-      --theme-light:1;
+    /* 设置页面特定样式 */
+    .hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: var(--space-xs);
     }
-    
-    /* 深色模式支持 */
-    @media (prefers-color-scheme: dark) {
-      :root {
-        /* 深色模式下的颜色变量 */
-        --primary:#3b82f6; --primary-weak:rgba(59,130,246,.12);
-        --text:#f1f5f9; --muted:#94a3b8;
-        --bg:#1e293b; --bg-muted:#0f172a; --page:#0f172a;
-        --border:#334155; --error:#ef4444; --success:#10b981;
-        --shadow-sm:0 1px 2px rgba(0,0,0,.5);
-        --shadow-md:0 4px 10px rgba(0,0,0,.7);
-        
-        /* 主题控制变量 */
-        --theme:dark;
-        --theme-dark:1;
-        --theme-light:0;
-      }
-    }
-    
-    /* 为深色模式添加一些特定的样式调整 */
-    @media (prefers-color-scheme: dark) {
-      body {
-        background:var(--page);
-        color:var(--text);
-      }
-      
-      /* 复选框深色模式样式 */
-      input[type="checkbox"] {
-        accent-color: var(--primary);
-      }
-      
-      .card {
-        background:var(--bg);
-        color:var(--text);
-      }
-      
-      .input-common,
-      input[type="text"],
-      textarea,
-      select {
-        background:var(--bg);
-        color:var(--text);
-        border-color:var(--border);
-      }
-      
-      .input-common::placeholder,
-      input::placeholder,
-      textarea::placeholder {
-        color:var(--muted);
-      }
-      
-      .btn-common {
-        background:var(--bg);
-        color:var(--text);
-        border-color:var(--border);
-      }
-      
-      .rail {
-        background:var(--bg-muted);
-        border-color:var(--border);
-      }
-      
-      .railbtn {
-        background:transparent;
-        color:var(--text);
-      }
-      
-      .railbtn:hover {
-        background:var(--bg);
-      }
-      
-      .railbtn.active {
-        background:var(--primary-weak);
-        color:var(--primary);
-      }
-    }
-    *,*::before,*::after{ box-sizing:border-box; }
-    html,body{ height:100%; }
-    body{
-      margin:0; font:13px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
-      color:var(--text); background:transparent; display:flex; flex-direction:column;
-    }
-
-    .container{ display:flex; height:100vh; width:100%; }
-    .content-wrapper{ 
-      flex:1; display:flex; flex-direction:column; padding:12px; overflow:hidden;
-      background:var(--bg-muted);
-    }
-
-    .header{
-      flex:0 0 auto; padding:10px 12px; background:var(--bg-muted);
-      border-bottom:1px solid var(--border);
-    }
-    .header-top{ display:flex; justify-content:space-between; align-items:center; }
-    .header h2{ margin:0; font-size:16px; font-weight:600; color:var(--text); }
-
-    .inner-pad{ flex:1 1 auto; min-height:0; overflow:auto; padding:12px; }
-
-    .row{ margin-top:10px; }
-    label{ display:block; margin:6px 0 4px; color:var(--muted); font-weight:600; font-size:12px; }
-    .split{ display:flex; gap:8px; align-items:center; }
-    .split>:first-child{ flex:1; min-width:0; }
-    .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-
-    .input-common, input[type="text"], textarea, select{
-      width:100%; background:var(--bg); color:var(--text);
-      border:1px solid var(--border); border-radius:var(--radius);
-      padding:8px 10px; font-family:inherit; outline:none;
-      transition:border-color .15s ease, box-shadow .15s ease;
-      box-shadow:var(--shadow-sm);
-    }
-    .input-common::placeholder, input::placeholder, textarea::placeholder{ color:var(--muted); }
-    .input-common:focus, input:focus, textarea:focus, select:focus{
-      border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-weak);
-    }
-
-    .card{
-      border:1px solid var(--border); border-radius:12px;
-      padding:12px; background:var(--bg);
-    }
-
-    .btn-common{
-      padding:6px 10px; background:var(--bg); border:1px solid var(--border);
-      border-radius:6px; cursor:pointer; font-size:13px;
-      transition:background-color .15s ease, border-color .15s ease, transform .1s ease;
-      box-shadow:var(--shadow-sm);
-    }
-    .btn-common:hover{ background:var(--bg); border-color:var(--primary); }
-    .btn-common:active{ transform:translateY(1px); }
-    .btn-common[disabled]{ opacity:.55; cursor:not-allowed; }
-    .btn-primary{ background:var(--primary); color:#fff; border:none; }
-    .btn-primary:hover{ filter:brightness(.96); }
-
-    .toolbar{ display:flex; gap:6px; flex-wrap:wrap; }
-    .right-actions{ display:flex; gap:8px; justify-content:space-between; align-items:center; }
-    .status{ font-size:12px; color:var(--muted); }
-
-  /* 侧边栏 */
-  .rail{
-    display:flex; flex-direction:column; gap:3px; padding:6px 3px;
-    background:rgb(255, 255, 255); border-radius:10px; margin:12px 6px 12px 0;
-  }
-  .railbtn{
-    width:32px; height:32px; border:none; background:transparent; border-radius:6px;
-    font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;
-    transition:background-color .15s ease, transform .1s ease;
-  }
-  .railbtn:hover{ background:var(--bg); }
-  .railbtn:active{ transform:translateY(1px); }
-  .railbtn.active{ background:var(--primary-weak); color:var(--primary); }
-
-    *{ scrollbar-width:thin; scrollbar-color:#CBD5E1 transparent; }
-    *::-webkit-scrollbar{ width:8px; height:8px; }
-    *::-webkit-scrollbar-thumb{ background:#CBD5E1; border-radius:8px; }
-    *::-webkit-scrollbar-thumb:hover{ background:#94A3B8; }
-    *::-webkit-scrollbar-track{ background:transparent; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="content-wrapper">
-
-      <div class="inner-pad">
-        <!-- 主题设置 -->
-        <div class="card" style="display: none;">
-          <div class="row">
-            <label>主题设置</label>
-            <select id="themeSelect" class="input-common">
-              <option value="system">跟随系统</option>
-              <option value="light">浅色模式</option>
-              <option value="dark">深色模式</option>
-            </select>
-            <div class="hint">选择扩展程序的主题模式，默认为跟随系统设置</div>
-          </div>
-        </div>
-
-        <!-- 供应商 -->
-        <div class="row">
-          <div class="card">
-            <label>供应商</label>
-            <div class="split">
-              <select id="vendorSelect"></select>
-              <div class="toolbar">
-                <button id="btnAddVendor" class="btn-common">新增</button>
-                <button id="btnRenameVendor" class="btn-common">改名</button>
-                <button id="btnDelVendor" class="btn-common">删</button>
+      <!-- 头部 -->
+      <div class="header">
+        <div class="header-top">
+          <h2>设置</h2>
+          <div class="header-controls">
+            <!-- 下拉菜单按钮 -->
+            <div class="dropdown">
+              <button id="panelSwitchBtn" class="dropdown-btn">
+                ⚙️
+                <span class="dropdown-arrow">▼</span>
+              </button>
+              <div id="panelDropdown" class="dropdown-content">
+                <a href="#" data-target="pha-panel" class="dropdown-item">👁️ PHA</a>
+                <a href="#" data-target="rocket-panel" class="dropdown-item">🚀 Rocket</a>
+                <a href="#" data-target="notes-panel" class="dropdown-item">📝 笔记</a>
+                <a href="#" data-target="settings-panel" class="dropdown-item active">⚙️ 设置</a>
               </div>
             </div>
           </div>
         </div>
-
-        <!-- 供应商参数 -->
-        <div class="row grid-2">
-          <div class="card">
-            <label for="aiBase">URL</label>
-            <input id="aiBase" class="input-common" type="text" placeholder="https://api.xxx.com/v1"/>
-            <label for="aiKey" style="margin-top:10px">Key</label>
-            <input id="aiKey" class="input-common" type="text" placeholder="sk-****"/>
-          </div>
-          <div class="card">
-            <label for="aiVendorPrompt">提示词（供应商）</label>
-            <textarea id="aiVendorPrompt" class="input-common" rows="6" placeholder="留空=默认"></textarea>
-          </div>
-        </div>
-
-        <!-- 模型 -->
-        <div class="row card">
-          <label>模型</label>
-          <div class="split">
-            <select id="modelSelect"></select>
-            <div class="toolbar">
-              <button id="btnAddModel" class="btn-common">新增</button>
-              <button id="btnRenameModel" class="btn-common">改名</button>
-              <button id="btnDelModel" class="btn-common">删</button>
+      </div>
+      
+      <!-- 主内容 -->
+      <div class="inner-pad">
+          <!-- 主题设置 -->
+          <div class="card" style="display: none;">
+            <div class="row">
+              <label>主题设置</label>
+              <select id="themeSelect">
+                <option value="system">跟随系统</option>
+                <option value="light">浅色模式</option>
+                <option value="dark">深色模式</option>
+              </select>
+              <div class="hint">选择扩展程序的主题模式，默认为跟随系统设置</div>
             </div>
           </div>
-        </div>
 
-        <!-- 模型参数 -->
-        <div class="row grid-2">
-          <div class="card">
-            <label for="aiModel">模型ID</label>
-            <input id="aiModel" class="input-common" type="text" placeholder="deepseek-chat"/>
-            <div class="status" style="margin-top:6px">仅名称，不含路径</div>
+          <!-- 供应商 -->
+          <div class="row">
+            <div class="card">
+              <label>供应商</label>
+              <div class="split">
+                <select id="vendorSelect"></select>
+                <div class="toolbar">
+                  <button id="btnAddVendor" class="btn">新增</button>
+                  <button id="btnRenameVendor" class="btn">改名</button>
+                  <button id="btnDelVendor" class="btn">删</button>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="card">
-            <label for="modelPrompt">提示词（模型）</label>
-            <textarea id="modelPrompt" class="input-common" rows="6" placeholder="留空=继承供应商"></textarea>
+
+          <!-- 供应商参数 -->
+          <div class="row grid-2">
+            <div class="card">
+              <label for="aiBase">URL</label>
+              <input id="aiBase" type="text" placeholder="https://api.xxx.com/v1"/>
+              <label for="aiKey" style="margin-top:10px">Key</label>
+              <input id="aiKey" type="text" placeholder="sk-****"/>
+            </div>
+            <div class="card">
+              <label for="aiVendorPrompt">提示词（供应商）</label>
+              <textarea id="aiVendorPrompt" rows="6" placeholder="留空=默认"></textarea>
+            </div>
           </div>
-        </div>
+
+          <!-- 模型 -->
+          <div class="row card">
+            <label>模型</label>
+            <div class="split">
+              <select id="modelSelect"></select>
+              <div class="toolbar">
+                <button id="btnAddModel" class="btn">新增</button>
+                <button id="btnRenameModel" class="btn">改名</button>
+                <button id="btnDelModel" class="btn">删</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 模型参数 -->
+          <div class="row grid-2">
+            <div class="card">
+              <label for="aiModel">模型ID</label>
+              <input id="aiModel" type="text" placeholder="deepseek-chat"/>
+              <div class="status" style="margin-top:6px">仅名称，不含路径</div>
+            </div>
+            <div class="card">
+              <label for="modelPrompt">提示词（模型）</label>
+              <textarea id="modelPrompt" rows="6" placeholder="留空=继承供应商"></textarea>
+            </div>
+          </div>
 
         <!-- 导入导出 / 保存 -->
         <div class="row right-actions">
-          <div style="display:flex;gap:8px;align-items:center">
-            <button id="btnExport" class="btn-common" title="导出配置与历史Post">导出</button>
+          <div style="display:flex;gap:var(--space-md);align-items:center">
+            <button id="btnExport" class="btn" title="导出配置与历史Post">导出</button>
             <input id="importFile" type="file" accept="application/json" style="display:none"/>
-            <button id="btnImport" class="btn-common" title="导入配置与历史Post">导入</button>
+            <button id="btnImport" class="btn" title="导入配置与历史Post">导入</button>
             <span id="importExportStatus" class="status"></span>
           </div>
-          <div style="display:flex;gap:8px">
-            <button id="btnReset" class="btn-common">重置</button>
-            <button id="btnSave" class="btn-common btn-primary">保存</button>
+          <div style="display:flex;gap:var(--space-md)">
+            <button id="btnReset" class="btn">重置</button>
+            <button id="btnSave" class="btn btn-primary">保存</button>
           </div>
         </div>
         
@@ -274,17 +133,19 @@
         </div>
       </div>
     </div>
-
-    <nav class="rail" aria-label="面板切换">
-      <button class="railbtn" data-target="pha-panel" title="PHA" aria-label="PHA">👁️</button>
-      <button class="railbtn" data-target="rocket-panel" title="Rocket" aria-label="Rocket">🚀</button>
-      <button class="railbtn" data-target="notes-panel" title="笔记" aria-label="笔记">📝</button>
-      <button class="railbtn active" data-target="settings-panel" title="设置" aria-label="设置">⚙️</button>
-    </nav>
   </div>
 
-  <script defer src="../../rail.js"></script>
-  <script defer src="settings.js"></script>
+  <!-- 隐藏的侧边栏导航，保留以确保rail.js的功能正常 -->
+  <nav class="rail" aria-label="面板切换" style="display: none;">
+    <button class="railbtn" data-target="pha-panel" title="PHA" aria-label="PHA">👁️</button>
+    <button class="railbtn" data-target="rocket-panel" title="Rocket" aria-label="Rocket">🚀</button>
+    <button class="railbtn" data-target="notes-panel" title="笔记" aria-label="笔记">📝</button>
+    <button class="railbtn active" data-target="settings-panel" title="设置" aria-label="设置">⚙️</button>
+  </nav>
+
   <script type="module" src="../persist-init.js"></script>
+  <script defer src="./settings.js"></script>
+  <script defer src="../../rail.js"></script>
+  <script defer src="../../shared/dropdown-menu.js"></script>
 </body>
 </html>

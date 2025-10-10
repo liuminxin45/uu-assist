@@ -5,265 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Rocket 工具</title>
   <script src="../../shared/theme.js" defer></script>
+  <link rel="stylesheet" href="../../shared/styles.css">
   <style>
-    /* 设计系统：CSS变量重构 */
-    :root {
-      /* 主题颜色 */
-      --primary: #3b82f6;       /* 主色：蓝色 */
-      --primary-hover: #2563eb; /* 主色悬浮 */
-      --primary-active: #1d4ed8; /* 主色激活 */
-      --primary-light: #dbeafe; /* 主色浅色 */
-      --primary-weak: rgba(59, 130, 246, 0.12); /* 主色弱色 */
-      
-      /* 文本颜色 */
-      --text-primary: #111827;  /* 主要文本 */
-      --text-secondary: #374151; /* 次要文本 */
-      --text-muted: #6b7280;    /* -muted文本 */
-      --text-disabled: #9ca3af; /* 禁用文本 */
-      
-      /* 背景颜色 */
-      --bg-primary: #ffffff;    /* 主要背景 */
-      --bg-secondary: #f9fafb;  /* 次要背景 */
-      --bg-tertiary: #f3f4f6;   /* 第三级背景 */
-      --bg-muted: #f8fafc;      /* -muted背景 */
-      --bg-overlay: rgba(255, 255, 255, 0.8); /* 覆盖层背景 */
-      
-      /* 边框颜色 */
-      --border-light: #e5e7eb;  /* 浅色边框 */
-      --border-default: #d1d5db; /* 默认边框 */
-      --border-dark: #9ca3af;   /* 深色边框 */
-      
-      /* 状态颜色 */
-      --success: #10b981;       /* 成功色 */
-      --warning: #f59e0b;       /* 警告色 */
-      --error: #ef4444;         /* 错误色 */
-      
-      /* 阴影 */
-      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-      --shadow-focus: 0 0 0 3px var(--primary-weak);
-      
-      /* 圆角 */
-      --radius-sm: 6px;
-      --radius-md: 8px;
-      --radius-lg: 10px;
-      --radius-xl: 12px;
-      --radius-full: 9999px;
-      
-      /* 间距 */
-      --space-xs: 4px;
-      --space-sm: 8px;
-      --space-md: 12px;
-      --space-lg: 16px;
-      --space-xl: 20px;
-      --space-2xl: 24px;
-      
-      /* 过渡动画 */
-      --transition-fast: 100ms ease;
-      --transition-normal: 150ms ease;
-      --transition-slow: 200ms ease;
-      
-      /* 侧边栏按钮尺寸 */
-      --rail-btn: 48px;
-      
-      /* 主题控制变量 */
-      --theme: light;
-      --theme-dark: 0;
-      --theme-light: 1;
-    }
-    
-    /* 深色模式支持 */
-    @media (prefers-color-scheme: dark) {
-      :root {
-        /* 主题颜色 - 深色模式 */
-        --primary: #3b82f6;
-        --primary-hover: #60a5fa;
-        --primary-active: #93c5fd;
-        --primary-light: #1e3a8a;
-        --primary-weak: rgba(59, 130, 246, 0.15);
-        
-        /* 文本颜色 - 深色模式 */
-        --text-primary: #f9fafb;
-        --text-secondary: #f3f4f6;
-        --text-muted: #9ca3af;
-        --text-disabled: #6b7280;
-        
-        /* 背景颜色 - 深色模式 */
-        --bg-primary: #111827;
-        --bg-secondary: #1f2937;
-        --bg-tertiary: #374151;
-        --bg-muted: #0f172a;
-        --bg-overlay: rgba(15, 23, 42, 0.8);
-        
-        /* 边框颜色 - 深色模式 */
-        --border-light: #374151;
-        --border-default: #4b5563;
-        --border-dark: #6b7280;
-        
-        /* 阴影 - 深色模式 */
-        --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
-        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
-        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
-        
-        /* 主题控制变量 */
-        --theme: dark;
-        --theme-dark: 1;
-        --theme-light: 0;
-      }
-    }
-    
-    /* 基础样式重置 */
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    
-    html, body {
-      height: 100%;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-        sans-serif;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
-    
-    body {
-      margin: 0;
-      font-size: 14px;
-      line-height: 1.6;
-      color: var(--text-primary);
-      background: var(--bg-secondary);
-      display: flex;
-      flex-direction: column;
-    }
-    
-    /* 布局组件 */
-    .container {
-      display: flex;
-      height: 100vh;
-      width: 100%;
-      gap: var(--space-md);
-      padding: var(--space-md);
-      overflow: hidden;
-    }
-    
-    .content-wrapper {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      background: var(--bg-secondary);
-      overflow: hidden;
-    }
-    
-    .inner-pad {
-      flex: 1 1 auto;
-      min-height: 0;
-      overflow-y: auto;
-      padding: var(--space-lg);
-      scrollbar-width: thin;
-      scrollbar-color: var(--border-dark) transparent;
-    }
-    
-    /* 头部样式 */
-    .header {
-      flex: 0 0 auto;
-      padding: var(--space-md) var(--space-lg);
-      background: var(--bg-primary);
-      border-bottom: 1px solid var(--border-light);
-      box-shadow: var(--shadow-sm);
-      z-index: 10;
-    }
-    
-    .header-top {
-      display: flex;
-      justify-content: flex-start;
-      align-items: center;
-      gap: var(--space-md);
-    }
-
-    .header-controls {
-      display: flex;
-      align-items: center;
-      gap: var(--space-sm);
-      margin-left: auto;
-    }
-    
-    .header h2 {
-      margin: 0;
-      font-size: 18px;
-      font-weight: 600;
-      color: var(--text-primary);
-      flex: 1;
-    }
-    
-    /* 卡片组件 */
-    .card {
-      background: var(--bg-primary);
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius-lg);
-      padding: var(--space-lg);
-      margin-bottom: var(--space-lg);
-      box-shadow: var(--shadow-sm);
-      transition: transform var(--transition-normal), box-shadow var(--transition-normal);
-    }
-    
-    .card:hover {
-      transform: translateY(-1px);
-      box-shadow: var(--shadow-md);
-    }
-    
-    /* 表单组件 */
+    /* Rocket页面特定样式 */
     .form-group {
       margin-bottom: var(--space-lg);
     }
     
     .form-group:last-child {
       margin-bottom: 0;
-    }
-    
-    label {
-      display: block;
-      margin-bottom: var(--space-xs);
-      color: var(--text-secondary);
-      font-weight: 500;
-      font-size: 13px;
-      line-height: 1.4;
-    }
-    
-    input[type="text"],
-    input[type="number"],
-    textarea {
-      width: 100%;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius-md);
-      padding: var(--space-sm) var(--space-md);
-      font: inherit;
-      font-size: 14px;
-      outline: none;
-      box-shadow: var(--shadow-sm);
-      transition: border-color var(--transition-normal), box-shadow var(--transition-normal), background-color var(--transition-normal);
-    }
-    
-    input::placeholder,
-    textarea::placeholder {
-      color: var(--text-disabled);
-    }
-    
-    input:focus,
-    textarea:focus {
-      border-color: var(--primary);
-      box-shadow: var(--shadow-focus);
-    }
-    
-    input:disabled,
-    textarea:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      background-color: var(--bg-muted);
     }
     
     textarea#prompt {
@@ -284,53 +34,6 @@
       margin: 0;
     }
     
-    /* 开关组件 */
-    .switch {
-      display: flex;
-      align-items: center;
-      gap: var(--space-sm);
-      cursor: pointer;
-    }
-    
-    .switch input[type="checkbox"] {
-      appearance: none;
-      width: 40px;
-      height: 20px;
-      background-color: var(--border-dark);
-      border-radius: var(--radius-full);
-      position: relative;
-      cursor: pointer;
-      transition: background-color var(--transition-normal);
-    }
-    
-    .switch input[type="checkbox"]:checked {
-      background-color: var(--primary);
-    }
-    
-    .switch input[type="checkbox"]::before {
-      content: '';
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 16px;
-      height: 16px;
-      background-color: white;
-      border-radius: 50%;
-      transition: transform var(--transition-normal);
-    }
-    
-    .switch input[type="checkbox"]:checked::before {
-      transform: translateX(20px);
-    }
-    
-    .switch label {
-      margin: 0;
-      font-weight: 500;
-      color: var(--text-secondary);
-      cursor: pointer;
-    }
-    
-    /* 状态显示区域 */
     .status {
       white-space: pre-wrap;
       background: var(--bg-primary);
@@ -351,257 +54,14 @@
     #aiReply.status {
       min-height: 180px;
       max-height: 300px;
-    }
-    
-    /* 按钮组件 */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: var(--space-xs) var(--space-md);
-      background: var(--bg-primary);
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius-md);
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-secondary);
-      text-decoration: none;
-      transition: background-color var(--transition-normal),
-        border-color var(--transition-normal),
-        transform var(--transition-fast),
-        box-shadow var(--transition-normal);
-      box-shadow: var(--shadow-sm);
-      gap: var(--space-xs);
-      user-select: none;
-      white-space: nowrap;
-    }
-    
-    .btn:hover:not(:disabled) {
-      background: var(--bg-secondary);
-      border-color: var(--primary);
-      color: var(--primary);
-    }
-    
-    .btn:active:not(:disabled) {
-      transform: translateY(1px);
-      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
-    }
-    
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-    }
-    
-    .btn-primary {
-      background: var(--primary);
-      border-color: var(--primary);
-      color: white;
-    }
-    
-    .btn-primary:hover:not(:disabled) {
-      background: var(--primary-hover);
-      border-color: var(--primary-hover);
-      color: white;
-    }
-    
-    .btn-primary:active:not(:disabled) {
-      background: var(--primary-active);
-      border-color: var(--primary-active);
-    }
-    
-    .btn-success {
-      background: var(--success);
-      border-color: var(--success);
-      color: white;
-    }
-    
-    .btn-success:hover:not(:disabled) {
-      background: #059669;
-      border-color: #059669;
+      resize: vertical;
     }
     
     .actions {
       display: flex;
       gap: var(--space-sm);
       flex-wrap: wrap;
-      margin-top: var(--space-sm);
-    }
-    
-    /* 侧边栏 */
-    .rail {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-sm);
-      padding: var(--space-md);
-      background: var(--bg-primary);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-md);
-      height: fit-content;
-      align-self: flex-start;
-      min-width: var(--rail-btn);
-    }
-    
-    .railbtn {
-      width: var(--rail-btn);
-      height: var(--rail-btn);
-      border: 2px solid transparent;
-      background: var(--bg-tertiary);
-      border-radius: var(--radius-md);
-      font-size: 18px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all var(--transition-fast);
-      color: var(--text-secondary);
-      user-select: none;
-    }
-    
-    .railbtn:hover {
-      background: var(--bg-hover);
-      color: var(--text-primary);
-      transform: translateY(-1px);
-    }
-    
-    .railbtn:active {
-      transform: translateY(0);
-    }
-    
-    .railbtn.active {
-      background: var(--primary-weak);
-      color: var(--primary);
-      border-color: var(--primary);
-    }
-    
-    /* 滚动条样式 */
-    *::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-    
-    *::-webkit-scrollbar-track {
-      background: transparent;
-      border-radius: var(--radius-full);
-    }
-    
-    *::-webkit-scrollbar-thumb {
-      background: var(--border-dark);
-      border-radius: var(--radius-full);
-      transition: background-color var(--transition-normal);
-    }
-    
-    *::-webkit-scrollbar-thumb:hover {
-      background: var(--text-muted);
-    }
-    
-    /* 下拉菜单样式 */
-    .dropdown {
-      position: relative;
-      display: inline-block;
-    }
-    
-    .dropdown-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: var(--space-sm) var(--space-md);
-      background: var(--bg-primary);
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius-md);
-      cursor: pointer;
-      font-size: 14px;
-      color: var(--text-primary);
-      transition: all var(--transition-normal);
-      box-shadow: var(--shadow-sm);
-    }
-    
-    .dropdown-btn:hover {
-      background: var(--bg-secondary);
-      border-color: var(--primary);
-      box-shadow: var(--shadow-md);
-    }
-    
-    .dropdown-arrow {
-      font-size: 10px;
-      transition: transform var(--transition-fast);
-    }
-    
-    .dropdown.active .dropdown-arrow {
-      transform: rotate(180deg);
-    }
-    
-    .dropdown-content {
-      position: absolute;
-      top: 100%;
-      right: 0;
-      min-width: 120px;
-      background: var(--bg-primary);
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius-md);
-      box-shadow: var(--shadow-lg);
-      z-index: 1000;
-      display: none;
-      padding: var(--space-xs) 0;
-      margin-top: var(--space-xs);
-    }
-    
-    .dropdown.active .dropdown-content {
-      display: block;
-    }
-    
-    .dropdown-item {
-      display: flex;
-      align-items: center;
-      gap: var(--space-sm);
-      padding: var(--space-sm) var(--space-md);
-      color: var(--text-secondary);
-      text-decoration: none;
-      cursor: pointer;
-      transition: background-color var(--transition-fast);
-      font-size: 13px;
-    }
-    
-    .dropdown-item:hover {
-      background-color: var(--bg-secondary);
-      color: var(--primary);
-    }
-    
-    .dropdown-item.active {
-      background-color: var(--primary-weak);
-      color: var(--primary);
-      font-weight: 500;
-    }
-    
-    /* 响应式设计 */
-    @media (max-width: 640px) {
-      .container {
-        flex-direction: column;
-      }
-      
-      .rail {
-        flex-direction: row;
-        justify-content: center;
-        border-right: none;
-        border-top: 1px solid var(--border-light);
-        padding: var(--space-xs) var(--space-sm);
-      }
-      
-      .railbtn {
-        margin: var(--space-xs) 0;
-      }
-      
-      .inner-pad {
-        padding: var(--space-md);
-      }
-      
-      .dropdown-content {
-        min-width: 100px;
-        right: auto;
-        left: 50%;
-        transform: translateX(-50%);
-      }
+      margin-top: var(--space-md);
     }
     
     /* 加载动画 */
@@ -617,60 +77,10 @@
     .pulse {
       animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
-    
-    /* 工具提示 */
-    .tooltip {
-      position: relative;
-    }
-    
-    .tooltip:hover::after {
-      content: attr(data-tooltip);
-      position: absolute;
-      bottom: 100%;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      padding: var(--space-xs) var(--space-sm);
-      border-radius: var(--radius-sm);
-      font-size: 12px;
-      white-space: nowrap;
-      z-index: 100;
-      box-shadow: var(--shadow-lg);
-      border: 1px solid var(--border-light);
-      margin-bottom: var(--space-xs);
-    }
-    
-    /* 深色模式下的特定调整 */
-    @media (prefers-color-scheme: dark) {
-      .card {
-        background: var(--bg-secondary);
-        border-color: var(--border-default);
-      }
-      
-      .btn {
-        background: var(--bg-secondary);
-        border-color: var(--border-default);
-      }
-      
-      .btn:hover:not(:disabled) {
-        background: var(--bg-tertiary);
-      }
-      
-      .rail {
-        background: var(--bg-secondary);
-        border-color: var(--border-default);
-      }
-      
-      .railbtn:hover {
-        background: var(--bg-tertiary);
-      }
-    }
   </style>
 </head>
 <body>
   <div class="container">
-    <!-- 内容区域 -->
     <div class="content-wrapper">
       <!-- 头部 -->
       <div class="header">
@@ -679,15 +89,16 @@
           <div class="header-controls">
             <!-- 下拉菜单按钮 -->
             <div class="dropdown">
-            <button id="panelSwitchBtn" class="dropdown-btn">
-              🚀
-              <span class="dropdown-arrow">▼</span>
-            </button>
-            <div id="panelDropdown" class="dropdown-content">
-              <a href="#" data-target="pha-panel" class="dropdown-item">👁️ PHA</a>
-              <a href="#" data-target="rocket-panel" class="dropdown-item active">🚀 Rocket</a>
-              <a href="#" data-target="notes-panel" class="dropdown-item">📝 笔记</a>
-              <a href="#" data-target="settings-panel" class="dropdown-item">⚙️ 设置</a>
+              <button id="panelSwitchBtn" class="dropdown-btn">
+                🚀
+                <span class="dropdown-arrow">▼</span>
+              </button>
+              <div id="panelDropdown" class="dropdown-content">
+                <a href="#" data-target="pha-panel" class="dropdown-item">👁️ PHA</a>
+                <a href="#" data-target="rocket-panel" class="dropdown-item active">🚀 Rocket</a>
+                <a href="#" data-target="notes-panel" class="dropdown-item">📝 笔记</a>
+                <a href="#" data-target="settings-panel" class="dropdown-item">⚙️ 设置</a>
+              </div>
             </div>
           </div>
         </div>
@@ -696,53 +107,59 @@
       <!-- 主内容 -->
       <div class="inner-pad">
         <!-- 配置卡片 -->
-        <div class="card">
-          <div class="form-group">
-            <label for="msgLimit">消息数量限制</label>
-            <input id="msgLimit" type="number" min="1" max="200" step="1" value="20" />
-            <div class="hint">设置要处理的消息数量上限</div>
-          </div>
-          
-          <div class="form-group">
-            <div class="switch">
-              <input id="autoListen" type="checkbox" checked title="自动监听生成开关" />
-              <label for="autoListen">自动监听消息</label>
+        <div class="row">
+          <div class="card">
+            <div class="form-group">
+              <label for="msgLimit">消息数量限制</label>
+              <input id="msgLimit" type="number" min="1" max="200" step="1" value="20" />
+              <div class="hint">设置要处理的消息数量上限</div>
             </div>
-          </div>
-          
-          <div class="form-group">
-            <label for="prompt">自定义提示词</label>
-            <textarea id="prompt" placeholder="留空则使用预置提示词"></textarea>
+            
+            <div class="form-group">
+              <div class="switch">
+                <input id="autoListen" type="checkbox" checked title="自动监听生成开关" />
+                <label for="autoListen">自动监听消息</label>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="prompt">自定义提示词</label>
+              <textarea id="prompt" placeholder="留空则使用预置提示词"></textarea>
+            </div>
           </div>
         </div>
         
         <!-- 状态日志卡片 -->
-        <div class="card">
-          <label for="status">状态日志</label>
-          <div id="status" class="status"></div>
+        <div class="row">
+          <div class="card">
+            <label for="status">状态日志</label>
+            <div id="status" class="status"></div>
+          </div>
         </div>
         
         <!-- AI回复卡片 -->
-        <div class="card">
-          <label for="aiReply">AI 输出</label>
-          <textarea id="aiReply" class="status" readonly placeholder="AI 输出结果将显示在这里"></textarea>
-          <div class="actions">
-            <button id="btnCopyAIReply" class="btn btn-primary" title="复制AI回复">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-              </svg>
-              复制
-            </button>
-            <button id="btnClearAIReply" class="btn" title="清空AI回复">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 6h18"></path>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                <line x1="10" y1="11" x2="10" y2="17"></line>
-                <line x1="14" y1="11" x2="14" y2="17"></line>
-              </svg>
-              清空
-            </button>
+        <div class="row">
+          <div class="card">
+            <label for="aiReply">AI 输出</label>
+            <textarea id="aiReply" class="status" readonly placeholder="AI 输出结果将显示在这里"></textarea>
+            <div class="actions">
+              <button id="btnCopyAIReply" class="btn btn-primary" title="复制AI回复">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                复制
+              </button>
+              <button id="btnClearAIReply" class="btn" title="清空AI回复">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 6h18"></path>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+                清空
+              </button>
+            </div>
           </div>
         </div>
       </div>

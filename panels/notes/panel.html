@@ -5,117 +5,310 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Notes</title>
   <script src="../../shared/theme.js" defer></script>
+  <script src="../../shared/dropdown-menu.js" defer></script>
+  <link rel="stylesheet" href="../../shared/styles.css">
   <style>
-    :root{
-      --primary:#2563eb; --primary-weak:rgba(37,99,235,.12);
-      --text:#111827; --muted:#6b7280;
-      --bg:#fff; --bg-muted:#f8fafc; --page:#F3F4F6;
-      --border:#e5e7eb; --error:#EF4444;
-      --shadow-sm:0 1px 2px rgba(0,0,0,.05);
-      --shadow-md:0 4px 10px rgba(0,0,0,.10);
-      --radius:10px; --radius-sm:8px;
+    /* 设计系统：CSS变量重构 */
+    :root {
+      /* 主题颜色 */
+      --primary: #3b82f6;       /* 主色：蓝色 */
+      --primary-hover: #2563eb; /* 主色悬浮 */
+      --primary-active: #1d4ed8; /* 主色激活 */
+      --primary-light: #dbeafe; /* 主色浅色 */
+      --primary-weak: rgba(59, 130, 246, 0.12); /* 主色弱色 */
+      
+      /* 文本颜色 */
+      --text-primary: #111827;  /* 主要文本 */
+      --text-secondary: #374151; /* 次要文本 */
+      --text-muted: #6b7280;    /* -muted文本 */
+      --text-disabled: #9ca3af; /* 禁用文本 */
+      
+      /* 背景颜色 */
+      --bg-primary: #ffffff;    /* 主要背景 */
+      --bg-secondary: #f9fafb;  /* 次要背景 */
+      --bg-tertiary: #f3f4f6;   /* 第三级背景 */
+      --bg-muted: #f8fafc;      /* -muted背景 */
+      --bg-overlay: rgba(255, 255, 255, 0.8); /* 覆盖层背景 */
+      
+      /* 边框颜色 */
+      --border-light: #e5e7eb;  /* 浅色边框 */
+      --border-default: #d1d5db; /* 默认边框 */
+      --border-dark: #9ca3af;   /* 深色边框 */
+      
+      /* 状态颜色 */
+      --success: #10b981;       /* 成功色 */
+      --warning: #f59e0b;       /* 警告色 */
+      --error: #ef4444;         /* 错误色 */
+      
+      /* 阴影 */
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      --shadow-focus: 0 0 0 3px var(--primary-weak);
+      
+      /* 圆角 */
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-lg: 10px;
+      --radius-xl: 12px;
+      --radius-full: 9999px;
+      
+      /* 间距 */
+      --space-xs: 4px;
+      --space-sm: 8px;
+      --space-md: 12px;
+      --space-lg: 16px;
+      --space-xl: 20px;
+      --space-2xl: 24px;
+      
+      /* 过渡动画 */
+      --transition-fast: 100ms ease;
+      --transition-normal: 150ms ease;
+      --transition-slow: 200ms ease;
+      
+      /* 侧边栏按钮尺寸 */
+      --rail-btn: 48px;
       
       /* 主题控制变量 */
-      --theme:light;
-      --theme-dark:0;
-      --theme-light:1;
+      --theme: light;
+      --theme-dark: 0;
+      --theme-light: 1;
     }
     
     /* 深色模式支持 */
     @media (prefers-color-scheme: dark) {
       :root {
-        /* 深色模式下的颜色变量 */
-        --primary:#3b82f6; --primary-weak:rgba(59,130,246,.12);
-        --text:#f1f5f9; --muted:#94a3b8;
-        --bg:#1e293b; --bg-muted:#0f172a; --page:#0f172a;
-        --border:#334155; --error:#ef4444;
-        --shadow-sm:0 1px 2px rgba(0,0,0,.5);
-        --shadow-md:0 4px 10px rgba(0,0,0,.7);
+        /* 主题颜色 - 深色模式 */
+        --primary: #3b82f6;
+        --primary-hover: #60a5fa;
+        --primary-active: #93c5fd;
+        --primary-light: #1e3a8a;
+        --primary-weak: rgba(59, 130, 246, 0.15);
+        
+        /* 文本颜色 - 深色模式 */
+        --text-primary: #f9fafb;
+        --text-secondary: #f3f4f6;
+        --text-muted: #9ca3af;
+        --text-disabled: #6b7280;
+        
+        /* 背景颜色 - 深色模式 */
+        --bg-primary: #111827;
+        --bg-secondary: #1f2937;
+        --bg-tertiary: #374151;
+        --bg-muted: #0f172a;
+        --bg-overlay: rgba(15, 23, 42, 0.8);
+        
+        /* 边框颜色 - 深色模式 */
+        --border-light: #374151;
+        --border-default: #4b5563;
+        --border-dark: #6b7280;
+        
+        /* 阴影 - 深色模式 */
+        --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
         
         /* 主题控制变量 */
-        --theme:dark;
-        --theme-dark:1;
-        --theme-light:0;
+        --theme: dark;
+        --theme-dark: 1;
+        --theme-light: 0;
       }
-      
-      /* 复选框深色模式样式 */
-      input[type="checkbox"] {
-        accent-color: var(--primary);
-      }
-      
-      /* 深色模式rail样式 */
-      .rail {
-        background:var(--bg-muted);
-        border-color:var(--border);
-      }
-      
-      .railbtn {
-        background:transparent;
-        color:var(--text);
-      }
-      
-      .railbtn:hover {
-        background:var(--bg);
-      }
-      
-      .railbtn.active {
-        background:var(--primary-weak);
-        color:var(--primary);
-      }
-      
-      /* 深色模式回收站样式 */
-      .theme-dark .trash-button.active,
-      .theme-effective-dark .trash-button.active {
-        background:rgba(239, 68, 68, 0.1) !important;
-        border-color:var(--error) !important;
-        color:var(--error) !important;
-        box-shadow:0 0 0 2px rgba(239, 68, 68, 0.2) !important;
-      }
-      
-      .theme-dark .note-card.trash-note,
-      .theme-effective-dark .note-card.trash-note {
-        background:var(--bg) !important;
-        border-color:var(--error) !important;
-        opacity: 0.9;
-      }
-      
-      .theme-dark .note-time.trash-time,
-      .theme-effective-dark .note-time.trash-time {
-        color:var(--error) !important;
-        font-style: italic;
-      }
-      
-      /* 深色模式菜单和更多按钮样式 */
-      .theme-dark .more-btn:hover,
-      .theme-effective-dark .more-btn:hover {
-        background:var(--bg-muted) !important;
-        border-color:var(--primary) !important;
-      }
-      
-      .theme-dark .menu-option:hover,
-      .theme-effective-dark .menu-option:hover {
-        background:var(--bg-muted) !important;
-      }
+    }
+    
+    /* 基础样式重置 */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+        sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
     *,*::before,*::after{ box-sizing:border-box; }
     html,body{ height:100%; }
-    body{ 
-      margin:0; font:13px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
-      color:var(--text); background:transparent; display:flex; flex-direction:column;
+    body {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text-primary);
+      background: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+    }
+    
+    /* 容器 */
+    .container{
+      display:flex;
+      height:100vh;
+      width:100%;
+      gap:var(--space-md);
+      padding:var(--space-md);
+    }
+    
+    .content-wrapper{
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      background:var(--bg-primary);
+      border-radius:var(--radius-lg);
+      box-shadow:var(--shadow-md);
+      overflow:hidden;
     }
 
-    .container{ display:flex; height:100vh; width:100%; }
-    .content-wrapper{ 
-      flex:1; display:flex; flex-direction:column; padding:12px; overflow:hidden;
-      background:var(--bg-muted);
+    /* 头部样式 */
+    .header {
+      flex: 0 0 auto;
+      padding: var(--space-md) var(--space-lg);
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border-light);
+      box-shadow: var(--shadow-sm);
+      z-index: 10;
     }
-
-    .header{ flex:0 0 auto; padding:10px 12px; background:var(--bg-muted); border-bottom:1px solid var(--border); }
-    .header-top{ display:flex; justify-content:space-between; align-items:center; gap:12px; }
-    .header h2{ margin:0; font-size:16px; font-weight:600; color:var(--text); }
-    .pill{ display:inline-block; padding:2px 8px; border-radius:999px; background:#eef2ff; color:#3730a3; font-size:12px; border:1px solid #c7d2fe; }
-
-    .input-section{ flex:0 0 auto; padding:10px 12px; background:var(--bg-muted); border-bottom:1px solid var(--border); }
+    
+    .header-top {
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      gap: var(--space-md);
+    }
+    
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      margin-left: auto;
+    }
+    
+    .header h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      flex: 1;
+    }
+    
+    /* 下拉菜单样式 */
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    
+    /* 响应式设计 */
+    @media (max-width: 640px) {
+      .dropdown-content {
+        min-width: 100px;
+        right: auto;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+    }
+    
+    .dropdown-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: var(--space-sm) var(--space-md);
+      background: var(--bg-primary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text-primary);
+      transition: all var(--transition-normal);
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .dropdown-btn:hover {
+      background: var(--bg-secondary);
+      border-color: var(--primary);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .dropdown-arrow {
+      font-size: 10px;
+      transition: transform var(--transition-fast);
+    }
+    
+    .dropdown.active .dropdown-arrow {
+      transform: rotate(180deg);
+    }
+    
+    .dropdown-content {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      min-width: 120px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      z-index: 1000;
+      display: none;
+      padding: var(--space-xs) 0;
+      margin-top: var(--space-xs);
+    }
+    
+    .dropdown.active .dropdown-content {
+      display: block;
+    }
+    
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      color: var(--text-secondary);
+      text-decoration: none;
+      cursor: pointer;
+      transition: background-color var(--transition-fast);
+      font-size: 13px;
+    }
+    
+    .dropdown-item:hover {
+      background-color: var(--bg-secondary);
+      color: var(--primary);
+    }
+    
+    .dropdown-item.active {
+      background-color: var(--primary-weak);
+      color: var(--primary);
+      font-weight: 500;
+    }
+    
+    .pill{
+      display:inline-block;
+      padding:3px 10px;
+      border-radius:9999px;
+      background-color:var(--primary-weak);
+      color:var(--primary);
+      font-size:12px;
+      font-weight:500;
+      border:1px solid var(--primary-weak);
+    }
+    
+    /* 主内容区域 */
+    .inner-pad {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      padding: var(--space-lg);
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-dark) transparent;
+    }
+    /* Notes页面特定样式 */
+    .input-section{
+      flex: 0 0 auto;
+      padding: var(--space-md) var(--space-lg);
+      border-bottom: 1px solid var(--border-light);
+      background: var(--bg-primary);
+    }
+    
     .search-container{ width:100%; max-width:300px; margin-bottom:10px; }
     
     .search-header {
@@ -154,7 +347,32 @@
     
     /* 搜索输入框的显示/隐藏已通过JavaScript控制 */
     
-    .trash-button {      width: 32px;      height: 32px;      background: var(--bg);      border: 1px solid var(--border);      border-radius: var(--radius);      font-size: 16px;      cursor: pointer;      display: flex;      align-items: center;      justify-content: center;      transition: background-color 0.15s ease, border-color 0.15s ease;    }        .trash-button:hover {      background: var(--bg);      border-color: var(--primary);    }        /* 回收站按钮激活状态样式 */    .trash-button.active {      background: #fef2f2;      border-color: #fecaca;      color: #dc2626;      box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);    }
+    .trash-button {
+      width: 32px;
+      height: 32px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+    
+    .trash-button:hover {
+      background: var(--bg);
+      border-color: var(--primary);
+    }
+    
+    /* 回收站按钮激活状态样式 */
+    .trash-button.active {
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: #dc2626;
+      box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+    }
 
     /* AI按钮样式 */
     .ai-button {
@@ -826,7 +1044,29 @@
 <body>
   <div class="container">
       <div class="content-wrapper">
+        <!-- 头部区域 -->
+        <div class="header">
+          <div class="header-top">
+            <h2>笔记</h2>
+            <div class="header-controls">
+              <!-- 面板切换下拉菜单 -->
+              <div class="dropdown">
+                <button id="panelSwitchBtn" class="dropdown-btn">
+                  📝
+                  <span class="dropdown-arrow">▼</span>
+                </button>
+                <div id="panelDropdown" class="dropdown-content">
+                  <a href="#" data-target="pha-panel" class="dropdown-item">👁️ PHA</a>
+                  <a href="#" data-target="rocket-panel" class="dropdown-item">🚀 Rocket</a>
+                  <a href="#" data-target="notes-panel" class="dropdown-item active">📝 笔记</a>
+                  <a href="#" data-target="settings-panel" class="dropdown-item">⚙️ 设置</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
+        <!-- 输入区域 -->
         <div class="input-section">
           <div class="search-container">
             <div class="search-header">
@@ -890,13 +1130,6 @@
           无内容。输入或粘贴图片即可。
         </div>
       </div>
-
-      <nav class="rail" aria-label="面板切换">
-        <button class="railbtn" data-target="pha-panel" title="PHA" aria-label="PHA">👁️</button>
-        <button class="railbtn" data-target="rocket-panel" title="Rocket" aria-label="Rocket">🚀</button>
-        <button class="railbtn active" data-target="notes-panel" title="笔记" aria-label="笔记">📝</button>
-        <button class="railbtn" data-target="settings-panel" title="设置" aria-label="设置">⚙️</button>
-      </nav>
     </div>
 
   <div id="fullscreen-preview" class="fullscreen-preview" style="display:none;">
@@ -953,6 +1186,5 @@
 
   <script type="module" src="../persist-init.js"></script>
   <script src="panel.js"></script>
-  <script src="../../rail.js" type="module"></script>
 </body>
 </html>
