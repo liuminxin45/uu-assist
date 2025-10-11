@@ -42,7 +42,7 @@ async function insertGerritCommitByUrl(inputUrl) {
   if (!msg) { setStatus("未读到提交说明"); return; }
 
   const block =
-    `\n**[Gerrit]**\n${parsed.canonical}\n\n**提交说明**\n\`\`\`\n${msg}\n\`\`\`\n`;
+    `\n**[Gerrit]**\n${parsed.canonical}\n\n**提交说明**\n\`\`\` lines=10\n${msg}\n\`\`\`\n`;
 
 
   insertAtCursor(ta, block);
@@ -202,7 +202,7 @@ async function loadAICfg() {
     base: "https://api.deepseek.com/v1",
     model: "deepseek-chat",
     key: "",
-    prompt: '你是任务记录助手。请根据给定正文：1) 提炼一个≤40字的小标题，语言自然、不生硬；2) 写一段简洁回复，突出输入中的价值点、关键要点或潜在意义，避免格式化语气。以严格JSON返回：{"title":"...", "reply":"..."}'
+    prompt: '你是任务总结助手。请阅读输入正文，并完成以下要求：提炼一个≤40字的小标题，语言自然、贴近语境。1).在 "reply" 中总结输入内容的隐含价值、动机、趋势或潜在意义，可分条列出，支持markdown语法；避免口语化和模板化语气。 2).严格以 JSON 输出，格式如下：{"title":"...", "reply":"..."}'
   };
 }
 function substituteTemplate(tpl, vars) {
