@@ -19,6 +19,7 @@ const aiInputContainer = document.getElementById('ai-input-container');
 const aiTagInput = document.getElementById('ai-tag-input');
 const aiPromptInput = document.getElementById('ai-prompt-input');
 const aiSubmitBtn = document.getElementById('ai-submit-btn');
+const todoButton = document.getElementById('todo-button');
 
 // @引用功能相关元素
 const mentionMenu = document.getElementById('mention-menu');
@@ -46,6 +47,7 @@ let currentSearchTerm = '';
 let isDropdownMenuOpen = false; // 添加全局变量来跟踪子菜单状态
 let currentEditNoteId = null; // 跟踪当前正在编辑的笔记ID
 let isTrashView = false; // 是否处于回收站视图模式
+let isTodoView = false; // 是否处于TODO视图模式
 
 // 笔记数据
 let notes = [];
@@ -1363,7 +1365,7 @@ function updateButtonState() {
 function addNote() {
     if (!noteInput) return;
 
-    const content = noteInput.value.trim();
+    let content = noteInput.value.trim();
     const imagesData = noteInput.dataset.imagesData ? JSON.parse(noteInput.dataset.imagesData) : null;
     const imageData = noteInput.dataset.imageData;
 
@@ -1376,6 +1378,11 @@ function addNote() {
     // 检查是否有内容或图片
     if (!content && !imagesData && !imageData) {
         return; // 没有内容不添加
+    }
+
+    // 如果在TODO视图下，自动在内容前面添加#TODO标签
+    if (isTodoView && content && !content.startsWith('#TODO')) {
+        content = '#TODO ' + content;
     }
 
     const newNote = {
@@ -1657,7 +1664,12 @@ function createNoteCard(note) {
         contentDiv.appendChild(img);
     } else {
         // 如果是纯文字笔记
-        contentDiv.innerHTML = formatNoteContent(note.content);
+        if (isTodoView && note.content) {
+            // 在TODO视图中，特殊处理TODO项的显示
+            contentDiv.innerHTML = formatTodoContent(note.content);
+        } else {
+            contentDiv.innerHTML = formatNoteContent(note.content);
+        }
     }
 
     // 创建更多菜单容器
@@ -2062,6 +2074,58 @@ function formatNoteContent(content) {
     return escapedContent;
 }
 
+// 格式化TODO内容，特殊处理TODO项的显示
+function formatTodoContent(content) {
+    if (!content) return '';
+
+    // 转义HTML特殊字符，避免XSS
+    const escapeHtml = (text) => {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    };
+
+    // 先转义
+    let escapedContent = escapeHtml(content);
+
+    // 特殊处理TODO项
+    // 处理未完成的TODO项 [ ]
+    escapedContent = escapedContent.replace(/\[ \]/g, '<span class="todo-unchecked">☐</span>');
+    
+    // 处理已完成的TODO项 [x]
+    escapedContent = escapedContent.replace(/\[x\]/gi, '<span class="todo-checked">☑</span>');
+    
+    // 处理[Todo]标记
+    escapedContent = escapedContent.replace(/\[todo\]/gi, '<span class="todo-tag">TODO</span>');
+    
+    // 处理todo:和todo：标记
+    escapedContent = escapedContent.replace(/todo[:：]/gi, '<span class="todo-tag">TODO:</span>');
+
+    // 将换行符转换为<br>标签
+    escapedContent = escapedContent.replace(/\n/g, '<br>');
+
+    // 再替换#标签（#后面跟任意非空白字符，符合要求）
+    // 使用data-tag属性而不是内联onclick，避免CSP限制
+    escapedContent = escapedContent.replace(/#([^\s]+)/g, '<span class="note-tag" data-tag="$1">#$1</span>');
+
+    // 处理@引用标记，格式为@[笔记内容预览](笔记ID)
+    // 使用data-note-id属性存储笔记ID
+    escapedContent = escapedContent.replace(/@\[([^\]]+)\]\(([^)]+)\)/g,
+        '<span class="mention-tag" data-note-id="$2">@[$1]</span>');
+
+    // 如果有搜索词，添加搜索文本高亮（黄色背景）
+    if (currentSearchTerm && currentSearchTerm.trim()) {
+        // 转义搜索词中的特殊字符，避免影响正则表达式
+        const escapedSearchTerm = currentSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // 使用不区分大小写的正则表达式全局匹配
+        const regex = new RegExp(`(${escapedSearchTerm})`, 'gi');
+        // 将匹配的文本用黄色背景的span标签包裹
+        escapedContent = escapedContent.replace(regex, '<span style="background-color: #FFF76A;">$1</span>');
+    }
+
+    return escapedContent;
+}
+
 // 截断文本，添加省略号
 function truncateText(text, maxLength) {
     if (!text || text.length <= maxLength) {
@@ -2409,6 +2473,29 @@ function renderNotes() {
     // 确定当前要显示的笔记列表
     let currentNotes = isTrashView ? trashNotes : notes;
 
+    // 根据视图类型过滤笔记
+    if (isTodoView) {
+        // TODO视图：只显示包含#TODO标签的笔记
+        currentNotes = currentNotes.filter(note => {
+            // 检查笔记内容是否包含#TODO标签
+            if (note.content) {
+                const lowerContent = note.content.toLowerCase();
+                return lowerContent.includes('#todo');
+            }
+            return false;
+        });
+    } else if (!isTrashView) {
+        // 普通视图：不显示包含#TODO标签的笔记
+        currentNotes = currentNotes.filter(note => {
+            // 检查笔记内容是否包含#TODO标签
+            if (note.content) {
+                const lowerContent = note.content.toLowerCase();
+                return !lowerContent.includes('#todo');
+            }
+            return true;
+        });
+    }
+
     if (currentNotes.length === 0) {
         showEmptyState();
         return;
@@ -2419,7 +2506,7 @@ function renderNotes() {
 
     let filteredNotes = currentNotes;
 
-    // 如果有搜索词，则过滤笔记（适用于普通视图和回收站视图）
+    // 如果有搜索词，则过滤笔记（适用于普通视图、TODO视图和回收站视图）
     if (currentSearchTerm) {
         filteredNotes = filteredNotes.filter(note => {
             // 对于同时有图片和文字的笔记，搜索文字部分
@@ -2447,7 +2534,7 @@ function renderNotes() {
         // 回收站视图：按回收站时间戳倒序排列（最新删除的在前）
         filteredNotes.sort((a, b) => b.trashTimestamp - a.trashTimestamp);
     } else {
-        // 正常视图：按归档状态和时间排序
+        // 正常视图和TODO视图：按归档状态和时间排序
         filteredNotes.sort((a, b) => {
             // 首先按归档状态排序：非归档在前，归档在后
             if (a.isArchived !== b.isArchived) {
@@ -2527,6 +2614,11 @@ function initializePage() {
     // @引用按钮事件监听
     if (mentionBtn) {
         mentionBtn.addEventListener('click', handleMentionButtonClick);
+    }
+
+    // TODO按钮事件监听
+    if (todoButton) {
+        todoButton.addEventListener('click', handleTodoButtonClick);
     }
 
     installSelectionGuards();
@@ -2948,4 +3040,42 @@ function markdownToHtml(markdown) {
     `;
 
     return styledHtml;
+}
+
+// 处理TODO按钮点击事件
+function handleTodoButtonClick() {
+    // 切换TODO视图状态
+    isTodoView = !isTodoView;
+    
+    // 更新按钮状态
+    if (todoButton) {
+        todoButton.classList.toggle('active', isTodoView);
+    }
+    
+    // 控制TODO视图的显示
+    const addNoteWrapper = document.querySelector('.add-note-wrapper');
+    const aiInputContainer = document.getElementById('ai-input-container');
+    
+    if (isTodoView) {
+        // 显示TODO视图，同时显示笔记输入区域以便添加新的TODO项
+        if (addNoteWrapper) addNoteWrapper.style.display = 'block';
+        if (aiInputContainer) aiInputContainer.style.display = 'none';
+        
+        // 如果当前是回收站视图，切换回普通视图
+        if (isTrashView && trashButton) {
+            isTrashView = false;
+            trashButton.classList.remove('active');
+        }
+        
+        // 如果AI按钮是激活状态，取消激活
+        if (aiButton && aiButton.classList.contains('active')) {
+            aiButton.classList.remove('active');
+        }
+    } else {
+        // 隐藏TODO视图，保持笔记输入框显示
+        if (addNoteWrapper) addNoteWrapper.style.display = 'block';
+    }
+    
+    // 重新渲染笔记列表
+    renderNotes();
 }
