@@ -882,11 +882,71 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           sendResponse({ ok: false, error: e.message }); return;
         }
       }
+
+      // 面板请求切换
+      if (msg?.type === "switchPanel") {
+        // 更新全局面板状态
+        await saveGlobalPanelState(msg.name);
+        
+        // 为所有标签页应用相同的面板
+        const tabs = await chrome.tabs.query({});
+        for (const tab of tabs) {
+          if (tab.id) {
+            try {
+              await openPanelByName(msg.name, tab.id, { fromSidePanel: false });
+            } catch (error) {
+              console.warn(`为标签页 ${tab.id} 设置面板失败:`, error);
+            }
+          }
+        }
+        
+        sendResponse({ ok: true, appliedTo: tabs.length });
+        return;
+      }
+
+      // 数据库相关操作
+      if (msg?.type === "cache:addPost") {
+        try { const r = await dbAddPost(msg); sendResponse(r); } catch (e) { sendResponse({ ok: false, error: String(e) }); }
+        return;
+      }
+      if (msg?.type === "cache:queryByTask") {
+        try { const r = await dbQueryByTask(msg); sendResponse(r); } catch (e) { sendResponse({ ok: false, error: String(e) }); }
+        return;
+      }
+      if (msg?.type === "cache:queryByTime") {
+        try { const r = await dbQueryByTime(msg); sendResponse(r); } catch (e) { sendResponse({ ok: false, error: String(e) }); }
+        return;
+      }
+      if (msg?.type === "cache:deletePost") {
+        try { const r = await dbDeletePost(msg.id); sendResponse(r); } catch (e) { sendResponse({ ok: false, error: String(e) }); }
+        return;
+      }
+
+      // 导出 / 导入
+      if (msg?.type === "exportAllData") {
+        try {
+          const blob = await exportAllData();
+          sendResponse({ ok: true, blob });
+        } catch (e) {
+          sendResponse({ ok: false, error: String(e) });
+        }
+        return;
+      }
+      if (msg?.type === "importAllData") {
+        try {
+          const r = await importAllData(msg.payload);
+          sendResponse({ ok: true, ...r });
+        } catch (e) {
+          sendResponse({ ok: false, error: String(e) });
+        }
+        return;
+      }
+
     } catch (e) {
       sendResponse({ ok: false, error: e.message });
     }
   })();
-  return true;
+  return true; // 异步
 });
 
 // ==== side panel router ====
@@ -945,31 +1005,6 @@ async function loadGlobalPanelState() {
 (async function initGlobalPanelState() {
   globalActivePanel = await loadGlobalPanelState();
 })();
-
-// 面板请求切换
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  (async () => {
-    if (msg?.type === "switchPanel") {
-      // 更新全局面板状态
-      await saveGlobalPanelState(msg.name);
-      
-      // 为所有标签页应用相同的面板
-      const tabs = await chrome.tabs.query({});
-      for (const tab of tabs) {
-        if (tab.id) {
-          try {
-            await openPanelByName(msg.name, tab.id, { fromSidePanel: false });
-          } catch (error) {
-            console.warn(`为标签页 ${tab.id} 设置面板失败:`, error);
-          }
-        }
-      }
-      
-      sendResponse({ ok: true, appliedTo: tabs.length });
-    }
-  })();
-  return true;
-});
 
 
 function isFromSidePanel(sender) {
@@ -1081,29 +1116,6 @@ async function dbDeletePost(id) {
   });
 }
 
-// 消息路由
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  (async () => {
-    if (msg?.type === "cache:addPost") {
-      try { const r = await dbAddPost(msg); sendResponse(r); } catch (e) { sendResponse({ ok: false, error: String(e) }); }
-      return;
-    }
-    if (msg?.type === "cache:queryByTask") {
-      try { const r = await dbQueryByTask(msg); sendResponse(r); } catch (e) { sendResponse({ ok: false, error: String(e) }); }
-      return;
-    }
-    if (msg?.type === "cache:queryByTime") {
-      try { const r = await dbQueryByTime(msg); sendResponse(r); } catch (e) { sendResponse({ ok: false, error: String(e) }); }
-      return;
-    }
-    if (msg?.type === "cache:deletePost") {
-      try { const r = await dbDeletePost(msg.id); sendResponse(r); } catch (e) { sendResponse({ ok: false, error: String(e) }); }
-      return;
-    }
-  })();
-  return true; // 异步
-});
-
 /* ===== 导出 / 导入（posts + storage） ===== */
 async function dbDumpAllPosts() {
   const db = await idbOpen();
@@ -1170,40 +1182,3 @@ async function importAllData(payload) {
   const r = await dbBulkImportPosts(posts);
   return { ok: true, importedPosts: r.count };
 }
-
-
-
-
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  (async () => {
-    try {
-      // ……这里是你原有的一堆 if (msg.type === "...") 分支……
-
-      // === 新增：导出 / 导入 ===
-      if (msg?.type === "exportAllData") {
-        try {
-          const blob = await exportAllData();
-          sendResponse({ ok: true, blob });
-        } catch (e) {
-          sendResponse({ ok: false, error: String(e) });
-        }
-        return;
-      }
-      if (msg?.type === "importAllData") {
-        try {
-          const r = await importAllData(msg.payload);
-          sendResponse({ ok: true, ...r });
-        } catch (e) {
-          sendResponse({ ok: false, error: String(e) });
-        }
-        return;
-      }
-
-      return;
-
-    } catch (e) {
-      sendResponse({ ok: false, error: e.message });
-    }
-  })();
-  return true; // 异步
-});
