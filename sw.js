@@ -85,26 +85,54 @@ async function spGetStableTabId(sender) {
 }
 
 // 初始化与持续更新
-chrome.tabs.onActivated.addListener(async ({ tabId }) => { await spSetLastTab(tabId); });
+chrome.tabs.onActivated.addListener(async ({ tabId }) => { 
+  await spSetLastTab(tabId);
+  
+  // 恢复标签页的面板状态
+  if (tabId) {
+    try {
+      const panelName = await getCurrentTabPanelState(tabId);
+      await openPanelByName(panelName, tabId, { fromSidePanel: false });
+    } catch (error) {
+      console.warn(`恢复标签页 ${tabId} 的面板状态失败:`, error);
+    }
+  }
+});
 chrome.windows.onFocusChanged.addListener(async (winId) => {
   if (winId === chrome.windows.WINDOW_ID_NONE) return;
   const [tab] = await chrome.tabs.query({ active: true, windowId: winId });
-  if (tab?.id) await spSetLastTab(tab.id);
+  if (tab?.id) {
+    await spSetLastTab(tab.id);
+    
+    // 恢复标签页的面板状态
+    try {
+      const panelName = await getCurrentTabPanelState(tab.id);
+      await openPanelByName(panelName, tab.id, { fromSidePanel: false });
+    } catch (error) {
+      console.warn(`恢复标签页 ${tab.id} 的面板状态失败:`, error);
+    }
+  }
 });
 chrome.tabs.onRemoved.addListener(async (tabId) => {
   if (tabId === lastTabId) {
     lastTabId = null;
     try { await chrome.storage.session.remove('__uu_assist_last_tab_id'); } catch (_) { }
   }
+  
+  // 清理已关闭标签页的面板状态
+  await cleanupTabPanelState(tabId);
 });
 
-// 新标签页创建时自动应用全局面板状态
+// 新标签页创建时自动应用默认面板状态
 chrome.tabs.onCreated.addListener(async (tab) => {
   if (tab.id) {
     // 延迟一小段时间，确保标签页完全加载
     setTimeout(async () => {
       try {
-        await openPanelByName(globalActivePanel, tab.id, { fromSidePanel: false });
+        // 新标签页使用默认面板
+        await openPanelByName("pha-panel", tab.id, { fromSidePanel: false });
+        // 保存新标签页的面板状态
+        await saveTabPanelState(tab.id, "pha-panel");
       } catch (error) {
         console.warn(`为新标签页 ${tab.id} 设置面板失败:`, error);
       }
@@ -885,22 +913,24 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
       // 面板请求切换
       if (msg?.type === "switchPanel") {
-        // 更新全局面板状态
-        await saveGlobalPanelState(msg.name);
+        // 获取当前标签页ID
+        const tabId = await spGetStableTabId(sender);
         
-        // 为所有标签页应用相同的面板
-        const tabs = await chrome.tabs.query({});
-        for (const tab of tabs) {
-          if (tab.id) {
-            try {
-              await openPanelByName(msg.name, tab.id, { fromSidePanel: false });
-            } catch (error) {
-              console.warn(`为标签页 ${tab.id} 设置面板失败:`, error);
-            }
+        if (tabId) {
+          // 保存当前标签页的面板状态
+          await saveTabPanelState(tabId, msg.name);
+          
+          // 只对当前标签页应用面板切换
+          try {
+            await openPanelByName(msg.name, tabId, { fromSidePanel: false });
+            sendResponse({ ok: true, appliedTo: 1 });
+          } catch (error) {
+            console.warn(`为标签页 ${tabId} 设置面板失败:`, error);
+            sendResponse({ ok: false, error: error.message });
           }
+        } else {
+          sendResponse({ ok: false, error: "无法获取当前标签页ID" });
         }
-        
-        sendResponse({ ok: true, appliedTo: tabs.length });
         return;
       }
 
@@ -974,37 +1004,58 @@ async function openPanelByName(name, tabId, opts = {}) {
 }
 
 
-// 点击扩展图标 → 打开当前全局面板
+// 点击扩展图标 → 打开当前标签页的面板
 chrome.action.onClicked.addListener(async (tab) => {
   const tid = tab?.id || await spGetStableTabId();
-  if (tid) await spSetLastTab(tid);
-  await openPanelByName(globalActivePanel, tid, { fromSidePanel: false });
+  if (tid) {
+    await spSetLastTab(tid);
+    // 获取当前标签页的面板状态
+    const panelName = await getCurrentTabPanelState(tid);
+    await openPanelByName(panelName, tid, { fromSidePanel: false });
+  }
 });
 
 
-// 全局面板状态管理
-let globalActivePanel = "pha-panel"; // 默认面板
+// 标签页级别的面板状态管理
+let tabPanelStates = new Map(); // tabId -> panelName
 
-// 保存全局面板状态到存储
-async function saveGlobalPanelState(panelName) {
-  globalActivePanel = panelName;
+// 保存标签页面板状态到存储
+async function saveTabPanelState(tabId, panelName) {
+  if (!tabId) return;
+  tabPanelStates.set(tabId, panelName);
   try {
-    await chrome.storage.session.set({ __uu_assist_global_panel: panelName });
+    await chrome.storage.session.set({ 
+      [`__uu_assist_tab_panel_${tabId}`]: panelName 
+    });
   } catch (_) { }
 }
 
-// 从存储加载全局面板状态
-async function loadGlobalPanelState() {
+// 从存储加载标签页面板状态
+async function loadTabPanelState(tabId) {
+  if (!tabId) return "pha-panel";
   try {
-    const o = await chrome.storage.session.get('__uu_assist_global_panel');
-    return o?.__uu_assist_global_panel || "pha-panel";
+    const o = await chrome.storage.session.get(`__uu_assist_tab_panel_${tabId}`);
+    return o?.[`__uu_assist_tab_panel_${tabId}`] || "pha-panel";
   } catch (_) { return "pha-panel"; }
 }
 
-// 初始化时加载全局面板状态
-(async function initGlobalPanelState() {
-  globalActivePanel = await loadGlobalPanelState();
-})();
+// 获取当前标签页的面板状态
+async function getCurrentTabPanelState(tabId) {
+  if (tabPanelStates.has(tabId)) {
+    return tabPanelStates.get(tabId);
+  }
+  return await loadTabPanelState(tabId);
+}
+
+// 清理已关闭标签页的状态
+async function cleanupTabPanelState(tabId) {
+  if (tabId) {
+    tabPanelStates.delete(tabId);
+    try {
+      await chrome.storage.session.remove(`__uu_assist_tab_panel_${tabId}`);
+    } catch (_) { }
+  }
+}
 
 
 function isFromSidePanel(sender) {

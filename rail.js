@@ -11,4 +11,10 @@
       });
     }
   });
+  
+  // 定义全局的 switchToPanel 函数，供下拉菜单使用
+  window.switchToPanel = function(panelName) {
+    // 使用 Service Worker 的消息机制切换面板
+    chrome.runtime.sendMessage({ type: "switchPanel", name: panelName });
+  };
 })();
