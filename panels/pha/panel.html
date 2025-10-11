@@ -143,53 +143,20 @@
     
     /* 容器 */
     .container{
-      display:flex;
-      height:100vh;
-      width:100%;
-      gap:var(--space-md);
-      padding:var(--space-md);
+      display: flex;
+      height: 100vh;
+      width: 100%;
+      gap: var(--space-md);
+      padding: var(--space-md);
+      overflow: hidden;
     }
     
     .content-wrapper{
-      flex:1;
-      display:flex;
-      flex-direction:column;
-      background:var(--bg);
-      border-radius:var(--radius-lg);
-      box-shadow:var(--shadow-md);
-      overflow:hidden;
-    }
-    
-    /* 头部样式 */
-    .header {
-      flex: 0 0 auto;
-      padding: var(--space-md) var(--space-lg);
-      background: var(--bg-primary);
-      border-bottom: 1px solid var(--border-light);
-      box-shadow: var(--shadow-sm);
-      z-index: 10;
-    }
-    
-    .header-top {
-      display: flex;
-      justify-content: flex-start;
-      align-items: center;
-      gap: var(--space-md);
-    }
-
-    .header-controls {
-      display: flex;
-      align-items: center;
-      gap: var(--space-sm);
-      margin-left: auto;
-    }
-    
-    .header h2 {
-      margin: 0;
-      font-size: 18px;
-      font-weight: 600;
-      color: var(--text-primary);
       flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-secondary);
+      /* 移除 overflow: hidden 以允许内部滚动 */
     }
     
     /* 下拉菜单样式 */
@@ -206,99 +173,6 @@
         left: 50%;
         transform: translateX(-50%);
       }
-    }
-    
-    .dropdown-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: var(--space-sm) var(--space-md);
-      background: var(--bg-primary);
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius-md);
-      cursor: pointer;
-      font-size: 14px;
-      color: var(--text-primary);
-      transition: all var(--transition-normal);
-      box-shadow: var(--shadow-sm);
-    }
-    
-    .dropdown-btn:hover {
-      background: var(--bg-secondary);
-      border-color: var(--primary);
-      box-shadow: var(--shadow-md);
-    }
-    
-    .dropdown-arrow {
-      font-size: 10px;
-      transition: transform var(--transition-fast);
-    }
-    
-    .dropdown.active .dropdown-arrow {
-      transform: rotate(180deg);
-    }
-    
-    .dropdown-content {
-      position: absolute;
-      top: 100%;
-      right: 0;
-      min-width: 120px;
-      background: var(--bg-primary);
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius-md);
-      box-shadow: var(--shadow-lg);
-      z-index: 1000;
-      display: none;
-      padding: var(--space-xs) 0;
-      margin-top: var(--space-xs);
-    }
-    
-    .dropdown.active .dropdown-content {
-      display: block;
-    }
-    
-    .dropdown-item {
-      display: flex;
-      align-items: center;
-      gap: var(--space-sm);
-      padding: var(--space-sm) var(--space-md);
-      color: var(--text-secondary);
-      text-decoration: none;
-      cursor: pointer;
-      transition: background-color var(--transition-fast);
-      font-size: 13px;
-    }
-    
-    .dropdown-item:hover {
-      background-color: var(--bg-secondary);
-      color: var(--primary);
-    }
-    
-    .dropdown-item.active {
-      background-color: var(--primary-weak);
-      color: var(--primary);
-      font-weight: 500;
-    }
-    
-    .pill{
-      display:inline-block;
-      padding:3px 10px;
-      border-radius:9999px;
-      background-color:var(--primary-weak);
-      color:var(--primary);
-      font-size:12px;
-      font-weight:500;
-      border:1px solid var(--primary-weak);
-    }
-    
-    /* 主内容区域 */
-    .inner-pad {
-      flex: 1 1 auto;
-      min-height: 0;
-      overflow-y: auto;
-      padding: var(--space-lg);
-      scrollbar-width: thin;
-      scrollbar-color: var(--border-dark) transparent;
     }
     
     /* 行与分栏 */
@@ -335,18 +209,7 @@
       text-decoration:underline;
     }
     
-    .card{
-      background:var(--bg-primary);
-      border:1px solid var(--border-light);
-      border-radius:var(--radius-md);
-      box-shadow:var(--shadow-sm);
-      transition:box-shadow var(--transition-normal), border-color var(--transition-normal);
-    }
-    
-    .card:hover{
-      box-shadow:var(--shadow-md);
-      border-color:var(--primary);
-    }
+
     
     /* 状态区域 */
     .status{
@@ -875,7 +738,6 @@
             <!-- 下拉菜单按钮 -->
             <div class="dropdown">
             <button id="panelSwitchBtn" class="dropdown-btn">
-              👁️
               <span class="dropdown-arrow">▼</span>
             </button>
             <div id="panelDropdown" class="dropdown-content">
