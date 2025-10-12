@@ -138,6 +138,12 @@ async function restoreTaskBinding() {
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
     restoreTaskBinding().catch(e => console.warn("恢复任务绑定过程中的错误:", e));
+    
+    // 重新调整txtContent的高度
+    const txtContent = $("#txtContent");
+    if (txtContent) {
+      adjustTextareaHeight(txtContent);
+    }
   }
 });
 
@@ -357,7 +363,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   try { await loadConfig(); } catch (e) { setStatus("配置加载失败: " + (e?.message || e)); }
   
   // 初始化txtContent的自动高度调整
-  const txtContent = $("txtContent");
+  const txtContent = $("#txtContent");
   if (txtContent) {
     // 初始调整高度
     adjustTextareaHeight(txtContent);
@@ -367,6 +373,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       adjustTextareaHeight(txtContent);
     });
   }
+
+
 
   // 尝试从localStorage恢复下拉框选项
   try {
