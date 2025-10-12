@@ -178,16 +178,17 @@ async function loadConfig() {
   let url = "";
   let userName = "";
   if (got && typeof got === "object" && got.cfg && typeof got.cfg === "object") {
-    const v = got.cfg.listUrl;
-    if (typeof v === "string" && v.trim() !== "") url = v.trim();
+    // 忽略配置中的listUrl，始终使用固定URL
+    // const v = got.cfg.listUrl;
+    // if (typeof v === "string" && v.trim() !== "") url = v.trim();
 
     const un = got.cfg.userName;
     if (typeof un === "string") userName = un;
   }
 
-  // 安全写 DOM
+  // 安全写 DOM - 使用固定URL
   const elUrl = document.getElementById("listUrl");
-  if (elUrl && url) elUrl.value = url;
+  if (elUrl) elUrl.value = "http://pha.tp-link.com.cn/maniphest/query/ITSeQjt2W8tk/#R";
 
   const elUserName = document.getElementById("userName");
   if (elUserName) elUserName.value = userName;
@@ -328,9 +329,44 @@ function bindMarkdownBar() {
 }
 
 // ========================= main bindings =========================
+// 自动调整textarea高度的函数
+function adjustTextareaHeight(textarea) {
+  if (!textarea) return;
+  
+  // 重置高度以获取正确的滚动高度
+  textarea.style.height = 'auto';
+  
+  // 获取内容所需的实际高度
+  const scrollHeight = textarea.scrollHeight;
+  
+  // 设置最大高度
+  const maxHeight = 280; // 与CSS中的max-height保持一致
+  
+  // 根据内容调整高度，但不超过最大高度
+  if (scrollHeight > maxHeight) {
+    textarea.style.height = maxHeight + 'px';
+    textarea.style.overflowY = 'auto'; // 显示滚动条
+  } else {
+    textarea.style.height = scrollHeight + 'px';
+    textarea.style.overflowY = 'hidden'; // 隐藏滚动条
+  }
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   // 初始配置
   try { await loadConfig(); } catch (e) { setStatus("配置加载失败: " + (e?.message || e)); }
+  
+  // 初始化txtContent的自动高度调整
+  const txtContent = $("txtContent");
+  if (txtContent) {
+    // 初始调整高度
+    adjustTextareaHeight(txtContent);
+    
+    // 添加输入事件监听器，实现输入时自动调整高度
+    txtContent.addEventListener('input', () => {
+      adjustTextareaHeight(txtContent);
+    });
+  }
 
   // 尝试从localStorage恢复下拉框选项
   try {
@@ -368,15 +404,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   try {
     const btnLoad = $("btnLoad");
     const btnClear = $("btnClear");
-    const listUrlEl = $("listUrl");
     const sel = $("selItems");
     const link = $("taskLink");
+    
+    // 始终使用固定的URL
+    const FIXED_LIST_URL = "http://pha.tp-link.com.cn/maniphest/query/ITSeQjt2W8tk/#R";
 
     if (btnLoad) {
       btnLoad.onclick = async () => {
         try {
           setStatus("抓取中…");
-          const items = await fetchList(listUrlEl ? listUrlEl.value.trim() : "");
+          const items = await fetchList(FIXED_LIST_URL);
           if (!items || items.length === 0) {
             setStatus("未解析到任务，检查是否已登录或查询URL是否正确");
           } else {
@@ -547,10 +585,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       cfg[k] = v;
       await chrome.storage.local.set({ cfg });
     };
-    const listUrl = $("listUrl");
+    // const listUrl = $("listUrl"); // 不再需要，使用固定URL
     const tplArea = $("tplArea");
     const userName = $("userName");
-    listUrl?.addEventListener("input", () => saveCfg("listUrl", listUrl.value.trim()));
+    // listUrl?.addEventListener("input", () => saveCfg("listUrl", listUrl.value.trim())); // 不再需要
     tplArea?.addEventListener("input", () => saveCfg("tmpl", tplArea.value));
     userName?.addEventListener("input", () => saveCfg("userName", userName.value.trim()));
   } catch (e) { console.warn("autosave bind fail:", e); }
@@ -634,9 +672,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         // AI summarize + 模板渲染
         try {
           const cfgNow = await loadAICfg();
-          const aiEnabled = !!$("chkAI")?.checked || !!cfgNow?.enabled;
+          // 弹窗让用户选择是否使用AI辅助分析
+          const useAI = confirm('是否使用AI辅助分析？');
           const timestamp = formatDate("[YYYY-MM-DD HH:mm:ss]");
-          if (aiEnabled) {
+          if (useAI) {
             const ask = { type: "aiSummarize", content: bodyContent, prompt: cfgNow.prompt || "" };
             setStatus("AI 预处理中…");
             const ai = await chrome.runtime.sendMessage(ask);

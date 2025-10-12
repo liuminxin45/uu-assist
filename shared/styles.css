@@ -129,14 +129,12 @@ body {
   background: var(--bg-secondary);
   display: flex;
   flex-direction: column;
-}
-
 /* 布局组件 */
 .container {
   display: flex;
-  height: 100vh;
+  height: 100%;
   width: 100%;
-  gap: var(--space-md);
+  height: 100vh;
   padding: var(--space-md);
   overflow: hidden;
 }
@@ -146,9 +144,9 @@ body {
   display: flex;
   flex-direction: column;
   background: var(--bg-secondary);
-  /* 移除 overflow: hidden 以允许内部滚动 */
+  min-height: 0;
 }
-
+  /* 移除 overflow: hidden 以允许内部滚动 */
 .inner-pad {
   flex: 1 1 auto;
   min-height: 0;
@@ -585,6 +583,56 @@ textarea:disabled {
 .add-note-btn:hover {
   background: var(--primary-hover);
   border-color: var(--primary-hover);
+}
+
+/* 开关按钮样式 */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--border-default);
+  transition: var(--transition-normal);
+  border-radius: var(--radius-full);
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: var(--transition-normal);
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: var(--primary);
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 0 3px var(--primary-weak);
+}
+
+input:checked + .slider:before {
+  transform: translateX(24px);
 }
 
 /* Rocket 特定样式 */
