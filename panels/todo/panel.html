@@ -596,12 +596,18 @@
               <div style="margin-right: 10px;">
                 <input type="text" id="todo-search-input" class="todo-search-input" placeholder="搜索任务..." style="font-size: 14px; padding: 4px 8px; width: 150px;" />
               </div>
-              <!-- 面板切换下拉框 -->
+              <!-- 面板切换下拉框 - 使用共用下拉框样式 -->
               <div style="margin-left: auto;">
-                <select id="list-view-switcher" class="select-common" style="font-size: 14px; padding: 4px 8px;">
-                  <option value="todo" selected>待办</option>
-                  <option value="completed">已完成</option>
-                </select>
+                <div class="dropdown">
+                  <button id="list-view-switcher-btn" class="dropdown-btn">
+                    <span id="list-view-switcher-text">待办</span>
+                    <span class="dropdown-arrow">▼</span>
+                  </button>
+                  <div class="dropdown-content">
+                    <div class="dropdown-item active" data-value="todo">待办</div>
+                    <div class="dropdown-item" data-value="completed">已完成</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -24,6 +24,7 @@ let todos = [];
 let currentEditTodoId = null;
 let currentView = 'todo'; // 当前显示的视图 - 'todo' 或 'completed'
 let currentSearchTerm = ''; // 新增：当前搜索词
+let currentFilterType = ''; // 'tag', 'priority', or 'search'
 
 // 初始化
 function init() {
@@ -151,9 +152,33 @@ function renderTodos() {
     // 搜索过滤
     if (currentSearchTerm) {
       const searchLower = currentSearchTerm.toLowerCase();
-      const matchesSearch = 
-        todo.content.toLowerCase().includes(searchLower) ||
-        (todo.tags && todo.tags.some(tag => tag.toLowerCase().includes(searchLower)));
+      // 优先级文本映射
+      const priorityTextMap = {
+        'high': '高',
+        'medium': '中',
+        'low': '低'
+      };
+      
+      let matchesSearch = false;
+      
+      // 根据筛选类型决定匹配方式
+      switch(currentFilterType) {
+        case 'tag':
+          // 标签筛选 - 只匹配标签
+          matchesSearch = todo.tags && todo.tags.some(tag => tag.toLowerCase() === searchLower);
+          break;
+        case 'priority':
+          // 优先级筛选 - 只匹配优先级
+          matchesSearch = priorityTextMap[todo.priority] && priorityTextMap[todo.priority].includes(currentSearchTerm);
+          break;
+        case 'search':
+        default:
+          // 普通搜索 - 匹配内容、标签和优先级
+          matchesSearch = 
+            todo.content.toLowerCase().includes(searchLower) ||
+            (todo.tags && todo.tags.some(tag => tag.toLowerCase().includes(searchLower))) ||
+            (priorityTextMap[todo.priority] && priorityTextMap[todo.priority].toLowerCase().includes(searchLower));
+      }
       
       if (!matchesSearch) {
         return; // 不匹配搜索词，跳过该项
@@ -219,12 +244,28 @@ function createTodoElement(todo) {
   contentText.textContent = todo.content;
   
   // 优先级标签
-  if (todo.priority !== 'medium') {
-    const priorityTag = document.createElement('span');
-    priorityTag.className = 'todo-item-priority ' + todo.priority;
-    priorityTag.textContent = todo.priority === 'high' ? '高' : '低';
-    contentText.appendChild(priorityTag);
+  const priorityTag = document.createElement('span');
+  priorityTag.className = 'todo-item-priority ' + todo.priority;
+  
+  // 显示所有优先级（高、中、低）
+  if (todo.priority === 'high') {
+    priorityTag.textContent = '高';
+  } else if (todo.priority === 'medium') {
+    priorityTag.textContent = '中';
+  } else {
+    priorityTag.textContent = '低';
   }
+  
+  // 为优先级标签添加点击事件，实现点击优先级筛选功能
+  priorityTag.addEventListener('click', (e) => {
+    e.stopPropagation(); // 阻止事件冒泡，避免触发其他事件
+    todoSearchInput.value = priorityTag.textContent;
+    currentSearchTerm = priorityTag.textContent;
+    currentFilterType = 'priority'; // 设置为优先级筛选模式
+    renderTodos();
+  });
+  
+  contentText.appendChild(priorityTag);
   
   // 先添加任务名称到容器
   contentContainer.appendChild(contentText);
@@ -261,6 +302,7 @@ function createTodoElement(todo) {
         e.stopPropagation(); // 阻止事件冒泡，避免触发其他事件
         todoSearchInput.value = tag;
         currentSearchTerm = tag;
+        currentFilterType = 'tag'; // 设置为标签筛选模式
         renderTodos();
       });
       
@@ -429,44 +471,49 @@ function setupEventListeners() {
   // 搜索框输入事件
   todoSearchInput.addEventListener('input', () => {
     currentSearchTerm = todoSearchInput.value.trim();
+    currentFilterType = 'search'; // 设置为通用搜索模式
     renderTodos();
   });
   
-  // 列表视图切换器事件监听
-  const listViewSwitcher = document.getElementById('list-view-switcher');
-  if (listViewSwitcher) {
-    listViewSwitcher.addEventListener('change', () => {
-      currentView = listViewSwitcher.value;
-      renderTodos();
-    });
-  }
+  // 列表视图切换器 - 下拉框交互逻辑
+  const listViewSwitcherBtn = document.getElementById('list-view-switcher-btn');
+  const listViewSwitcherText = document.getElementById('list-view-switcher-text');
+  const listViewSwitcherDropdown = listViewSwitcherBtn?.nextElementSibling;
+  const listViewSwitcherItems = listViewSwitcherDropdown?.querySelectorAll('.dropdown-item');
   
-  // 面板切换下拉菜单
-  const panelSwitchBtn = document.getElementById('panelSwitchBtn');
-  const panelDropdown = document.getElementById('panelDropdown');
-  
-  if (panelSwitchBtn && panelDropdown) {
-    panelSwitchBtn.addEventListener('click', (e) => {
+  if (listViewSwitcherBtn && listViewSwitcherDropdown) {
+    // 切换下拉菜单显示状态
+    listViewSwitcherBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      panelDropdown.parentNode.classList.toggle('active');
+      listViewSwitcherDropdown.parentElement.classList.toggle('active');
     });
     
-    panelDropdown.querySelectorAll('.dropdown-item').forEach(item => {
-      item.addEventListener('click', (e) => {
-        e.preventDefault();
-        const targetPanel = item.dataset.target;
-        if (targetPanel && targetPanel !== PANEL_NAME) {
-          // 调用全局的switchToPanel函数切换面板
-          if (window.switchToPanel) {
-            window.switchToPanel(targetPanel);
-          } else {
-            console.warn('switchToPanel function not found');
-          }
+    // 点击下拉菜单项时切换视图
+    listViewSwitcherItems.forEach(item => {
+      item.addEventListener('click', () => {
+        const value = item.getAttribute('data-value');
+        if (value) {
+          currentView = value;
+          
+          // 更新按钮文本
+          listViewSwitcherText.textContent = item.textContent;
+          
+          // 更新选中状态
+          listViewSwitcherItems.forEach(i => i.classList.remove('active'));
+          item.classList.add('active');
+          
+          // 关闭下拉菜单
+          listViewSwitcherDropdown.parentElement.classList.remove('active');
+          
+          // 重新渲染待办事项
+          renderTodos();
         }
-        panelDropdown.parentNode.classList.remove('active');
       });
     });
   }
+  
+  // 面板切换下拉菜单的功能已由shared/dropdown-menu.js处理
+  // 这里不再重复实现该功能
   
   // 点击文档其他地方关闭下拉菜单
   document.addEventListener('click', () => {
