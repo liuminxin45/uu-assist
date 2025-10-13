@@ -590,14 +590,12 @@
               <button id="add-todo-btn" class="todo-add-btn btn-primary">添加</button>
             </div>
             
-            <!-- 过滤器和面板切换 -->
+            <!-- 搜索和面板切换 -->
             <div class="todo-filters" style="display: flex; align-items: center;">
-              <button class="todo-filter-btn active" data-filter="all">全部</button>
-              <button class="todo-filter-btn" data-filter="active">未完成</button>
-              <button class="todo-filter-btn" data-filter="completed">已完成</button>
-              <button class="todo-filter-btn" data-filter="today">今天</button>
-              <button class="todo-filter-btn" data-filter="overdue">已逾期</button>
-              
+              <!-- 搜索框 -->
+              <div style="margin-right: 10px;">
+                <input type="text" id="todo-search-input" class="todo-search-input" placeholder="搜索任务..." style="font-size: 14px; padding: 4px 8px; width: 150px;" />
+              </div>
               <!-- 面板切换下拉框 -->
               <div style="margin-left: auto;">
                 <select id="list-view-switcher" class="select-common" style="font-size: 14px; padding: 4px 8px;">
@@ -617,7 +615,6 @@
                 <span class="todo-list-count" id="todo-count">0</span>
               </div>
               <div class="todo-items" id="todo-items"></div>
-              <div class="todo-add-item" data-status="todo">添加待办事项</div>
             </div>
             
 
@@ -629,7 +626,6 @@
                 <span class="todo-list-count" id="completed-count">0</span>
               </div>
               <div class="todo-items" id="completed-items"></div>
-              <div class="todo-add-item" data-status="completed">添加已完成事项</div>
             </div>
           </div>
         </div>

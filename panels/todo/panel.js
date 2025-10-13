@@ -5,10 +5,9 @@ const PANEL_NAME = "todo-panel";
 const todoInput = document.getElementById('todo-input');
 const addTodoBtn = document.getElementById('add-todo-btn');
 const todoLists = document.getElementById('todo-lists');
-const todoFilterBtns = document.querySelectorAll('.todo-filter-btn');
-const addItemBtns = document.querySelectorAll('.todo-add-item');
 const todoCount = document.getElementById('todo-count');
 const completedCount = document.getElementById('completed-count');
+const todoSearchInput = document.getElementById('todo-search-input'); // 新增：搜索框
 
 // 模态框元素
 const todoModal = document.getElementById('todo-modal');
@@ -22,9 +21,9 @@ const modalClose = document.querySelector('.modal-close');
 
 // 状态变量
 let todos = [];
-let currentFilter = 'all';
 let currentEditTodoId = null;
-let currentView = 'todo'; // 新增：当前显示的视图 - 'todo' 或 'completed'
+let currentView = 'todo'; // 当前显示的视图 - 'todo' 或 'completed'
+let currentSearchTerm = ''; // 新增：当前搜索词
 
 // 初始化
 function init() {
@@ -133,31 +132,10 @@ function toggleTodoComplete(id) {
   }
 }
 
-// 根据过滤器筛选待办事项
-function filterTodos() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  return todos.filter(todo => {
-    switch (currentFilter) {
-      case 'active':
-        return todo.status !== 'completed';
-      case 'completed':
-        return todo.status === 'completed';
-      case 'today':
-        return todo.dueDate && new Date(todo.dueDate).toDateString() === today.toDateString();
-      case 'overdue':
-        return todo.dueDate && new Date(todo.dueDate) < today && todo.status !== 'completed';
-      default:
-        return true;
-    }
-  });
-}
+
 
 // 渲染待办事项
 function renderTodos() {
-  const filteredTodos = filterTodos();
-  
   // 清空所有列表
   document.getElementById('todo-items').innerHTML = '';
   document.getElementById('completed-items').innerHTML = '';
@@ -168,7 +146,20 @@ function renderTodos() {
     'completed': []
   };
   
-  filteredTodos.forEach(todo => {
+  // 过滤待办事项
+  todos.forEach(todo => {
+    // 搜索过滤
+    if (currentSearchTerm) {
+      const searchLower = currentSearchTerm.toLowerCase();
+      const matchesSearch = 
+        todo.content.toLowerCase().includes(searchLower) ||
+        (todo.tags && todo.tags.some(tag => tag.toLowerCase().includes(searchLower)));
+      
+      if (!matchesSearch) {
+        return; // 不匹配搜索词，跳过该项
+      }
+    }
+    
     // 如果是in-progress状态，我们将其视为todo状态
     if (todo.status === 'in-progress') {
       todosByStatus['todo']?.push(todo);
@@ -264,6 +255,15 @@ function createTodoElement(todo) {
       const tagElement = document.createElement('span');
       tagElement.className = 'todo-item-tag';
       tagElement.textContent = tag;
+      
+      // 为标签添加点击事件，实现点击标签筛选功能
+      tagElement.addEventListener('click', (e) => {
+        e.stopPropagation(); // 阻止事件冒泡，避免触发其他事件
+        todoSearchInput.value = tag;
+        currentSearchTerm = tag;
+        renderTodos();
+      });
+      
       tagsContainer.appendChild(tagElement);
     });
     
@@ -424,14 +424,12 @@ function setupEventListeners() {
     }
   });
   
-  // 过滤按钮点击事件
-  todoFilterBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      todoFilterBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentFilter = btn.dataset.filter;
-      renderTodos();
-    });
+
+  
+  // 搜索框输入事件
+  todoSearchInput.addEventListener('input', () => {
+    currentSearchTerm = todoSearchInput.value.trim();
+    renderTodos();
   });
   
   // 列表视图切换器事件监听
@@ -442,41 +440,6 @@ function setupEventListeners() {
       renderTodos();
     });
   }
-  
-  // 添加待办事项按钮点击事件
-  addItemBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const status = btn.dataset.status;
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'todo-input';
-      input.placeholder = `添加到${getListName(status)}...`;
-      
-      // 替换按钮为输入框
-      btn.parentNode.replaceChild(input, btn);
-      
-      // 聚焦输入框
-      input.focus();
-      
-      // 监听输入框事件
-      input.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && input.value.trim()) {
-          addTodo(input.value, status);
-          // 替换回添加按钮
-          input.parentNode.replaceChild(btn, input);
-        }
-      });
-      
-      // 失去焦点时替换回添加按钮
-      input.addEventListener('blur', () => {
-        setTimeout(() => {
-          if (input.parentNode) {
-            input.parentNode.replaceChild(btn, input);
-          }
-        }, 100);
-      });
-    });
-  });
   
   // 面板切换下拉菜单
   const panelSwitchBtn = document.getElementById('panelSwitchBtn');
@@ -715,15 +678,7 @@ function formatDate(dateString) {
   return `${year}-${month}-${day}`;
 }
 
-// 获取列表名称
-function getListName(status) {
-  const names = {
-    'todo': '待办',
-    'completed': '已完成'
-  };
-  
-  return names[status] || status;
-}
+
 
 // 当DOM加载完成时初始化
 document.addEventListener('DOMContentLoaded', init);
