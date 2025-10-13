@@ -8,7 +8,6 @@ const todoLists = document.getElementById('todo-lists');
 const todoFilterBtns = document.querySelectorAll('.todo-filter-btn');
 const addItemBtns = document.querySelectorAll('.todo-add-item');
 const todoCount = document.getElementById('todo-count');
-const inProgressCount = document.getElementById('in-progress-count');
 const completedCount = document.getElementById('completed-count');
 
 // 模态框元素
@@ -25,6 +24,7 @@ const modalClose = document.querySelector('.modal-close');
 let todos = [];
 let currentFilter = 'all';
 let currentEditTodoId = null;
+let currentView = 'todo'; // 新增：当前显示的视图 - 'todo' 或 'completed'
 
 // 初始化
 function init() {
@@ -76,7 +76,12 @@ function generateId() {
 }
 
 // 添加新的待办事项
-function addTodo(content, status = 'todo', dueDate = '', priority = 'medium', tags = []) {
+function addTodo(content, status = 'todo', dueDate = '', priority = 'medium', tags = [], subTasks = []) {
+  // 确保状态只能是todo或completed
+  if (status !== 'todo' && status !== 'completed') {
+    status = 'todo';
+  }
+  
   const todo = {
     id: generateId(),
     content: content.trim(),
@@ -84,7 +89,8 @@ function addTodo(content, status = 'todo', dueDate = '', priority = 'medium', ta
     createdDate: new Date().toISOString(),
     dueDate: dueDate,
     priority: priority,
-    tags: tags
+    tags: tags,
+    subTasks: subTasks // 子任务数组
   };
   
   todos.push(todo);
@@ -111,6 +117,10 @@ function deleteTodo(id) {
 
 // 更改待办事项状态
 function changeTodoStatus(id, newStatus) {
+  // 确保状态只能是todo或completed
+  if (newStatus !== 'todo' && newStatus !== 'completed') {
+    newStatus = 'todo';
+  }
   updateTodo(id, { status: newStatus });
 }
 
@@ -150,37 +160,46 @@ function renderTodos() {
   
   // 清空所有列表
   document.getElementById('todo-items').innerHTML = '';
-  document.getElementById('in-progress-items').innerHTML = '';
   document.getElementById('completed-items').innerHTML = '';
   
   // 按状态分类
   const todosByStatus = {
     'todo': [],
-    'in-progress': [],
     'completed': []
   };
   
   filteredTodos.forEach(todo => {
-    todosByStatus[todo.status]?.push(todo);
+    // 如果是in-progress状态，我们将其视为todo状态
+    if (todo.status === 'in-progress') {
+      todosByStatus['todo']?.push(todo);
+    } else {
+      todosByStatus[todo.status]?.push(todo);
+    }
   });
   
   // 更新计数
   todoCount.textContent = todosByStatus['todo'].length;
-  inProgressCount.textContent = todosByStatus['in-progress'].length;
   completedCount.textContent = todosByStatus['completed'].length;
   
-  // 渲染每个状态的待办事项
-  for (const status in todosByStatus) {
-    const container = document.getElementById(`${status}-items`);
-    todosByStatus[status].forEach(todo => {
-      const todoElement = createTodoElement(todo);
-      container.appendChild(todoElement);
-    });
-  }
+  // 更新列表标题
+  document.querySelector('.todo-list[data-status="todo"] .todo-list-title').textContent = '待办';
+  document.querySelector('.todo-list[data-status="completed"] .todo-list-title').textContent = '已完成';
   
-  // 检查是否所有列表都为空
-  const allEmpty = Object.values(todosByStatus).every(list => list.length === 0);
-  if (allEmpty) {
+  // 只渲染当前视图的待办事项
+  const container = document.getElementById(`${currentView}-items`);
+  todosByStatus[currentView].forEach(todo => {
+    const todoElement = createTodoElement(todo);
+    container.appendChild(todoElement);
+  });
+  
+  // 控制列表的显示和隐藏
+  document.querySelectorAll('.todo-list').forEach(list => {
+    list.style.display = list.dataset.status === currentView ? 'flex' : 'none';
+  });
+  
+  // 检查当前视图是否为空
+  const currentViewEmpty = todosByStatus[currentView].length === 0;
+  if (currentViewEmpty) {
     showEmptyState();
   } else {
     hideEmptyState();
@@ -216,6 +235,9 @@ function createTodoElement(todo) {
     contentText.appendChild(priorityTag);
   }
   
+  // 先添加任务名称到容器
+  contentContainer.appendChild(contentText);
+  
   // 截止日期
   if (todo.dueDate) {
     const dueDate = document.createElement('div');
@@ -248,7 +270,48 @@ function createTodoElement(todo) {
     contentContainer.appendChild(tagsContainer);
   }
   
-  contentContainer.appendChild(contentText);
+  // 子任务
+  if (todo.subTasks && todo.subTasks.length > 0) {
+    const subTasksContainer = document.createElement('div');
+    subTasksContainer.className = 'todo-sub-tasks';
+    
+    // 子任务标题
+    const subTasksTitle = document.createElement('div');
+    subTasksTitle.className = 'sub-tasks-title';
+    
+    // 计算完成的子任务数量
+    const completedSubTasks = todo.subTasks.filter(st => st.completed).length;
+    subTasksTitle.textContent = `子任务 (${completedSubTasks}/${todo.subTasks.length})`;
+    
+    subTasksContainer.appendChild(subTasksTitle);
+    
+    // 子任务列表
+    const subTasksList = document.createElement('div');
+    subTasksList.className = 'sub-tasks-list';
+    
+    todo.subTasks.forEach(subTask => {
+      const subTaskElement = document.createElement('div');
+      subTaskElement.className = 'sub-task-item' + (subTask.completed ? ' completed' : '');
+      
+      const subTaskCheckbox = document.createElement('input');
+      subTaskCheckbox.type = 'checkbox';
+      subTaskCheckbox.className = 'sub-task-checkbox';
+      subTaskCheckbox.checked = subTask.completed;
+      subTaskCheckbox.addEventListener('change', () => {
+        updateSubTaskCompletion(todo.id, subTask.id, subTaskCheckbox.checked);
+      });
+      
+      const subTaskContent = document.createElement('span');
+      subTaskContent.textContent = subTask.content;
+      
+      subTaskElement.appendChild(subTaskCheckbox);
+      subTaskElement.appendChild(subTaskContent);
+      subTasksList.appendChild(subTaskElement);
+    });
+    
+    subTasksContainer.appendChild(subTasksList);
+    contentContainer.appendChild(subTasksContainer);
+  }
   
   // 删除按钮
   const deleteBtn = document.createElement('button');
@@ -261,7 +324,8 @@ function createTodoElement(todo) {
   
   // 添加点击事件以编辑待办事项
   todoItem.addEventListener('click', (e) => {
-    if (!e.target.closest('.todo-checkbox') && !e.target.closest('.todo-delete-btn')) {
+    if (!e.target.closest('.todo-checkbox') && !e.target.closest('.todo-delete-btn') && 
+        !e.target.closest('.sub-task-checkbox')) {
       openEditModal(todo.id);
     }
   });
@@ -273,6 +337,19 @@ function createTodoElement(todo) {
   return todoItem;
 }
 
+// 更新子任务完成状态
+function updateSubTaskCompletion(todoId, subTaskId, completed) {
+  const todo = todos.find(t => t.id === todoId);
+  if (todo && todo.subTasks) {
+    const subTask = todo.subTasks.find(st => st.id === subTaskId);
+    if (subTask) {
+      subTask.completed = completed;
+      saveTodos();
+      renderTodos();
+    }
+  }
+}
+
 // 显示空状态
 function showEmptyState() {
   // 检查是否已经存在空状态元素
@@ -280,12 +357,35 @@ function showEmptyState() {
   if (!emptyState) {
     emptyState = document.createElement('div');
     emptyState.className = 'empty-state';
+    
+    // 根据当前视图设置不同的空状态消息和图标
+    const emptyStateIcon = currentView === 'todo' ? '📝' : '✅';
+    const emptyStateMessage = currentView === 'todo' 
+      ? '暂无待办事项' 
+      : '暂无已完成事项';
+    const emptyStateSubMessage = currentView === 'todo' 
+      ? '点击上方输入框添加新的待办事项' 
+      : '完成的待办事项会显示在这里';
+    
     emptyState.innerHTML = `
-      <div class="empty-state-icon">📝</div>
-      <div>暂无待办事项</div>
-      <div style="font-size: 12px; color: var(--text-muted); margin-top: var(--space-sm);">点击上方输入框添加新的待办事项</div>
+      <div class="empty-state-icon">${emptyStateIcon}</div>
+      <div>${emptyStateMessage}</div>
+      <div style="font-size: 12px; color: var(--text-muted); margin-top: var(--space-sm);">${emptyStateSubMessage}</div>
     `;
-  }
+  } else {
+    // 更新现有空状态的消息和图标
+    const emptyStateIcon = currentView === 'todo' ? '📝' : '✅';
+    const emptyStateMessage = currentView === 'todo' 
+      ? '暂无待办事项' 
+      : '暂无已完成事项';
+    const emptyStateSubMessage = currentView === 'todo' 
+      ? '点击上方输入框添加新的待办事项' 
+      : '完成的待办事项会显示在这里';
+    
+    emptyState.querySelector('.empty-state-icon').textContent = emptyStateIcon;
+    emptyState.querySelector('div:nth-child(2)').textContent = emptyStateMessage;
+    emptyState.querySelector('div:nth-child(3)').textContent = emptyStateSubMessage;
+    }
   
   // 确保只添加一个空状态元素
   const existingEmptyState = todoLists.querySelector('.empty-state');
@@ -306,9 +406,9 @@ function hideEmptyState() {
     todoLists.removeChild(emptyState);
   }
   
-  // 显示所有列表
+  // 只显示当前视图的列表
   document.querySelectorAll('.todo-list').forEach(list => {
-    list.style.display = 'flex';
+    list.style.display = list.dataset.status === currentView ? 'flex' : 'none';
   });
 }
 
@@ -333,6 +433,15 @@ function setupEventListeners() {
       renderTodos();
     });
   });
+  
+  // 列表视图切换器事件监听
+  const listViewSwitcher = document.getElementById('list-view-switcher');
+  if (listViewSwitcher) {
+    listViewSwitcher.addEventListener('change', () => {
+      currentView = listViewSwitcher.value;
+      renderTodos();
+    });
+  }
   
   // 添加待办事项按钮点击事件
   addItemBtns.forEach(btn => {
@@ -434,7 +543,7 @@ function setupModal() {
   
   // ESC键关闭模态框
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && todoModal.style.display === 'block') {
+    if (e.key === 'Escape' && todoModal.classList.contains('active')) {
       closeEditModal();
     }
   });
@@ -450,24 +559,106 @@ function openEditModal(id) {
     editTodoPriority.value = todo.priority || 'medium';
     editTodoTags.value = todo.tags ? todo.tags.join(', ') : '';
     
-    // 显示模态框
-    todoModal.style.display = 'block';
+    // 渲染子任务
+    const subTasksContainer = document.getElementById('sub-tasks-container');
+    if (subTasksContainer) {
+      subTasksContainer.innerHTML = '';
+      
+      // 添加子任务输入框
+      if (todo.subTasks && todo.subTasks.length > 0) {
+        todo.subTasks.forEach(subTask => {
+          addSubTaskInput(subTasksContainer, subTask);
+        });
+      }
+      
+      // 添加"添加子任务"按钮
+      const addSubTaskBtn = document.createElement('button');
+      addSubTaskBtn.className = 'btn btn-small';
+      addSubTaskBtn.textContent = '+ 添加子任务';
+      addSubTaskBtn.addEventListener('click', () => {
+        addSubTaskInput(subTasksContainer);
+      });
+      
+      subTasksContainer.appendChild(addSubTaskBtn);
+    }
+    
+    // 显示模态框并添加动画效果
+    todoModal.classList.add('active');
+    document.body.style.overflow = 'hidden'; // 防止背景滚动
     
     // 聚焦内容输入框
-    editTodoContent.focus();
+    setTimeout(() => {
+      editTodoContent.focus();
+    }, 100);
   }
+}
+
+// 添加子任务输入框
+function addSubTaskInput(container, subTask = null) {
+  // 首先查找"添加子任务"按钮
+  let addSubTaskBtn = null;
+  for (let i = 0; i < container.children.length; i++) {
+    const child = container.children[i];
+    if (child.classList.contains('btn-small') && child.textContent.includes('添加子任务')) {
+      addSubTaskBtn = child;
+      // 移除按钮，稍后再添加到末尾
+      container.removeChild(child);
+      break;
+    }
+  }
+  
+  // 创建新的子任务行
+  const subTaskRow = document.createElement('div');
+  subTaskRow.className = 'sub-task-row';
+  
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.className = 'sub-task-checkbox';
+  checkbox.checked = subTask ? subTask.completed : false;
+  
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'sub-task-input';
+  input.placeholder = '子任务内容...';
+  input.value = subTask ? subTask.content : '';
+  if (subTask && subTask.id) {
+    input.dataset.id = subTask.id;
+  }
+  
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'sub-task-remove-btn';
+  removeBtn.textContent = '×';
+  removeBtn.addEventListener('click', () => {
+    container.removeChild(subTaskRow);
+  });
+  
+  subTaskRow.appendChild(checkbox);
+  subTaskRow.appendChild(input);
+  subTaskRow.appendChild(removeBtn);
+  container.appendChild(subTaskRow);
+  
+  // 如果找到了添加子任务按钮，则将其重新添加到容器末尾
+  if (addSubTaskBtn) {
+    container.appendChild(addSubTaskBtn);
+  }
+  
+  // 聚焦新创建的输入框
+  input.focus();
 }
 
 // 关闭编辑模态框
 function closeEditModal() {
-  todoModal.style.display = 'none';
-  currentEditTodoId = null;
+  todoModal.classList.remove('active');
+  document.body.style.overflow = ''; // 恢复背景滚动
   
-  // 清空输入框
-  editTodoContent.value = '';
-  editTodoDate.value = '';
-  editTodoPriority.value = 'medium';
-  editTodoTags.value = '';
+  // 延迟清空输入框，等待动画完成
+  setTimeout(() => {
+    currentEditTodoId = null;
+    editTodoContent.value = '';
+    editTodoDate.value = '';
+    editTodoPriority.value = 'medium';
+    editTodoTags.value = '';
+  }, 300);
 }
 
 // 保存编辑后的待办事项
@@ -480,12 +671,31 @@ function saveEditedTodo() {
       ? editTodoTags.value.split(',').map(tag => tag.trim()).filter(tag => tag) 
       : [];
     
+    // 获取子任务
+    const subTasksContainer = document.getElementById('sub-tasks-container');
+    const subTasks = [];
+    
+    if (subTasksContainer) {
+      const subTaskInputs = subTasksContainer.querySelectorAll('.sub-task-input');
+      subTaskInputs.forEach(input => {
+        const content = input.value.trim();
+        if (content) {
+          subTasks.push({
+            id: input.dataset.id || generateId(),
+            content: content,
+            completed: input.previousElementSibling.checked
+          });
+        }
+      });
+    }
+    
     if (content) {
       updateTodo(currentEditTodoId, {
         content: content,
         dueDate: dueDate,
         priority: priority,
-        tags: tags
+        tags: tags,
+        subTasks: subTasks
       });
     }
   }
@@ -509,7 +719,6 @@ function formatDate(dateString) {
 function getListName(status) {
   const names = {
     'todo': '待办',
-    'in-progress': '进行中',
     'completed': '已完成'
   };
   

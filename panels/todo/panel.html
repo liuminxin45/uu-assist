@@ -238,6 +238,321 @@
       font-size: 48px;
       margin-bottom: var(--space-md);
     }
+    
+    /* 优化模态框样式 */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+    
+    .modal.active {
+      opacity: 1;
+      visibility: visible;
+    }
+    
+    .modal-content {
+      background: var(--bg-primary);
+      border-radius: var(--radius-lg);
+      width: 90%;
+      max-width: 500px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-xl);
+      transform: translateY(-20px);
+      transition: transform 0.3s ease;
+      overflow: hidden;
+    }
+    
+    .modal.active .modal-content {
+      transform: translateY(0);
+    }
+    
+    .modal-header {
+      padding: var(--space-lg);
+      border-bottom: 1px solid var(--border-light);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-secondary);
+    }
+    
+    .modal-header h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: var(--text-muted);
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-full);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition-normal);
+    }
+    
+    .modal-close:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+    
+    .modal-body {
+      padding: var(--space-lg);
+      overflow-y: auto;
+      flex: 1;
+    }
+    
+    .form-group {
+      margin-bottom: var(--space-lg);
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: var(--space-xs);
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+    
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: var(--space-md);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-size: 14px;
+      transition: border-color var(--transition-normal);
+      box-sizing: border-box;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px var(--primary-light);
+    }
+    
+    .modal-footer {
+      padding: var(--space-md) var(--space-lg);
+      border-top: 1px solid var(--border-light);
+      display: flex;
+      justify-content: flex-end;
+      gap: var(--space-md);
+      background: var(--bg-secondary);
+    }
+    
+    .btn {
+      padding: var(--space-md) var(--space-lg);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      cursor: pointer;
+      font-size: 14px;
+      transition: all var(--transition-normal);
+    }
+    
+    .btn:hover {
+      background: var(--bg-secondary);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    
+    .btn-primary {
+      padding: var(--space-md) var(--space-lg);
+      border: 1px solid var(--primary);
+      border-radius: var(--radius-md);
+      background: var(--primary);
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all var(--transition-normal);
+    }
+    
+    .btn-primary:hover {
+      background: var(--primary-dark);
+      border-color: var(--primary-dark);
+    }
+    
+    /* 子任务样式 - 彻底修复布局问题 */
+    .sub-tasks-container {
+      margin-top: var(--space-sm);
+      position: relative;
+      display: block;
+    }
+    
+    /* 为子任务行创建最具体的样式规则 */
+    .modal-body .form-group .sub-tasks-container .sub-task-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-sm);
+      padding-left: 0;
+      justify-content: flex-start !important;
+      flex-direction: row !important;
+      width: 100%;
+    }
+    
+    /* 确保复选框显示在左侧 */
+    .modal-body .form-group .sub-tasks-container .sub-task-row .sub-task-checkbox {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      order: 0 !important;
+      position: static !important;
+      align-self: flex-start !important;
+      margin-top: 5px;
+    }
+    
+    /* 确保输入框在复选框右侧并占据剩余空间 */
+    .modal-body .form-group .sub-tasks-container .sub-task-row .sub-task-input {
+      flex: 1 !important;
+      padding: var(--space-sm) !important;
+      font-size: 13px !important;
+      min-width: 0 !important;
+      width: auto !important;
+      border: 1px solid var(--border-light) !important;
+      border-radius: var(--radius-md) !important;
+      background: var(--bg-secondary) !important;
+      color: var(--text-primary) !important;
+      order: 1 !important;
+      position: static !important;
+    }
+    
+    /* 确保删除按钮在最右侧 */
+    .modal-body .form-group .sub-tasks-container .sub-task-row .sub-task-remove-btn {
+      order: 2 !important;
+      position: static !important;
+    }
+    
+    /* 确保没有其他样式干扰 */
+    .sub-task-row > * {
+      position: static !important;
+      transform: none !important;
+    }
+    
+    .sub-task-remove-btn {
+      width: 24px;
+      height: 24px;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      font-size: 20px;
+      cursor: pointer;
+      border-radius: var(--radius-full);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition-normal);
+    }
+    
+    .sub-task-remove-btn:hover {
+      background: var(--bg-tertiary);
+      color: var(--error);
+    }
+    
+    .btn-small {
+      padding: var(--space-xs) var(--space-md);
+      font-size: 13px;
+    }
+    
+    /* 待办事项中的子任务显示样式 */
+    .todo-sub-tasks {
+      margin-top: var(--space-sm);
+      padding-top: var(--space-sm);
+      border-top: 1px solid var(--border-light);
+    }
+    
+    .sub-tasks-title {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .sub-tasks-list {
+      padding-left: var(--space-md);
+    }
+    
+    .sub-task-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      font-size: 13px;
+      margin-bottom: var(--space-xs);
+      color: var(--text-secondary);
+      padding-left: 0;
+    }
+    
+    .sub-task-item input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+    
+    .sub-task-item span {
+      flex: 1;
+      min-width: 0;
+      word-wrap: break-word;
+    }
+    
+    .sub-task-item.completed {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+    
+    /* 确保子任务容器不被form-group样式影响 */
+    .form-group .sub-tasks-container {
+      padding: 0;
+      margin: var(--space-sm) 0 0 0;
+    }
+    
+    /* 添加表单验证样式 */
+    .form-group input:invalid,
+    .form-group select:invalid {
+      border-color: var(--error);
+    }
+    
+    .form-group input:invalid:focus,
+    .form-group select:invalid:focus {
+      box-shadow: 0 0 0 2px var(--error-light);
+    }
+    
+    /* 响应式设计 */
+    @media (max-width: 600px) {
+      .modal-content {
+        width: 95%;
+        max-width: none;
+        margin: 20px;
+      }
+      
+      .modal-header,
+      .modal-body,
+      .modal-footer {
+        padding: var(--space-md);
+      }
+    }
   </style>
 </head>
 <body>
@@ -275,13 +590,21 @@
               <button id="add-todo-btn" class="todo-add-btn btn-primary">添加</button>
             </div>
             
-            <!-- 过滤器 -->
-            <div class="todo-filters">
+            <!-- 过滤器和面板切换 -->
+            <div class="todo-filters" style="display: flex; align-items: center;">
               <button class="todo-filter-btn active" data-filter="all">全部</button>
               <button class="todo-filter-btn" data-filter="active">未完成</button>
               <button class="todo-filter-btn" data-filter="completed">已完成</button>
               <button class="todo-filter-btn" data-filter="today">今天</button>
               <button class="todo-filter-btn" data-filter="overdue">已逾期</button>
+              
+              <!-- 面板切换下拉框 -->
+              <div style="margin-left: auto;">
+                <select id="list-view-switcher" class="select-common" style="font-size: 14px; padding: 4px 8px;">
+                  <option value="todo" selected>待办</option>
+                  <option value="completed">已完成</option>
+                </select>
+              </div>
             </div>
           </div>
           
@@ -297,15 +620,7 @@
               <div class="todo-add-item" data-status="todo">添加待办事项</div>
             </div>
             
-            <!-- 进行中列表 -->
-            <div class="todo-list" data-status="in-progress">
-              <div class="todo-list-header">
-                <span class="todo-list-title">进行中</span>
-                <span class="todo-list-count" id="in-progress-count">0</span>
-              </div>
-              <div class="todo-items" id="in-progress-items"></div>
-              <div class="todo-add-item" data-status="in-progress">添加进行中事项</div>
-            </div>
+
             
             <!-- 已完成列表 -->
             <div class="todo-list" data-status="completed">
@@ -323,7 +638,7 @@
   </div>
   
   <!-- 编辑待办事项模态框 -->
-  <div id="todo-modal" class="modal" style="display: none;">
+  <div id="todo-modal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
         <h3>编辑待办事项</h3>
@@ -336,7 +651,7 @@
         </div>
         <div class="form-group">
           <label for="edit-todo-date">截止日期</label>
-          <input type="date" id="edit-todo-date" />
+          <input type="date" id="edit-todo-date" class="todo-input" />
         </div>
         <div class="form-group">
           <label for="edit-todo-priority">优先级</label>
@@ -349,6 +664,13 @@
         <div class="form-group">
           <label for="edit-todo-tags">标签</label>
           <input type="text" id="edit-todo-tags" placeholder="用逗号分隔多个标签" />
+        </div>
+        
+        <div class="form-group">
+          <label>子任务</label>
+          <div id="sub-tasks-container" class="sub-tasks-container">
+            <!-- 子任务会在这里动态生成 -->
+          </div>
         </div>
       </div>
       <div class="modal-footer">
