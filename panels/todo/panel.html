@@ -113,6 +113,7 @@
     }
     
     .todo-item {
+      font-size: calc(var(--text-base) - 1px);
       background: var(--bg-secondary);
       border: 1px solid var(--border-light);
       border-radius: var(--radius-md);
@@ -185,7 +186,7 @@
     }
     
     .todo-item-due-date {
-      font-size: 12px;
+      font-size: 11px;
       color: var(--text-muted);
       margin-top: var(--space-xs);
     }
@@ -402,6 +403,61 @@
       display: block;
     }
     
+    /* 备注栏样式 */
+    .note-editor {
+      position: relative;
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      background: var(--bg-secondary);
+      min-height: 100px;
+    }
+    
+    .todo-note {
+      width: 100%;
+      min-height: 100px;
+      padding: var(--space-md);
+      outline: none;
+      box-sizing: border-box;
+    }
+    
+    .todo-note img {
+      max-width: 100%;
+      height: auto;
+      margin: var(--space-sm) 0;
+    }
+    
+    .note-placeholder {
+      position: absolute;
+      top: var(--space-md);
+      left: var(--space-md);
+      color: var(--text-muted);
+      pointer-events: none;
+      z-index: 1;
+    }
+    
+    .note-hint {
+      position: absolute;
+      bottom: 5px;
+      right: 10px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    
+    /* 附件图标样式 */
+    .todo-attachment-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border-radius: 50%;
+      font-size: 12px;
+      margin-left: 5px;
+      cursor: help;
+    }
+    
     /* 为子任务行创建最具体的样式规则 */
     .modal-body .form-group .sub-tasks-container .sub-task-row {
       display: flex;
@@ -485,11 +541,7 @@
       border-top: 1px solid var(--border-light);
     }
     
-    .sub-tasks-title {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-bottom: var(--space-xs);
-    }
+
     
     .sub-tasks-list {
       padding-left: var(--space-md);
@@ -499,7 +551,7 @@
       display: flex;
       align-items: center;
       gap: var(--space-sm);
-      font-size: 13px;
+      font-size: 11px !important;
       margin-bottom: var(--space-xs);
       color: var(--text-secondary);
       padding-left: 0;
@@ -672,6 +724,15 @@
           <label>子任务</label>
           <div id="sub-tasks-container" class="sub-tasks-container">
             <!-- 子任务会在这里动态生成 -->
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="edit-todo-note">备注</label>
+          <div class="note-editor">
+            <div class="note-placeholder">点击或粘贴内容/图片</div>
+            <div id="edit-todo-note" class="todo-note" contenteditable="true"></div>
+            <div class="note-hint">支持文本输入和图片粘贴</div>
           </div>
         </div>
       </div>

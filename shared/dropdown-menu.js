@@ -27,35 +27,41 @@
         // 获取目标面板
         const targetPanel = this.getAttribute('data-target');
         
-        // 如果rail.js存在并且有switchToPanel函数，则使用它
-        if (window.switchToPanel) {
-          window.switchToPanel(targetPanel);
-        } else {
-          // 更新下拉菜单中选中项的状态
-          dropdownItems.forEach(i => i.classList.remove('active'));
-          this.classList.add('active');
-          
-          // 简单的页面跳转
-          let panelUrl;
-          switch(targetPanel) {
-            case 'pha-panel':
-              panelUrl = '../pha/panel.html';
-              break;
-            case 'rocket-panel':
-              panelUrl = '../rocket/panel.html';
-              break;
-            case 'notes-panel':
-              panelUrl = '../notes/panel.html';
-              break;
-            case 'settings-panel':
-              panelUrl = '../settings/panel.html';
-              break;
-            default:
-              panelUrl = '../pha/panel.html';
+        // 只有当data-target属性存在时才进行面板切换
+        if (targetPanel) {
+          // 如果rail.js存在并且有switchToPanel函数，则使用它
+          if (window.switchToPanel) {
+            window.switchToPanel(targetPanel);
+          } else {
+            // 更新下拉菜单中选中项的状态
+            dropdownItems.forEach(i => i.classList.remove('active'));
+            this.classList.add('active');
+            
+            // 简单的页面跳转
+            let panelUrl;
+            switch(targetPanel) {
+              case 'pha-panel':
+                panelUrl = '../pha/panel.html';
+                break;
+              case 'rocket-panel':
+                panelUrl = '../rocket/panel.html';
+                break;
+              case 'notes-panel':
+                panelUrl = '../notes/panel.html';
+                break;
+              case 'settings-panel':
+                panelUrl = '../settings/panel.html';
+                break;
+              case 'todo-panel':
+                panelUrl = '../todo/panel.html';
+                break;
+              default:
+                panelUrl = '../pha/panel.html';
+            }
+            
+            // 跳转到相应的面板
+            window.location.href = panelUrl;
           }
-          
-          // 跳转到相应的面板
-          window.location.href = panelUrl;
         }
       });
     });

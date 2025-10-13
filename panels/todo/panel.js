@@ -15,9 +15,12 @@ const editTodoContent = document.getElementById('edit-todo-content');
 const editTodoDate = document.getElementById('edit-todo-date');
 const editTodoPriority = document.getElementById('edit-todo-priority');
 const editTodoTags = document.getElementById('edit-todo-tags');
+const editTodoNote = document.getElementById('edit-todo-note');
 const saveTodoBtn = document.getElementById('save-todo-btn');
 const cancelTodoBtn = document.getElementById('cancel-todo-btn');
 const modalClose = document.querySelector('.modal-close');
+const notePlaceholder = document.querySelector('.note-placeholder');
+const noteHint = document.querySelector('.note-hint');
 
 // 状态变量
 let todos = [];
@@ -76,7 +79,7 @@ function generateId() {
 }
 
 // 添加新的待办事项
-function addTodo(content, status = 'todo', dueDate = '', priority = 'medium', tags = [], subTasks = []) {
+function addTodo(content, status = 'todo', dueDate = '', priority = 'medium', tags = [], subTasks = [], note = '') {
   // 确保状态只能是todo或completed
   if (status !== 'todo' && status !== 'completed') {
     status = 'todo';
@@ -90,7 +93,8 @@ function addTodo(content, status = 'todo', dueDate = '', priority = 'medium', ta
     dueDate: dueDate,
     priority: priority,
     tags: tags,
-    subTasks: subTasks // 子任务数组
+    subTasks: subTasks, // 子任务数组
+    note: note
   };
   
   todos.push(todo);
@@ -317,15 +321,8 @@ function createTodoElement(todo) {
     const subTasksContainer = document.createElement('div');
     subTasksContainer.className = 'todo-sub-tasks';
     
-    // 子任务标题
-    const subTasksTitle = document.createElement('div');
-    subTasksTitle.className = 'sub-tasks-title';
-    
-    // 计算完成的子任务数量
+    // 计算完成的子任务数量（内部使用）
     const completedSubTasks = todo.subTasks.filter(st => st.completed).length;
-    subTasksTitle.textContent = `子任务 (${completedSubTasks}/${todo.subTasks.length})`;
-    
-    subTasksContainer.appendChild(subTasksTitle);
     
     // 子任务列表
     const subTasksList = document.createElement('div');
@@ -353,6 +350,14 @@ function createTodoElement(todo) {
     
     subTasksContainer.appendChild(subTasksList);
     contentContainer.appendChild(subTasksContainer);
+  }
+  
+  // 附件图标（如果有备注内容）
+  if (todo.note && todo.note.trim()) {
+    const attachmentIcon = document.createElement('div');
+    attachmentIcon.className = 'todo-attachment-icon';
+    attachmentIcon.title = '有备注内容';
+    contentContainer.appendChild(attachmentIcon);
   }
   
   // 删除按钮
@@ -454,6 +459,72 @@ function hideEmptyState() {
   });
 }
 
+// 更新备注栏占位符显示
+function updateNotePlaceholder() {
+  if (editTodoNote && notePlaceholder) {
+    if (editTodoNote.innerHTML.trim()) {
+      notePlaceholder.style.display = 'none';
+    } else {
+      notePlaceholder.style.display = 'block';
+    }
+  }
+}
+
+// 设置备注栏事件监听
+function setupNoteEditor() {
+  if (!editTodoNote) return;
+  
+  // 处理内容变化，更新占位符
+  editTodoNote.addEventListener('input', updateNotePlaceholder);
+  
+  // 处理点击事件，聚焦备注栏
+  editTodoNote.addEventListener('click', () => {
+    editTodoNote.focus();
+  });
+  
+  // 处理图片粘贴
+  editTodoNote.addEventListener('paste', (e) => {
+    // 检查是否有图片数据
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        e.preventDefault();
+        
+        const blob = items[i].getAsFile();
+        const reader = new FileReader();
+        
+        reader.onload = function(event) {
+          const img = document.createElement('img');
+          img.src = event.target.result;
+          img.style.maxWidth = '100%';
+          img.style.height = 'auto';
+          img.style.margin = '5px 0';
+          
+          // 在当前光标位置插入图片
+          const selection = window.getSelection();
+          if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            range.deleteContents();
+            range.insertNode(img);
+            
+            // 移动光标到图片后面
+            range.setStartAfter(img);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+          }
+          
+          // 更新占位符
+          updateNotePlaceholder();
+        };
+        
+        reader.readAsDataURL(blob);
+        break;
+      }
+    }
+  });
+}
+
 // 设置事件监听器
 function setupEventListeners() {
   // 添加待办事项按钮点击事件
@@ -466,7 +537,7 @@ function setupEventListeners() {
     }
   });
   
-
+  
   
   // 搜索框输入事件
   todoSearchInput.addEventListener('input', () => {
@@ -474,6 +545,9 @@ function setupEventListeners() {
     currentFilterType = 'search'; // 设置为通用搜索模式
     renderTodos();
   });
+  
+  // 设置备注编辑器
+  setupNoteEditor();
   
   // 列表视图切换器 - 下拉框交互逻辑
   const listViewSwitcherBtn = document.getElementById('list-view-switcher-btn');
@@ -568,6 +642,12 @@ function openEditModal(id) {
     editTodoDate.value = todo.dueDate ? todo.dueDate.split('T')[0] : '';
     editTodoPriority.value = todo.priority || 'medium';
     editTodoTags.value = todo.tags ? todo.tags.join(', ') : '';
+    
+    // 填充备注内容
+    editTodoNote.innerHTML = todo.note || '';
+    
+    // 根据备注内容显示/隐藏占位符
+    updateNotePlaceholder();
     
     // 渲染子任务
     const subTasksContainer = document.getElementById('sub-tasks-container');
@@ -668,6 +748,8 @@ function closeEditModal() {
     editTodoDate.value = '';
     editTodoPriority.value = 'medium';
     editTodoTags.value = '';
+    editTodoNote.innerHTML = '';
+    updateNotePlaceholder();
   }, 300);
 }
 
@@ -700,12 +782,15 @@ function saveEditedTodo() {
     }
     
     if (content) {
+      // 确保note属性被更新，即使它是空字符串
+      const updatedNote = editTodoNote.innerHTML.trim();
       updateTodo(currentEditTodoId, {
         content: content,
         dueDate: dueDate,
         priority: priority,
         tags: tags,
-        subTasks: subTasks
+        subTasks: subTasks,
+        note: updatedNote // 直接使用trim后的值，空字符串也会被保存
       });
     }
   }
