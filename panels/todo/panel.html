@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>待办事项</title>
+  <script src="../../shared/theme.js" defer></script>
+  <script src="../../shared/dropdown-menu.js" defer></script>
+  <script src="../../shared/persist.js" type="module"></script>
+  <link rel="stylesheet" href="../../shared/styles.css">
+  <style>
+    /* Todo页面特定样式 */
+    .todo-list-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    
+    .todo-header {
+      margin-bottom: var(--space-lg);
+    }
+    
+    .todo-input-container {
+      display: flex;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-lg);
+    }
+    
+    .todo-input {
+      flex: 1;
+      padding: var(--space-md);
+    }
+    
+    .todo-add-btn {
+      padding: var(--space-md) var(--space-lg);
+    }
+    
+    .todo-filters {
+      display: flex;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-lg);
+      flex-wrap: wrap;
+    }
+    
+    .todo-filter-btn {
+      padding: var(--space-xs) var(--space-md);
+      background: var(--bg-primary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-full);
+      cursor: pointer;
+      font-size: 13px;
+      transition: all var(--transition-normal);
+    }
+    
+    .todo-filter-btn:hover {
+      background: var(--bg-secondary);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    
+    .todo-filter-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+    
+    .todo-lists {
+      display: flex;
+      gap: var(--space-lg);
+      overflow-x: auto;
+      padding-bottom: var(--space-md);
+    }
+    
+    .todo-list {
+      flex: 0 0 300px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+      display: flex;
+      flex-direction: column;
+      min-height: 400px;
+    }
+    
+    .todo-list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--space-md);
+      padding-bottom: var(--space-sm);
+      border-bottom: 1px solid var(--border-light);
+    }
+    
+    .todo-list-title {
+      font-weight: 600;
+      color: var(--text-primary);
+      font-size: 14px;
+    }
+    
+    .todo-list-count {
+      background: var(--bg-secondary);
+      color: var(--text-muted);
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+    }
+    
+    .todo-items {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: var(--space-xs);
+    }
+    
+    .todo-item {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      padding: var(--space-sm) var(--space-md);
+      margin-bottom: var(--space-sm);
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-sm);
+      transition: all var(--transition-normal);
+      cursor: pointer;
+    }
+    
+    .todo-item:hover {
+      box-shadow: var(--shadow-md);
+      transform: translateY(-1px);
+    }
+    
+    .todo-checkbox {
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+    
+    .todo-content {
+      flex: 1;
+      word-break: break-word;
+      color: var(--text-primary);
+    }
+    
+    .todo-content.completed {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+    
+    .todo-delete-btn {
+      opacity: 0;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition-normal);
+    }
+    
+    .todo-item:hover .todo-delete-btn {
+      opacity: 1;
+    }
+    
+    .todo-delete-btn:hover {
+      background: var(--error);
+      color: white;
+    }
+    
+    .todo-add-item {
+      margin-top: var(--space-sm);
+      padding: var(--space-sm);
+      border: 1px dashed var(--border-light);
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all var(--transition-normal);
+      font-size: 13px;
+      text-align: center;
+    }
+    
+    .todo-add-item:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--bg-secondary);
+    }
+    
+    .todo-item-due-date {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: var(--space-xs);
+    }
+    
+    .todo-item-priority {
+      display: inline-block;
+      padding: 0 6px;
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      margin-left: var(--space-xs);
+    }
+    
+    .todo-item-priority.high {
+      background: var(--error);
+      color: white;
+    }
+    
+    .todo-item-priority.medium {
+      background: var(--warning);
+      color: white;
+    }
+    
+    .todo-item-priority.low {
+      background: var(--success);
+      color: white;
+    }
+    
+    .todo-item-tags {
+      display: flex;
+      gap: 4px;
+      margin-top: var(--space-xs);
+      flex-wrap: wrap;
+    }
+    
+    .todo-item-tag {
+      background: var(--primary-light);
+      color: var(--primary);
+      padding: 1px 6px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: var(--space-xl);
+      color: var(--text-muted);
+    }
+    
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: var(--space-md);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="content-wrapper">
+      <!-- 头部 -->
+      <div class="header">
+        <div class="header-top">
+          <h2>待办事项</h2>
+          <div class="header-controls">
+            <!-- 下拉菜单按钮 -->
+            <div class="dropdown">
+              <button id="panelSwitchBtn" class="dropdown-btn">
+                <span class="dropdown-arrow">▼</span>
+              </button>
+              <div id="panelDropdown" class="dropdown-content">
+                <a href="#" data-target="pha-panel" class="dropdown-item">👁️ PHA</a>
+                <a href="#" data-target="rocket-panel" class="dropdown-item">🚀 Rocket</a>
+                <a href="#" data-target="notes-panel" class="dropdown-item">📝 笔记</a>
+                <a href="#" data-target="todo-panel" class="dropdown-item active">📋 待办事项</a>
+                <a href="#" data-target="settings-panel" class="dropdown-item">⚙️ 设置</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 主内容 -->
+      <div class="inner-pad">
+        <div class="todo-list-container">
+          <!-- 待办事项输入区 -->
+          <div class="todo-header">
+            <div class="todo-input-container">
+              <input type="text" id="todo-input" class="todo-input" placeholder="添加新的待办事项..." />
+              <button id="add-todo-btn" class="todo-add-btn btn-primary">添加</button>
+            </div>
+            
+            <!-- 过滤器 -->
+            <div class="todo-filters">
+              <button class="todo-filter-btn active" data-filter="all">全部</button>
+              <button class="todo-filter-btn" data-filter="active">未完成</button>
+              <button class="todo-filter-btn" data-filter="completed">已完成</button>
+              <button class="todo-filter-btn" data-filter="today">今天</button>
+              <button class="todo-filter-btn" data-filter="overdue">已逾期</button>
+            </div>
+          </div>
+          
+          <!-- 待办事项列表区域 -->
+          <div class="todo-lists" id="todo-lists">
+            <!-- 待办列表 -->
+            <div class="todo-list" data-status="todo">
+              <div class="todo-list-header">
+                <span class="todo-list-title">待办</span>
+                <span class="todo-list-count" id="todo-count">0</span>
+              </div>
+              <div class="todo-items" id="todo-items"></div>
+              <div class="todo-add-item" data-status="todo">添加待办事项</div>
+            </div>
+            
+            <!-- 进行中列表 -->
+            <div class="todo-list" data-status="in-progress">
+              <div class="todo-list-header">
+                <span class="todo-list-title">进行中</span>
+                <span class="todo-list-count" id="in-progress-count">0</span>
+              </div>
+              <div class="todo-items" id="in-progress-items"></div>
+              <div class="todo-add-item" data-status="in-progress">添加进行中事项</div>
+            </div>
+            
+            <!-- 已完成列表 -->
+            <div class="todo-list" data-status="completed">
+              <div class="todo-list-header">
+                <span class="todo-list-title">已完成</span>
+                <span class="todo-list-count" id="completed-count">0</span>
+              </div>
+              <div class="todo-items" id="completed-items"></div>
+              <div class="todo-add-item" data-status="completed">添加已完成事项</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 编辑待办事项模态框 -->
+  <div id="todo-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>编辑待办事项</h3>
+        <button class="modal-close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="edit-todo-content">内容</label>
+          <input type="text" id="edit-todo-content" class="todo-input" />
+        </div>
+        <div class="form-group">
+          <label for="edit-todo-date">截止日期</label>
+          <input type="date" id="edit-todo-date" />
+        </div>
+        <div class="form-group">
+          <label for="edit-todo-priority">优先级</label>
+          <select id="edit-todo-priority">
+            <option value="low">低</option>
+            <option value="medium" selected>中</option>
+            <option value="high">高</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="edit-todo-tags">标签</label>
+          <input type="text" id="edit-todo-tags" placeholder="用逗号分隔多个标签" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="save-todo-btn" class="btn-primary">保存</button>
+        <button id="cancel-todo-btn" class="btn">取消</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 隐藏的侧边栏导航，保留以确保rail.js的功能正常 -->
+  <nav class="rail" aria-label="面板切换" style="display: none;">
+    <button class="railbtn" data-target="pha-panel" title="PHA" aria-label="PHA">👁️</button>
+    <button class="railbtn" data-target="rocket-panel" title="Rocket" aria-label="Rocket">🚀</button>
+    <button class="railbtn" data-target="notes-panel" title="笔记" aria-label="笔记">📝</button>
+    <button class="railbtn" data-target="todo-panel" title="待办事项" aria-label="待办事项">📋</button>
+    <button class="railbtn" data-target="settings-panel" title="设置" aria-label="设置">⚙️</button>
+  </nav>
+
+  <script defer src="../../rail.js"></script>
+  <script defer src="./panel.js"></script>
+</body>
+</html>

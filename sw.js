@@ -984,7 +984,8 @@ const PANEL_PATHS = {
   "pha-panel": "panels/pha/panel.html",
   "settings-panel": "panels/settings/panel.html",
   "rocket-panel": "panels/rocket/panel.html",
-  "notes-panel": "panels/notes/panel.html"
+  "notes-panel": "panels/notes/panel.html",
+  "todo-panel": "panels/todo/panel.html"
 
 };
 
