@@ -785,6 +785,33 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return;
       }
 
+      // 处理Gerrit变更列表请求
+      if (msg.type === "fetchGerritChanges") {
+        try {
+          // 使用带凭据的请求获取Gerrit数据
+          const response = await fetch(msg.url, {
+            credentials: "include",
+            headers: {
+              "Accept": "application/json"
+            }
+          });
+          
+          const data = await response.text();
+          
+          sendResponse({
+            ok: response.ok,
+            status: response.status,
+            data: data
+          });
+        } catch (error) {
+          console.error('获取Gerrit变更列表失败:', error);
+          sendResponse({
+            ok: false,
+            error: error?.message || String(error)
+          });
+        }
+        return;
+      }
 
       // onMessage 内：
       if (msg.type === "sumWorkload") {
@@ -985,7 +1012,8 @@ const PANEL_PATHS = {
   "settings-panel": "panels/settings/panel.html",
   "rocket-panel": "panels/rocket/panel.html",
   "notes-panel": "panels/notes/panel.html",
-  "todo-panel": "panels/todo/panel.html"
+  "todo-panel": "panels/todo/panel.html",
+  "gerrit-panel": "panels/gerrit/panel.html"
 
 };
 

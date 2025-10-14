@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gerrit代码评审</title>
+  <script src="../../shared/theme.js" defer></script>
+  <script src="../../shared/dropdown-menu.js" defer></script>
+  <script src="../../shared/persist.js" type="module"></script>
+  <link rel="stylesheet" href="../../shared/styles.css">
+  <style>
+    /* Gerrit面板特定样式 */
+    .gerrit-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    
+    /* 头部样式 */
+    .gerrit-header {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+      margin-bottom: var(--space-lg);
+    }
+    
+    .gerrit-filters {
+      display: flex;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+    }
+
+    .gerrit-filter-btn {
+      padding: var(--space-xs) var(--space-md);
+      background: var(--bg-primary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-full);
+      cursor: pointer;
+      font-size: 13px;
+      transition: all var(--transition-normal);
+    }
+    
+    .gerrit-filter-btn:hover {
+      background: var(--bg-secondary);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    
+    .gerrit-filter-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+    
+    /* 搜索框样式 */
+    .gerrit-search-container {
+      position: relative;
+      margin-bottom: var(--space-lg);
+    }
+    
+    .gerrit-search-input {
+      width: 100%;
+      padding: var(--space-md) var(--space-lg) var(--space-md) calc(var(--space-lg) + 24px);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      font-size: 15px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      transition: all var(--transition-normal);
+    }
+    
+    .gerrit-search-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-weak);
+    }
+    
+    .gerrit-search-input::placeholder {
+      color: var(--text-muted);
+    }
+    
+    .gerrit-search-icon {
+      position: absolute;
+      left: var(--space-lg);
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+    }
+    
+    .gerrit-list {
+      flex: 1;
+      overflow-y: auto;
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      background: var(--bg-primary);
+      min-height: 0;
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .gerrit-item {
+      padding: var(--space-md);
+      border-bottom: 1px solid var(--border-light);
+      cursor: pointer;
+      transition: all var(--transition-normal);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+      background: var(--bg-primary);
+    }
+    
+    .gerrit-item:hover {
+      background: var(--bg-secondary);
+      transform: translateX(2px);
+    }
+    
+    .gerrit-item.active {
+      background: var(--primary-weak);
+      border-left: 3px solid var(--primary);
+    }
+    
+    .gerrit-item:last-child {
+      border-bottom: none;
+    }
+    
+    .gerrit-item-title {
+      font-weight: 500;
+      color: var(--text-primary);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    
+    .gerrit-item-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+    
+    .gerrit-item-meta {
+      display: flex;
+      gap: var(--space-md);
+      align-items: center;
+    }
+    
+    .gerrit-item-status {
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 500;
+      text-align: center;
+      min-width: 60px;
+    }
+    
+    .gerrit-item-status-pending {
+      background: var(--warning);
+      color: white;
+    }
+    
+    .gerrit-item-status-abandoned {
+      background: var(--error);
+      color: white;
+    }
+    
+    .gerrit-item-status-ignore {
+      background: var(--bg-tertiary);
+      color: var(--text-muted);
+    }
+    
+    .gerrit-item-status-mine {
+      background: var(--purple);
+      color: white;
+    }
+    
+    .gerrit-detail {
+      flex: 1;
+      padding: var(--space-lg);
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border-light);
+      overflow-y: auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-lg);
+    }
+    
+    .gerrit-detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    
+    .gerrit-detail-title {
+      font-weight: 600;
+      color: var(--text-primary);
+      font-size: 16px;
+    }
+    
+    .gerrit-detail-actions {
+      display: flex;
+      gap: var(--space-sm);
+    }
+    
+    .gerrit-detail-btn {
+      padding: var(--space-xs) var(--space-md);
+      border-radius: var(--radius-md);
+      background: var(--primary);
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: all var(--transition-normal);
+      font-size: 13px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+    }
+    
+    .gerrit-detail-btn:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+    
+    .gerrit-detail-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+    
+    .gerrit-detail-section {
+      background: var(--bg-primary);
+      padding: var(--space-md);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-light);
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .gerrit-detail-section-title {
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-sm);
+      font-size: 14px;
+    }
+    
+    .gerrit-detail-message {
+      background: var(--bg-tertiary);
+      padding: var(--space-md);
+      border-radius: var(--radius-sm);
+      font-family: monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-size: 13px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    
+    .gerrit-detail-changes {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+    
+    .gerrit-detail-change {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-sm);
+      font-size: 13px;
+    }
+    
+    .gerrit-detail-change-icon {
+      margin-top: 1px;
+    }
+    
+    .gerrit-detail-change-path {
+      font-family: monospace;
+    }
+    
+    .gerrit-detail-comments {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+    
+    .gerrit-detail-comment {
+      padding: var(--space-md);
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-sm);
+      border-left: 3px solid var(--primary);
+    }
+    
+    .gerrit-detail-comment-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--space-sm);
+    }
+    
+    .gerrit-detail-comment-author {
+      font-weight: 500;
+    }
+    
+    .gerrit-detail-comment-time {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+    
+    .gerrit-detail-comment-content {
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    
+    .gerrit-split-view {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+    }
+    
+    .gerrit-list-container {
+      width: 40%;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    
+    .gerrit-detail-container {
+      width: 60%;
+      min-height: 0;
+    }
+    
+    .gerrit-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-muted);
+      font-size: 14px;
+      text-align: center;
+      padding: 24px;
+      background: var(--bg-secondary);
+    }
+    
+    .gerrit-empty p {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+    
+    .gerrit-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-muted);
+      font-size: 14px;
+      text-align: center;
+    }
+    
+    .loading-spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--border-light);
+      border-top: 3px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 16px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* 评分样式 */
+    .gerrit-item-score {
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 500;
+      background-color: var(--bg-secondary);
+      margin-left: 8px;
+    }
+    
+    .gerrit-item-score.score-success {
+      background-color: var(--primary-weak);
+      color: var(--primary);
+    }
+    
+    .gerrit-item-score.score-error {
+      background-color: var(--error-weak);
+      color: var(--error);
+    }
+    
+    /* 图标样式 */
+    .gerrit-item-owner svg,
+    .gerrit-item-date svg {
+      margin-right: 4px;
+      vertical-align: middle;
+      opacity: 0.6;
+    }
+    
+    .gerrit-item-owner,
+    .gerrit-item-date {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+  </style>
+</head>
+<body class="panel">
+  <div class="panel-header">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+        <line x1="16" y1="13" x2="8" y2="13"></line>
+        <line x1="16" y1="17" x2="8" y2="17"></line>
+        <polyline points="10 9 9 9 8 9"></polyline>
+      </svg>
+      <h1>Gerrit代码评审</h1>
+    </div>
+    <div class="panel-actions">
+      <button id="refresh-btn" class="btn" title="刷新列表">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        刷新
+      </button>
+      <button id="settings-btn" class="btn" title="设置">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        设置
+      </button>
+    </div>
+  </div>
+
+  <div class="gerrit-container">
+    <div class="gerrit-header">
+      <div class="gerrit-search-container">
+        <svg class="gerrit-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="gerrit-search-input" class="gerrit-search-input" placeholder="搜索变更...">
+      </div>
+      
+      <div class="gerrit-filters">
+        <button class="gerrit-filter-btn active" data-filter="mine">我的变更</button>
+        <button class="gerrit-filter-btn" data-filter="pending">待评审</button>
+      </div>
+    </div>
+
+    <div class="gerrit-split-view">
+      <div class="gerrit-list-container">
+        <div id="gerrit-list" class="gerrit-list">
+          <div class="gerrit-empty">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.2; margin-bottom: 16px;">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            <p>点击刷新按钮加载代码评审列表</p>
+          </div>
+          <div class="gerrit-loading">
+            <div class="loading-spinner"></div>
+            <p>加载中</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="gerrit-detail-container">
+        <div id="gerrit-detail" class="gerrit-detail">
+          <div class="gerrit-empty">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.2; margin-bottom: 16px;">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            <p>选择一个变更查看详情</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部状态栏 -->
+  <div class="panel-footer">
+    <div id="status" class="status"></div>
+  </div>
+
+  <!-- 模态框 - 设置 -->
+  <div id="settings-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <h3>设置</h3>
+        </div>
+        <button class="modal-close" id="close-settings-modal" title="关闭">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="gerrit-url">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="16"></line>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+              </svg>
+              Gerrit服务器地址
+            </div>
+          </label>
+          <input type="text" id="gerrit-url" class="form-control" value="https://review.tp-link.net" data-persist="gerrit_url" placeholder="https://your-gerrit-server.com">
+        </div>
+        <div class="form-group">
+          <label for="gerrit-username">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              用户名
+            </div>
+          </label>
+          <input type="text" id="gerrit-username" class="form-control" data-persist="gerrit_username" placeholder="您的Gerrit用户名">
+        </div>
+        <div class="form-group">
+          <label for="gerrit-host">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                <line x1="6" y1="18" x2="6.01" y2="18"></line>
+              </svg>
+              主机名
+            </div>
+          </label>
+          <input type="text" id="gerrit-host" class="form-control" value="review.tp-link.net" data-persist="gerrit_host" placeholder="your-gerrit-server.com">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="save-settings-btn" class="btn btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+          </svg>
+          保存设置
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="panel.js"></script>
+</body>
+</html>

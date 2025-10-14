@@ -55,6 +55,9 @@
               case 'todo-panel':
                 panelUrl = '../todo/panel.html';
                 break;
+              case 'gerrit-panel':
+                panelUrl = '../gerrit/panel.html';
+                break;
               default:
                 panelUrl = '../pha/panel.html';
             }

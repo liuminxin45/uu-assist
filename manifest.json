@@ -17,7 +17,14 @@
   ],
   "background": { "service_worker": "sw.js" },
   "action": { "default_title": "PHA Helper" },
-  "side_panel": { "default_path": "panels/pha/panel.html" },
+  "side_panel": {
+    "default_path": "panels/pha/panel.html",
+    "allowed_paths": [
+      "panels/pha/panel.html",
+      "panels/todo/panel.html",
+      "panels/gerrit/panel.html"
+    ]
+  },
   "content_scripts": [
     {
       "matches": ["http://pha.tp-link.com.cn/*"],
