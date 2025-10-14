@@ -88,11 +88,25 @@ async function spGetStableTabId(sender) {
 chrome.tabs.onActivated.addListener(async ({ tabId }) => { 
   await spSetLastTab(tabId);
   
-  // 恢复标签页的面板状态
+  // 恢复标签页的面板状态，但避免不必要的重置
   if (tabId) {
     try {
       const panelName = await getCurrentTabPanelState(tabId);
-      await openPanelByName(panelName, tabId, { fromSidePanel: false });
+      
+      // 检查当前标签页是否已经有相同的面板打开
+      try {
+        const currentOptions = await chrome.sidePanel.getOptions(tabId);
+        const currentPanelName = Object.keys(PANEL_PATHS).find(key => PANEL_PATHS[key] === currentOptions.path) || "pha-panel";
+        
+        // 只有当当前面板名称与存储的不同时，才切换面板
+        if (currentPanelName !== panelName) {
+          await openPanelByName(panelName, tabId, { fromSidePanel: false });
+        }
+      } catch (sidePanelError) {
+        // 如果获取当前面板选项失败，则直接打开存储的面板
+        console.warn(`获取当前面板选项失败:`, sidePanelError);
+        await openPanelByName(panelName, tabId, { fromSidePanel: false });
+      }
     } catch (error) {
       console.warn(`恢复标签页 ${tabId} 的面板状态失败:`, error);
     }
@@ -104,10 +118,24 @@ chrome.windows.onFocusChanged.addListener(async (winId) => {
   if (tab?.id) {
     await spSetLastTab(tab.id);
     
-    // 恢复标签页的面板状态
+    // 恢复标签页的面板状态，但避免不必要的重置
     try {
       const panelName = await getCurrentTabPanelState(tab.id);
-      await openPanelByName(panelName, tab.id, { fromSidePanel: false });
+      
+      // 检查当前标签页是否已经有相同的面板打开
+      try {
+        const currentOptions = await chrome.sidePanel.getOptions(tab.id);
+        const currentPanelName = Object.keys(PANEL_PATHS).find(key => PANEL_PATHS[key] === currentOptions.path) || "pha-panel";
+        
+        // 只有当当前面板名称与存储的不同时，才切换面板
+        if (currentPanelName !== panelName) {
+          await openPanelByName(panelName, tab.id, { fromSidePanel: false });
+        }
+      } catch (sidePanelError) {
+        // 如果获取当前面板选项失败，则直接打开存储的面板
+        console.warn(`获取当前面板选项失败:`, sidePanelError);
+        await openPanelByName(panelName, tab.id, { fromSidePanel: false });
+      }
     } catch (error) {
       console.warn(`恢复标签页 ${tab.id} 的面板状态失败:`, error);
     }
@@ -1022,8 +1050,25 @@ async function openPanelByName(name, tabId, opts = {}) {
   const path = PANEL_PATHS[name] || PANEL_PATHS["pha-panel"];
   if (!tabId) return { ok: false, err: "no-active-tab" };
 
-  await chrome.sidePanel.setOptions({ tabId, enabled: true });
-  await chrome.sidePanel.setOptions({ tabId, path });
+  try {
+    // 获取当前标签页的面板配置
+    const currentOptions = await chrome.sidePanel.getOptions(tabId);
+    
+    // 启用侧边栏（如果尚未启用）
+    if (!currentOptions.enabled) {
+      await chrome.sidePanel.setOptions({ tabId, enabled: true });
+    }
+    
+    // 只有当面板路径不同时才设置新路径，避免不必要的重置
+    if (currentOptions.path !== path) {
+      await chrome.sidePanel.setOptions({ tabId, path });
+    }
+  } catch (error) {
+    console.warn(`设置面板选项失败:`, error);
+    // 出错时仍然尝试设置路径，确保功能可用
+    await chrome.sidePanel.setOptions({ tabId, enabled: true });
+    await chrome.sidePanel.setOptions({ tabId, path });
+  }
 
   // 仅非面板来源时才尝试打开，避免“需要用户手势”错误
   if (!opts.fromSidePanel) {

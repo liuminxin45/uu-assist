@@ -106,24 +106,37 @@ async function loadGerritChanges() {
     
     // URL编码查询
     const encodedQuery = encodeURIComponent(query);
-    const url = `${gerritUrl}/gerrit/changes/?q=${encodedQuery}&n=50&o=DETAILED_ACCOUNTS&o=DETAILED_LABELS`;
+    // 添加 ALL_REVISIONS 和 ALL_FILES 参数以获取完整的文件信息
+    const url = `${gerritUrl}/gerrit/changes/?q=${encodedQuery}&n=50&o=DETAILED_ACCOUNTS&o=DETAILED_LABELS&o=ALL_REVISIONS&o=ALL_FILES`;
     
     setStatus('正在加载变更列表...');
     
     // 使用扩展的消息机制获取数据
-    const response = await chrome.runtime.sendMessage({ 
-      type: "fetchGerritChanges", 
-      url: url,
-      gerritUrl: gerritUrl
-    }).catch(error => {
+    let response;
+    try {
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+        response = await chrome.runtime.sendMessage({ 
+          type: "fetchGerritChanges", 
+          url: url,
+          gerritUrl: gerritUrl
+        });
+      } else {
+        // 模拟环境下返回测试数据
+        throw new Error('Chrome扩展环境不可用，无法获取数据');
+      }
+    } catch (error) {
       console.error('获取Gerrit变更失败:', error);
       throw new Error('网络请求失败');
-    });
+    }
     
     if (response && response.ok) {
       // 移除前缀字符 )]}'
       const cleanData = response.data.substring(response.data.indexOf('\n') + 1);
       gerritChanges = JSON.parse(cleanData);
+      
+      // 等待一小段时间确保DOM加载完成
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       renderGerritList();
       setStatus(`加载了 ${gerritChanges.length} 个变更`);
     } else {
@@ -136,6 +149,89 @@ async function loadGerritChanges() {
   } finally {
     isLoading = false;
   }
+}
+
+// 获取文件变更详情
+async function fetchFileDiff(gerritUrl, changeId, revisionId, filePath) {
+  try {
+    const encodedFile = encodeURIComponent(filePath);
+    const url = `${gerritUrl}/gerrit/changes/${changeId}/revisions/${revisionId}/files/${encodedFile}/diff?context=ALL&intraline&whitespace=IGNORE_NONE`;
+    
+    let response;
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+      response = await chrome.runtime.sendMessage({
+        type: "fetchGerritDiff",
+        url: url,
+        gerritUrl: gerritUrl
+      });
+    } else {
+      throw new Error('Chrome扩展环境不可用，无法获取diff数据');
+    }
+    
+    if (response && response.ok) {
+      // 移除前缀字符 )]}'
+      let cleanData = response.data;
+      if (cleanData.startsWith(")]}'")) {
+        cleanData = cleanData.replace(")]}'", '').trim();
+      }
+      return JSON.parse(cleanData);
+    } else {
+      throw new Error(response?.error || '获取diff失败');
+    }
+  } catch (error) {
+    console.error(`获取文件diff失败 (${filePath}):`, error);
+    return null;
+  }
+}
+
+// 解析diff内容为可读格式
+function parseDiffContent(diffData) {
+  if (!diffData || !diffData.content) {
+    return [];
+  }
+  
+  const linesArray = [];
+  
+  if (Array.isArray(diffData.content)) {
+    for (const chunk of diffData.content) {
+      if (chunk.hasOwnProperty('ab')) {
+        // 上下文（未改动）行
+        const raw = chunk.ab;
+        if (Array.isArray(raw)) {
+          raw.forEach(line => {
+            linesArray.push({ type: 'context', text: line });
+          });
+        } else {
+          linesArray.push({ type: 'context', text: raw });
+        }
+      } else {
+        // 删除行
+        if (chunk.hasOwnProperty('a')) {
+          const rawA = chunk.a;
+          if (Array.isArray(rawA)) {
+            rawA.forEach(line => {
+              linesArray.push({ type: 'delete', text: line });
+            });
+          } else {
+            linesArray.push({ type: 'delete', text: rawA });
+          }
+        }
+        // 新增行
+        if (chunk.hasOwnProperty('b')) {
+          const rawB = chunk.b;
+          if (Array.isArray(rawB)) {
+            rawB.forEach(line => {
+              linesArray.push({ type: 'add', text: line });
+            });
+          } else {
+            linesArray.push({ type: 'add', text: rawB });
+          }
+        }
+      }
+    }
+  }
+  
+  return linesArray;
 }
 
 // 渲染单个变更项
@@ -296,20 +392,34 @@ async function selectChange(change) {
     setStatus('正在加载变更详情...');
     
     // 获取变更详情
-    const response = await chrome.runtime.sendMessage({ 
-      type: "fetchGerritChanges", 
-      url: detailUrl,
-      gerritUrl: gerritUrl
-    }).catch(error => {
+    let response;
+    try {
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+        response = await chrome.runtime.sendMessage({ 
+          type: "fetchGerritChanges", 
+          url: detailUrl,
+          gerritUrl: gerritUrl
+        });
+      } else {
+        // 模拟环境下返回测试数据
+        throw new Error('Chrome扩展环境不可用，无法获取数据');
+      }
+    } catch (error) {
       console.error('获取变更详情失败:', error);
       throw new Error('网络请求失败');
-    });
+    }
     
     if (response && response.ok) {
       // 移除前缀字符 )]}'
       const cleanData = response.data.substring(response.data.indexOf('\n') + 1);
       const detailedChange = JSON.parse(cleanData);
+      
+      // 先显示基本信息
       renderChangeDetail(detailedChange);
+      
+      // 异步加载文件变更详情
+      loadFileChanges(gerritUrl, detailedChange);
+      
       setStatus('已加载变更详情');
     } else {
       throw new Error(response?.error || '获取详情失败');
@@ -318,6 +428,101 @@ async function selectChange(change) {
     console.error('加载变更详情时出错:', error);
     gerritDetail.innerHTML = `<div class="gerrit-empty">加载详情失败: ${error.message}</div>`;
     setStatus(`加载详情失败: ${error.message}`);
+  }
+}
+
+// 加载文件变更详情
+async function loadFileChanges(gerritUrl, change) {
+  try {
+    if (change.revisions && Object.keys(change.revisions).length > 0) {
+      const revisionId = Object.keys(change.revisions)[0];
+      const latestRevision = change.revisions[revisionId];
+      
+      if (latestRevision.files) {
+        setStatus(`正在加载 ${Object.keys(latestRevision.files).length} 个文件的变更详情...`);
+        
+        // 逐个加载文件的diff内容
+        for (const [filePath, fileInfo] of Object.entries(latestRevision.files)) {
+          const diffData = await fetchFileDiff(gerritUrl, change.id, revisionId, filePath);
+          if (diffData) {
+            fileInfo.diffContent = parseDiffContent(diffData);
+          }
+          
+          // 更新UI显示已加载的文件
+          updateFileDiffUI(filePath, fileInfo.diffContent);
+        }
+        
+        setStatus(`已加载所有文件变更详情`);
+      }
+    }
+  } catch (error) {
+    console.error('加载文件变更详情失败:', error);
+    setStatus(`加载文件变更详情失败: ${error.message}`);
+  }
+}
+
+// 更新文件变更的UI显示
+function updateFileDiffUI(filePath, diffContent) {
+  // 使用XPath查找包含特定文本的元素
+  function getElementByTextContent(selector, text) {
+    const elements = document.querySelectorAll(selector);
+    for (const element of elements) {
+      if (element.textContent.trim() === text.trim()) {
+        return element;
+      }
+    }
+    return null;
+  }
+  
+  const fileElement = getElementByTextContent('.gerrit-detail-change-path', filePath);
+  if (!fileElement) return;
+  
+  const changeElement = fileElement.closest('.gerrit-detail-change');
+  if (!changeElement) return;
+  
+  // 如果已经有diff内容，先移除
+  let diffContainer = changeElement.querySelector('.gerrit-file-diff');
+  if (!diffContainer) {
+    diffContainer = document.createElement('div');
+    diffContainer.className = 'gerrit-file-diff';
+    changeElement.appendChild(diffContainer);
+  }
+  
+  // 显示diff内容
+  if (diffContent && diffContent.length > 0) {
+    let diffHtml = '<div class="gerrit-diff-content">';
+    
+    diffContent.forEach(line => {
+      let lineClass = 'gerrit-diff-context';
+      let linePrefix = ' ';
+      
+      if (line.type === 'delete') {
+        lineClass = 'gerrit-diff-delete';
+        linePrefix = '-';
+      } else if (line.type === 'add') {
+        lineClass = 'gerrit-diff-add';
+        linePrefix = '+';
+      } else if (line.type === 'separator') {
+        lineClass = 'gerrit-diff-separator';
+        diffHtml += `<div class="${lineClass}">${line.text}</div>`;
+        return;
+      }
+      
+      // 转义HTML特殊字符
+      const escapedText = line.text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+      
+      diffHtml += `<div class="${lineClass}"><span class="gerrit-diff-prefix">${linePrefix}</span>${escapedText}</div>`;
+    });
+    
+    diffHtml += '</div>';
+    diffContainer.innerHTML = diffHtml;
+  } else {
+    diffContainer.innerHTML = '<div class="gerrit-diff-empty">无法加载文件变更详情</div>';
   }
 }
 
@@ -401,6 +606,9 @@ function renderChangeDetail(change) {
           <div class="gerrit-detail-change">
             <span class="gerrit-detail-change-icon">${icon}</span>
             <span class="gerrit-detail-change-path">${path}</span>
+            <div class="gerrit-file-diff">
+              <div class="gerrit-diff-loading">加载中...</div>
+            </div>
           </div>
         `;
       }).join('');
@@ -430,6 +638,68 @@ function renderChangeDetail(change) {
   }
   
   gerritDetail.innerHTML = `
+    <style>
+      .gerrit-file-diff {
+        margin-top: 4px;
+        margin-left: 20px;
+        font-family: monospace;
+        font-size: 13px;
+        line-height: 1.4;
+      }
+      
+      .gerrit-diff-loading {
+        color: var(--text-muted);
+        font-style: italic;
+      }
+      
+      .gerrit-diff-empty {
+        color: var(--text-muted);
+        font-style: italic;
+      }
+      
+      .gerrit-diff-content {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        background-color: var(--bg-tertiary);
+      }
+      
+      .gerrit-diff-context {
+        color: var(--text-primary);
+        padding: 2px 4px;
+        border-left: 3px solid transparent;
+      }
+      
+      .gerrit-diff-delete {
+        color: var(--error);
+        background-color: rgba(239, 68, 68, 0.1);
+        padding: 2px 4px;
+        border-left: 3px solid var(--error);
+      }
+      
+      .gerrit-diff-add {
+        color: var(--success);
+        background-color: rgba(34, 197, 94, 0.1);
+        padding: 2px 4px;
+        border-left: 3px solid var(--success);
+      }
+      
+      .gerrit-diff-separator {
+        text-align: center;
+        color: var(--text-muted);
+        padding: 2px 0;
+      }
+      
+      .gerrit-diff-prefix {
+        display: inline-block;
+        width: 12px;
+        margin-right: 4px;
+        text-align: center;
+        font-weight: bold;
+      }
+    </style>
+    
     <div class="gerrit-detail-header">
       <div>
         <div class="gerrit-detail-title">${change.subject}</div>
@@ -439,8 +709,8 @@ function renderChangeDetail(change) {
         </div>
       </div>
       <div class="gerrit-detail-actions">
-        <a href="${changeUrl}" target="_blank" class="gerrit-detail-btn">
-          在Gerrit中打开
+        <a href="${changeUrl}" target="_blank" class="gerrit-detail-btn" id="gerrit-jump-link">
+          跳转
         </a>
       </div>
     </div>
@@ -561,6 +831,57 @@ async function init() {
   
   await loadSettings();
   setupEventListeners();
+  
+  // 添加跳转链接的事件处理
+  const jumpLink = document.getElementById('gerrit-jump-link');
+  if (jumpLink) {
+    jumpLink.addEventListener('click', (e) => {
+      // 在打开新标签页前，确保当前标签页的面板状态被保存
+      if (typeof window.switchToPanel === 'function') {
+        // 如果存在switchToPanel函数，直接调用它保存当前面板状态
+        try {
+          window.switchToPanel('gerrit-panel');
+        } catch (error) {
+          console.warn('调用switchToPanel失败:', error);
+        }
+      } else if (typeof chrome !== 'undefined' && chrome.runtime) {
+        // 否则使用chrome.runtime.sendMessage
+        try {
+          chrome.runtime.sendMessage({
+            type: "switchPanel", 
+            name: "gerrit-panel"
+          });
+        } catch (error) {
+          console.warn('发送switchPanel消息失败:', error);
+        }
+      }
+    });
+  } else {
+    // 如果跳转链接不存在，添加一个延时检查
+    setTimeout(() => {
+      const delayedJumpLink = document.getElementById('gerrit-jump-link');
+      if (delayedJumpLink) {
+        delayedJumpLink.addEventListener('click', (e) => {
+          if (typeof window.switchToPanel === 'function') {
+            try {
+              window.switchToPanel('gerrit-panel');
+            } catch (error) {
+              console.warn('调用switchToPanel失败:', error);
+            }
+          } else if (typeof chrome !== 'undefined' && chrome.runtime) {
+            try {
+              chrome.runtime.sendMessage({
+                type: "switchPanel", 
+                name: "gerrit-panel"
+              });
+            } catch (error) {
+              console.warn('发送switchPanel消息失败:', error);
+            }
+          }
+        });
+      }
+    }, 500);
+  }
   
   // 页面完全加载后自动加载数据
   loadGerritChanges().catch(error => {
