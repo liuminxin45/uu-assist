@@ -362,17 +362,31 @@ document.addEventListener("DOMContentLoaded", async () => {
   // 初始配置
   try { await loadConfig(); } catch (e) { setStatus("配置加载失败: " + (e?.message || e)); }
   
-  // 初始化txtContent的自动高度调整
-  const txtContent = $("#txtContent");
-  if (txtContent) {
-    // 初始调整高度
-    adjustTextareaHeight(txtContent);
-    
-    // 添加输入事件监听器，实现输入时自动调整高度
-    txtContent.addEventListener('input', () => {
-      adjustTextareaHeight(txtContent);
-    });
-  }
+  // 初始化txtContent的自动高度调整和自动保存
+  try {
+    const ta = $("#txtContent");
+    if (ta) {
+      // 初始调整高度
+      adjustTextareaHeight(ta);
+      
+      // 添加输入事件监听器，实现输入时自动调整高度和自动保存
+      let saveTimeout = null;
+      ta.addEventListener('input', () => {
+        adjustTextareaHeight(ta);
+        
+        // 防抖保存，避免频繁保存
+        if (saveTimeout) clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+          saveCommentForCurrentTask().catch(e => console.warn('自动保存失败:', e));
+        }, 1000); // 1秒后自动保存
+      });
+      
+      // 失去焦点时立即保存
+      ta.addEventListener('blur', () => {
+        saveCommentForCurrentTask().catch(e => console.warn('失焦保存失败:', e));
+      });
+    }
+  } catch (e) { console.warn("textarea bind fail:", e); }
 
 
 
@@ -528,7 +542,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const dlgTpl = $("dlgTpl");
     const taTpl = $("tplArea");
     if (taTpl && !taTpl.value.trim()) {
-      taTpl.value = "> {{timestamp}}\n(NOTE) {{AITitle}}\n\n{{AIResponse}}\n\n--------\n\n{{正文}}";
+      taTpl.value = "> {{timestamp}}\n### {{AITitle}}\n\n{{AIResponse}}\n\n--------\n\n{{正文}}";
     }
     if (btnTpl && dlgTpl) {
       const closeTpl = () => { try { dlgTpl.close(); } catch (_) { dlgTpl.open = false; } };
@@ -623,7 +637,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
       });
     }
-    if (tpl && !tpl.value.trim()) tpl.value = "> {{timestamp}}\n(NOTE) {{AITitle}}\n\n{{AIResponse}}\n\n--------\n\n{{正文}}";
+    if (tpl && !tpl.value.trim()) tpl.value = "> {{timestamp}}\n### {{AITitle}}\n\n{{AIResponse}}\n\n--------\n\n{{正文}}";
 
     const btnEdit = $("btnEditPrompt");
     const dlg = $("dlgAI");
@@ -690,7 +704,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (ai?.ok) { AITitle = ai.title || ""; AIResponse = ai.reply || ""; setStatus("AI 处理完成"); }
             else { setStatus("AI 处理失败: " + (ai?.error || "")); }
           }
-          const tpl = $("tplArea")?.value || "> {{timestamp}}\n(NOTE) {{AITitle}}\n\n{{AIResponse}}\n\n--------\n\n{{正文}}";
+          const tpl = $("tplArea")?.value || "> {{timestamp}}\n### {{AITitle}}\n\n{{AIResponse}}\n\n--------\n\n{{正文}}";
           content = substituteTemplate(tpl, { timestamp, AITitle, AIResponse, body: bodyContent });
         } catch (e) { console.warn("AI/template compose fail:", e); }
 
@@ -1096,13 +1110,89 @@ async function updateCommentPersistence() {
   }
 }
 
-// 在页面隐藏或关闭前保存评论内容
-document.addEventListener('visibilitychange', async () => {
-  if (document.hidden) {
-    await saveCommentForCurrentTask();
+// 保存txtContent到持久化存储
+async function saveTxtContentToStorage() {
+  try {
+    const ta = $('txtContent');
+    if (!ta) return;
+    
+    // 使用setAndPersist确保内容被保存到全局持久化系统
+    if (window.setAndPersist) {
+      window.setAndPersist(ta, 'pha:txtContent', ta.value);
+    } else {
+      // 回退方案
+      const content = ta.value;
+      // 同时保存到任务关联存储和通用存储
+      if (currentTaskId) {
+        const commentsByTask = await getCommentsByTask();
+        commentsByTask[currentTaskId] = content;
+        await chrome.storage.local.set({ 'phaPanelCommentsByTask': commentsByTask });
+      }
+      // 保存到独立的通用存储
+      await chrome.storage.local.set({ 'phaPanelTxtContent': content });
+    }
+  } catch (e) {
+    console.warn('保存txtContent失败:', e);
+  }
+}
+
+// 从持久化存储恢复txtContent
+async function restoreTxtContentFromStorage() {
+  try {
+    const ta = $('txtContent');
+    if (!ta) return;
+    
+    // 首先尝试使用全局持久化系统的值
+    if (ta.value) return; // 如果已经有值，不覆盖
+    
+    // 尝试从通用存储恢复
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      const result = await chrome.storage.local.get('phaPanelTxtContent');
+      if (result.phaPanelTxtContent) {
+        ta.value = result.phaPanelTxtContent;
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('恢复txtContent失败:', e);
+  }
+}
+
+// 在DOMContentLoaded时恢复内容
+document.addEventListener('DOMContentLoaded', async () => {
+  await restoreTxtContentFromStorage();
+  
+  // 为txtContent添加实时保存
+  const ta = $('txtContent');
+  if (ta) {
+    // 添加输入事件监听器，使用防抖保存
+    let saveTimeout;
+    ta.addEventListener('input', () => {
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(saveTxtContentToStorage, 500); // 500ms防抖
+    });
+    
+    // 添加失焦事件监听器，立即保存
+    ta.addEventListener('blur', saveTxtContentToStorage);
   }
 });
 
-window.addEventListener('beforeunload', async () => {
-  await saveCommentForCurrentTask();
+// 在页面隐藏或关闭前保存内容
+document.addEventListener('visibilitychange', async () => {
+  if (document.hidden) {
+    await saveTxtContentToStorage();
+    await saveCommentForCurrentTask(); // 保留原有任务相关保存
+  }
+});
+
+window.addEventListener('beforeunload', async (e) => {
+  // 同步执行以确保在页面卸载前完成
+  try {
+    await Promise.all([
+      saveTxtContentToStorage(),
+      saveCommentForCurrentTask()
+    ]);
+  } catch (err) {
+    console.warn('卸载前保存失败:', err);
+  }
 });

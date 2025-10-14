@@ -14,7 +14,9 @@ const todoModal = document.getElementById('todo-modal');
 const editTodoContent = document.getElementById('edit-todo-content');
 const editTodoDate = document.getElementById('edit-todo-date');
 const editTodoPriority = document.getElementById('edit-todo-priority');
-const editTodoTags = document.getElementById('edit-todo-tags');
+let editTodoTags = document.getElementById('edit-todo-tags');
+const tagsDisplay = document.getElementById('tags-display');
+let tagSuggestions = document.getElementById('tag-suggestions');
 const editTodoNote = document.getElementById('edit-todo-note');
 const saveTodoBtn = document.getElementById('save-todo-btn');
 const cancelTodoBtn = document.getElementById('cancel-todo-btn');
@@ -22,12 +24,16 @@ const modalClose = document.querySelector('.modal-close');
 const notePlaceholder = document.querySelector('.note-placeholder');
 const noteHint = document.querySelector('.note-hint');
 
+// 当前编辑的标签列表
+let currentTags = [];
+
 // 状态变量
 let todos = [];
 let currentEditTodoId = null;
 let currentView = 'todo'; // 当前显示的视图 - 'todo' 或 'completed'
 let currentSearchTerm = ''; // 新增：当前搜索词
 let currentFilterType = ''; // 'tag', 'priority', or 'search'
+let isSelectingTag = false; // 标记是否正在选择标签
 
 // 初始化
 function init() {
@@ -641,7 +647,13 @@ function openEditModal(id) {
     editTodoContent.value = todo.content;
     editTodoDate.value = todo.dueDate ? todo.dueDate.split('T')[0] : '';
     editTodoPriority.value = todo.priority || 'medium';
-    editTodoTags.value = todo.tags ? todo.tags.join(', ') : '';
+    
+    // 初始化标签
+    currentTags = todo.tags ? [...todo.tags] : [];
+    renderTags();
+    
+    // 设置标签输入框的回车事件
+    setupTagInputEvents();
     
     // 填充备注内容
     editTodoNote.innerHTML = todo.note || '';
@@ -681,6 +693,158 @@ function openEditModal(id) {
       editTodoContent.focus();
     }, 100);
   }
+}
+
+// 渲染标签
+function renderTags() {
+  tagsDisplay.innerHTML = '';
+  
+  currentTags.forEach((tag, index) => {
+    const tagElement = document.createElement('div');
+    tagElement.className = 'tag-item';
+    tagElement.textContent = tag;
+    
+    // 添加删除按钮
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'tag-delete';
+    deleteBtn.textContent = '×';
+    deleteBtn.addEventListener('click', () => {
+      removeTag(index);
+    });
+    
+    tagElement.appendChild(deleteBtn);
+    tagsDisplay.appendChild(tagElement);
+  });
+}
+
+// 添加标签
+function addTag(tag) {
+  tag = tag.trim();
+  if (tag && !currentTags.includes(tag)) {
+    currentTags.push(tag);
+    renderTags();
+    editTodoTags.value = '';
+  }
+}
+
+// 移除标签
+function removeTag(index) {
+  currentTags.splice(index, 1);
+  renderTags();
+}
+
+// 获取所有现有的标签
+function getAllExistingTags() {
+  const allTags = new Set();
+  todos.forEach(todo => {
+    if (todo.tags && Array.isArray(todo.tags)) {
+      todo.tags.forEach(tag => {
+        allTags.add(tag.trim());
+      });
+    }
+  });
+  return Array.from(allTags);
+}
+
+// 显示标签搜索建议
+function showTagSuggestions(inputText) {
+  if (!inputText.trim()) {
+    tagSuggestions.classList.remove('show');
+    return;
+  }
+
+  const allTags = getAllExistingTags();
+  const filteredTags = allTags.filter(tag => 
+    tag.toLowerCase().includes(inputText.toLowerCase()) && 
+    !currentTags.includes(tag) // 排除已选择的标签
+  );
+
+  if (filteredTags.length === 0) {
+    tagSuggestions.classList.remove('show');
+    return;
+  }
+
+  // 清空并填充建议列表
+  tagSuggestions.innerHTML = '';
+  filteredTags.forEach(tag => {
+    const item = document.createElement('div');
+    item.className = 'tag-suggestion-item';
+    item.textContent = tag;
+    // 使用mousedown而非click，确保在blur事件触发前就设置标志
+    item.addEventListener('mousedown', (event) => {
+      event.preventDefault(); // 阻止默认行为，避免输入框失去焦点
+      isSelectingTag = true; // 标记正在选择标签
+      addTag(tag);
+      editTodoTags.value = '';
+      tagSuggestions.classList.remove('show');
+      editTodoTags.focus();
+      // 延迟重置标志，确保blur事件处理完成
+      setTimeout(() => {
+        isSelectingTag = false;
+      }, 200);
+    });
+    tagSuggestions.appendChild(item);
+  });
+
+  tagSuggestions.classList.add('show');
+}
+
+// 隐藏标签建议
+function hideTagSuggestions() {
+  // 使用setTimeout延迟隐藏，以便点击建议项能被捕获
+  setTimeout(() => {
+    tagSuggestions.classList.remove('show');
+  }, 200);
+}
+
+// 设置标签输入事件
+function setupTagInputEvents() {
+  // 克隆输入框以处理特殊输入场景
+  let clonedInput = editTodoTags.cloneNode(true);
+  editTodoTags.parentNode.replaceChild(clonedInput, editTodoTags);
+  editTodoTags = clonedInput;
+
+  // 处理标签输入
+  editTodoTags.addEventListener('keypress', function(event) {
+    if (event.key === 'Enter' && editTodoTags.value.trim()) {
+      event.preventDefault();
+      addTag(editTodoTags.value.trim());
+      editTodoTags.value = '';
+      tagSuggestions.classList.remove('show');
+    }
+    // 也支持使用逗号分隔标签
+    else if (event.key === ',' && editTodoTags.value.trim()) {
+      event.preventDefault();
+      addTag(editTodoTags.value.trim().replace(/,$/, ''));
+      editTodoTags.value = '';
+      tagSuggestions.classList.remove('show');
+    }
+  });
+
+  // 处理输入变化，显示搜索建议
+  editTodoTags.addEventListener('input', function() {
+    showTagSuggestions(editTodoTags.value);
+  });
+
+  // 当输入框失去焦点时，只隐藏建议，不自动添加标签
+  editTodoTags.addEventListener('blur', function(event) {
+    // 不在这里自动添加标签，只在回车或逗号时添加
+    hideTagSuggestions();
+  });
+
+  // 当输入框获得焦点时，如果有内容则显示建议
+  editTodoTags.addEventListener('focus', function() {
+    if (editTodoTags.value.trim()) {
+      showTagSuggestions(editTodoTags.value);
+    }
+  });
+
+  // 点击页面其他地方时隐藏建议
+  document.addEventListener('click', function(event) {
+    if (!editTodoTags.contains(event.target) && !tagSuggestions.contains(event.target)) {
+      hideTagSuggestions();
+    }
+  });
 }
 
 // 添加子任务输入框
@@ -739,15 +903,18 @@ function addSubTaskInput(container, subTask = null) {
 // 关闭编辑模态框
 function closeEditModal() {
   todoModal.classList.remove('active');
+  tagSuggestions.classList.remove('show');
   document.body.style.overflow = ''; // 恢复背景滚动
   
   // 延迟清空输入框，等待动画完成
   setTimeout(() => {
     currentEditTodoId = null;
+    currentTags = [];
     editTodoContent.value = '';
     editTodoDate.value = '';
     editTodoPriority.value = 'medium';
     editTodoTags.value = '';
+    tagsDisplay.innerHTML = '';
     editTodoNote.innerHTML = '';
     updateNotePlaceholder();
   }, 300);
@@ -759,9 +926,12 @@ function saveEditedTodo() {
     const content = editTodoContent.value.trim();
     const dueDate = editTodoDate.value;
     const priority = editTodoPriority.value;
-    const tags = editTodoTags.value
-      ? editTodoTags.value.split(',').map(tag => tag.trim()).filter(tag => tag) 
-      : [];
+    
+    // 获取当前标签
+    const tagInputValue = editTodoTags.value.trim();
+    if (tagInputValue) {
+      addTag(tagInputValue);
+    }
     
     // 获取子任务
     const subTasksContainer = document.getElementById('sub-tasks-container');
@@ -788,7 +958,7 @@ function saveEditedTodo() {
         content: content,
         dueDate: dueDate,
         priority: priority,
-        tags: tags,
+        tags: currentTags,
         subTasks: subTasks,
         note: updatedNote // 直接使用trim后的值，空字符串也会被保存
       });

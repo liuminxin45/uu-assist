@@ -68,12 +68,12 @@
     .todo-lists {
       display: flex;
       gap: var(--space-lg);
-      overflow-x: auto;
       padding-bottom: var(--space-md);
+      width: 100%;
     }
     
     .todo-list {
-      flex: 0 0 300px;
+      flex: 1 1 auto;
       background: var(--bg-primary);
       border: 1px solid var(--border-light);
       border-radius: var(--radius-lg);
@@ -81,6 +81,7 @@
       display: flex;
       flex-direction: column;
       min-height: 400px;
+      min-width: 250px;
     }
     
     .todo-list-header {
@@ -458,6 +459,123 @@
       cursor: help;
     }
     
+    /* 标签输入容器样式 */
+    .tags-input-container {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      padding: 6px;
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      background: var(--bg-secondary);
+      min-height: 38px;
+      gap: 6px;
+    }
+    
+    /* 标签显示区域 */
+    .tags-display {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    
+    /* 标签项样式 */
+    .tag-item {
+      display: inline-flex;
+      align-items: center;
+      background: var(--primary-light);
+      color: var(--primary);
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 500;
+      gap: 4px;
+    }
+    
+    /* 标签删除按钮 */
+    .tag-delete {
+      background: none;
+      border: none;
+      color: var(--primary);
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      padding: 0 2px;
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition-normal);
+    }
+    
+    .tag-delete:hover {
+      background: var(--primary);
+      color: white;
+    }
+    
+    /* 标签输入框样式 */
+    .tag-input {
+      flex: 1;
+      min-width: 120px;
+      padding: 4px 0;
+      border: none;
+      background: transparent;
+      color: var(--text-primary);
+      font-size: 14px;
+      outline: none;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .tag-input::placeholder {
+      color: var(--text-muted);
+    }
+    
+    /* 标签建议下拉框样式 */
+    .tag-suggestions {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 4px;
+      z-index: 1000;
+      display: none;
+    }
+    
+    .tag-suggestions.show {
+      display: block;
+    }
+    
+    .tag-suggestion-item {
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text-primary);
+      transition: background-color var(--transition-normal);
+      border-bottom: 1px solid var(--border-light);
+    }
+    
+    .tag-suggestion-item:last-child {
+      border-bottom: none;
+    }
+    
+    .tag-suggestion-item:hover {
+      background: var(--bg-secondary);
+    }
+    
+    /* 调整标签输入容器的相对定位 */
+    .tags-input-container {
+      position: relative;
+    }
+    
     /* 为子任务行创建最具体的样式规则 */
     .modal-body .form-group .sub-tasks-container .sub-task-row {
       display: flex;
@@ -717,7 +835,11 @@
         </div>
         <div class="form-group">
           <label for="edit-todo-tags">标签</label>
-          <input type="text" id="edit-todo-tags" placeholder="用逗号分隔多个标签" />
+          <div class="tags-input-container">
+            <div id="tags-display" class="tags-display"></div>
+            <input type="text" id="edit-todo-tags" placeholder="输入标签后按回车添加" class="tag-input" />
+            <div id="tag-suggestions" class="tag-suggestions"></div>
+          </div>
         </div>
         
         <div class="form-group">
