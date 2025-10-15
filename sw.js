@@ -95,7 +95,7 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
       
       // 检查当前标签页是否已经有相同的面板打开
       try {
-        const currentOptions = await chrome.sidePanel.getOptions(tabId);
+        const currentOptions = await chrome.sidePanel.getOptions({ tabId: tabId });
         const currentPanelName = Object.keys(PANEL_PATHS).find(key => PANEL_PATHS[key] === currentOptions.path) || "pha-panel";
         
         // 只有当当前面板名称与存储的不同时，才切换面板
@@ -124,7 +124,7 @@ chrome.windows.onFocusChanged.addListener(async (winId) => {
       
       // 检查当前标签页是否已经有相同的面板打开
       try {
-        const currentOptions = await chrome.sidePanel.getOptions(tab.id);
+        const currentOptions = await chrome.sidePanel.getOptions({ tabId: tab.id });
         const currentPanelName = Object.keys(PANEL_PATHS).find(key => PANEL_PATHS[key] === currentOptions.path) || "pha-panel";
         
         // 只有当当前面板名称与存储的不同时，才切换面板
@@ -433,9 +433,8 @@ async function showToast(tabId, message) {
           }
         }, 300);
       }, 3000);
-      },
-      args: [message]
-    });
+  }
+});
   } catch (error) {
     console.error('显示toast失败:', error);
   }
@@ -465,74 +464,349 @@ async function findRocketPanelTabs() {
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  (async () => {
-    try {
-      // 处理rocket:statusLog消息
-      if (msg.type === "rocket:statusLog") {
-        // 查找所有打开的rocket-panel标签页
-        const rocketTabs = await findRocketPanelTabs();
-        if (rocketTabs.length > 0) {
-          // 向所有打开的rocket-panel发送日志消息
-          rocketTabs.forEach(tab => {
-            chrome.tabs.sendMessage(
-              tab.id,
-              { type: 'rocket:displayLog', message: msg.message }
-            ).catch(() => {
-              // 忽略错误，因为标签页可能已关闭或未准备好
-            });
+  // 对于需要异步处理的消息类型，返回true以保持消息通道开放
+  const asyncMessageTypes = ['fetchGerritChanges', 'fetchGerritDiff', 'rocket:statusLog', 'rocket:aiReply', 'fetchListPage', 'fetchTaskSummary', 'postComment', 'fetchGerritCommit', 'sumWorkload', 'uploadFile', 'switchPanel', 'cache:addPost', 'cache:queryByTask', 'cache:queryByTime', 'cache:deletePost', 'exportAllData', 'importAllData'];
+  if (asyncMessageTypes.includes(msg.type)) {
+    // 异步处理函数
+    (async () => {
+      try {
+        // 处理Gerrit相关的fetch请求，支持变更和差异数据获取
+        if (msg.type === 'fetchGerritChanges' || msg.type === 'fetchGerritDiff') {
+          const r = await fetch(msg.url, {
+            method: 'GET',
+            credentials: 'include',           // 关键：带上 Cookie
+            redirect: 'follow',
+            cache: 'no-cache',
+            headers: {
+              'Accept': 'application/json'    // Gerrit REST 友好
+            }
           });
+          const text = await r.text();
+          sendResponse({ ok: r.ok, status: r.status, data: text });
         }
-        sendResponse({ ok: true });
-        return;
-      }
       
-      // 处理rocket:aiReply消息，将AI建议传递给Rocket面板
-      if (msg.type === "rocket:aiReply") {
-        // 查找所有打开的rocket-panel标签页
-        const rocketTabs = await findRocketPanelTabs();
-        if (rocketTabs.length > 0) {
-          // 向所有打开的rocket-panel发送AI回复内容
-          rocketTabs.forEach(tab => {
-            chrome.tabs.sendMessage(
-              tab.id,
-              { type: 'rocket:aiReply', content: msg.content }
-            ).catch(() => {
-              // 忽略错误，因为标签页可能已关闭或未准备好
+        // 处理rocket:statusLog消息
+        if (msg.type === "rocket:statusLog") {
+          // 查找所有打开的rocket-panel标签页
+          const rocketTabs = await findRocketPanelTabs();
+          if (rocketTabs.length > 0) {
+            // 向所有打开的rocket-panel发送日志消息
+            rocketTabs.forEach(tab => {
+              chrome.tabs.sendMessage(
+                tab.id,
+                { type: 'rocket:displayLog', message: msg.message }
+              ).catch(() => {
+                // 忽略错误，因为标签页可能已关闭或未准备好
+              });
             });
-          });
+          }
+          sendResponse({ ok: true });
         }
-        sendResponse({ ok: true });
-        return;
-      }
-
-      if (msg.type === "fetchListPage") {
-        const { ok, status, text } = await fetchText(msg.url);
-        sendResponse({ ok, status, text, snippet: snippetOf(text) });
-        return;
-      }
-
-      if (msg.type === "guessTaskFromGerrit") {
-        try {
-          const url = msg.url;
-          const tab = await ensureTab(url);
-          await waitComplete(tab.id);
-          await ensureCS(tab.id);
-          const r = await sendMsgWithTimeout(tab.id, { type: "extractTaskId" }, 12000);
-          if (r?.ok && r.id) sendResponse({ ok: true, id: r.id });
-          else sendResponse({ ok: false, error: r?.error || "not found" });
-        } catch (e) {
-          sendResponse({ ok: false, error: e?.message || String(e) });
+      
+        // 处理rocket:aiReply消息
+        if (msg.type === "rocket:aiReply") {
+          // 查找所有打开的rocket-panel标签页
+          const rocketTabs = await findRocketPanelTabs();
+          if (rocketTabs.length > 0) {
+            // 向所有打开的rocket-panel发送AI回复内容
+            rocketTabs.forEach(tab => {
+              chrome.tabs.sendMessage(
+                tab.id,
+                { type: 'rocket:aiReply', content: msg.content }
+              ).catch(() => {
+                // 忽略错误，因为标签页可能已关闭或未准备好
+              });
+            });
+          }
+          sendResponse({ ok: true });
         }
-        return;
+        
+        // 处理fetchListPage消息
+        if (msg.type === "fetchListPage") {
+          const { ok, status, text } = await fetchText(msg.url);
+          sendResponse({ ok, status, text, snippet: snippetOf(text) });
+          return;
+        }
+        
+        // 处理guessTaskFromGerrit消息
+        if (msg.type === "guessTaskFromGerrit") {
+          try {
+            const url = msg.url;
+            const tab = await ensureTab(url);
+            await waitComplete(tab.id);
+            await ensureCS(tab.id);
+            const r = await sendMsgWithTimeout(tab.id, { type: "extractTaskId" }, 12000);
+            if (r?.ok && r.id) sendResponse({ ok: true, id: r.id });
+            else sendResponse({ ok: false, error: r?.error || "not found" });
+          } catch (e) {
+            sendResponse({ ok: false, error: e?.message || String(e) });
+          }
+        }
+        
+        // 处理fetchTaskSummary消息
+        if (msg.type === "fetchTaskSummary") {
+          try {
+            const url = msg.url;
+            const r = await fetch(url, { credentials: "include", cache: "no-cache" });
+            if (r.ok) {
+              const text = await r.text();
+              sendResponse({ ok: true, text });
+            } else {
+              sendResponse({ ok: false, error: `HTTP ${r.status}` });
+            }
+          } catch (e) {
+            sendResponse({ ok: false, error: e?.message || String(e) });
+          }
+        }
+        
+        // 处理postComment消息
+        if (msg.type === "postComment") {
+          try {
+            const g = await fetch(msg.taskUrl, { credentials: "include", cache: "no-cache", redirect: "follow" });
+            const html = await g.text();
+            if (!g.ok) { sendResponse({ ok: false, status: g.status, error: "GET 任务页失败", snippet: snippetOf(html) }); return; }
+            const csrf = findInputValue(html, ["__csrf__", "_csrf_"]);
+            if (!csrf) { sendResponse({ ok: false, error: "未找到CSRF令牌", snippet: snippetOf(html) }); return; }
+            const draftVer = findInputValue(html, ["draft.version"]);
+            const id = msg.taskId;
+            const postUrl = `http://pha.tp-link.com.cn/maniphest/task/edit/${id}/comment/`;
+            const form = new URLSearchParams();
+            form.set("_csrf_", csrf);
+            form.set("__form__", "1");
+            form.set("__wflow__", "true");
+            form.set("__ajax__", "true");
+            form.set("__metablock__", "4");
+            if (draftVer) form.set("draft.version", draftVer);
+            let comment = msg.content;
+            if (typeof comment === "object") comment = JSON.stringify(comment);
+            form.set("comment", comment);
+            const r = await fetch(postUrl, {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: form
+            });
+            const j = await r.json();
+            sendResponse({ ok: r.ok, status: r.status, data: j });
+          } catch (e) {
+            sendResponse({ ok: false, error: e?.message || String(e) });
+          }
+        }
+        
+        // 处理fetchGerritCommit消息
+        if (msg.type === "fetchGerritCommit") {
+          try {
+            async function getCommitWithRetry(url, tries = 5) {
+              let last = {};
+              for (let i = 0; i < tries; i++) {
+                try {
+                  const r = await fetch(url, { headers: { Accept: "application/json" }, credentials: "include" });
+                  if (r.ok) return await r.json();
+                  last = { ok: r.ok, status: r.status, error: await r.text() };
+                } catch (e) { last = { error: String(e) }; }
+                if (i < tries - 1) await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+              }
+              throw last;
+            }
+            
+            const first = await getCommitWithRetry(msg.api);
+            if (first.status === 404) { sendResponse({ ok: false, status: 404 }); return; }
+            
+            // 检查是否需要获取父提交
+            if (!first.commit || !first.commit.parents || first.commit.parents.length === 0) {
+              sendResponse({ ok: true, commit: first, parent: null });
+              return;
+            }
+            
+            // 获取第一个父提交
+            const parentApi = msg.api.replace(/\/\d+$/, "/" + (parseInt(msg.api.split("/")?.pop() || "1") - 1));
+            const parent = await getCommitWithRetry(parentApi);
+            sendResponse({ ok: true, commit: first, parent });
+          } catch (e) {
+            sendResponse({ ok: false, error: e?.error || e?.message || String(e) });
+          }
+        }
+
+        // 处理uploadFile消息
+        if (msg.type === "uploadFile") {
+          try {
+            function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+            async function openOrFocusPHA() {
+              const tabs = await chrome.tabs.query({ url: ["http://pha.tp-link.com.cn/*"] });
+              if (tabs && tabs.length) {
+                const ready = tabs.find(t => t.status === "complete") || tabs[0];
+                return ready.id;
+              }
+              const t = await chrome.tabs.create({ url: "http://pha.tp-link.com.cn/" });
+              return t.id;
+            }
+            async function waitTabComplete(tabId, tries = 40) {
+              for (let i = 0; i < tries; i++) {
+                try {
+                  const t = await chrome.tabs.get(tabId);
+                  if (t && t.status === "complete") return true;
+                } catch (_) { }
+                await delay(100);
+              }
+              return false;
+            }
+            async function ensureCS(tabId) {
+              try {
+                const pong = await chrome.tabs.sendMessage(tabId, { cs: "fetchText", url: "http://pha.tp-link.com.cn/" });
+                if (pong) return true;
+              } catch (_) { }
+              try {
+                await chrome.scripting.executeScript({ target: { tabId }, files: ["cs.js"] });
+                return true;
+              } catch (e) {
+                return false;
+              }
+            }
+            async function getCsrf(tabId) {
+              const r = await chrome.tabs.sendMessage(tabId, { cs: "fetchText", url: "http://pha.tp-link.com.cn/" }).catch(() => null);
+              if (!r?.ok) return null;
+              const m = (r.text || "").match(/name=['"](?:__csrf__|_csrf_)['"][^>]*value=['"]([^'"]+)['"]/i);
+              return m ? m[1] : null;
+            }
+
+            const tabId = await openOrFocusPHA();
+            await waitTabComplete(tabId);
+            const csReady = await ensureCS(tabId);
+            if (!csReady) { sendResponse({ ok: false, error: "内容脚本未就绪" }); return; }
+
+            let csrf = await getCsrf(tabId);
+            if (!csrf) {
+              try { await chrome.tabs.reload(tabId); } catch (_) { }
+              await waitTabComplete(tabId);
+              await ensureCS(tabId);
+              csrf = await getCsrf(tabId);
+            }
+            if (!csrf) { sendResponse({ ok: false, error: "无法获取CSRF" }); return; }
+
+            const bytes = new Uint8Array(msg.bytes || []);
+            const mime = msg.mime || "application/octet-stream";
+            const fname = (msg.filename && msg.filename.trim()) || ("pasted_" + Date.now() + ".bin");
+
+            const q = new URLSearchParams();
+            q.set("name", fname);
+            q.set("length", String(bytes.length));
+            q.set("__upload__", "1");
+            q.set("__ajax__", "true");
+            q.set("__metablock__", "4");
+            const url = "http://pha.tp-link.com.cn/file/dropupload/?" + q.toString();
+            const headers = {
+              "Content-Type": mime,
+              "Accept": "*/*",
+              "X-Phabricator-Csrf": csrf,
+              "X-Requested-With": "XMLHttpRequest"
+            };
+            if (msg.via) headers["X-Phabricator-Via"] = msg.via;
+
+            const res = await chrome.tabs.sendMessage(tabId, { cs: "rawUpload", url, headers, bytes: Array.from(bytes) }).catch(err => ({ ok: false, error: String(err) }));
+            if (!res?.ok) { sendResponse({ ok: false, status: res?.status, error: res?.error || "rawUpload失败" }); return; }
+
+            let t = res.text || "";
+            t = stripXSSIPrefix(t);
+            let monogram = null, fUrl = null, err = null;
+            // 宽松解析
+            let data = relaxParseJSON(t);
+            if (data && data.error) { err = data.error.code + ": " + data.error.info; }
+            if (data) {
+              const f = (data.files && data.files[0]) || data.payload || data;
+              monogram = (f && (f.objectName || f.monogram)) || (f && f.id ? ("F" + f.id) : null) || null;
+              fUrl = (f && (f.uri || f.url)) || null;
+            }
+            // 兜底正则
+            if (!monogram || !fUrl) {
+              const g = grepIdAndUri(t);
+              if (!monogram && g.id) monogram = "F" + g.id;
+              if (!fUrl && g.uri) fUrl = g.uri;
+            }
+            if (monogram || fUrl) { sendResponse({ ok: true, status: res.status, monogram, url: fUrl, snippet: snippetOf(t) }); return; }
+            sendResponse({ ok: false, status: res.status, error: "dropupload未返回文件ID", snippet: snippetOf(t) });
+          } catch (e) {
+            sendResponse({ ok: false, error: e.message });
+          }
+          return;
+        }
+
+        // 面板请求切换
+        if (msg?.type === "switchPanel") {
+          try {
+            // 获取当前标签页ID
+            const tabId = await spGetStableTabId(sender);
+            
+            if (tabId) {
+              // 保存当前标签页的面板状态
+              await saveTabPanelState(tabId, msg.name);
+              
+              // 只对当前标签页应用面板切换
+              try {
+                await openPanelByName(msg.name, tabId, { fromSidePanel: false });
+                sendResponse({ ok: true, appliedTo: 1 });
+              } catch (error) {
+                console.warn(`为标签页 ${tabId} 设置面板失败:`, error);
+                sendResponse({ ok: false, error: error.message });
+              }
+            } else {
+              sendResponse({ ok: false, error: "无法获取当前标签页ID" });
+            }
+          } catch (e) {
+            sendResponse({ ok: false, error: e.message });
+          }
+          return;
+        }
+
+        // 数据库相关操作
+        if (msg?.type === "cache:addPost") {
+          try { const r = await dbAddPost(msg); sendResponse(r); } catch (e) { sendResponse({ ok: false, error: String(e) }); }
+          return;
+        }
+        if (msg?.type === "cache:queryByTask") {
+          try { const r = await dbQueryByTask(msg); sendResponse(r); } catch (e) { sendResponse({ ok: false, error: String(e) }); }
+          return;
+        }
+        if (msg?.type === "cache:queryByTime") {
+          try { const r = await dbQueryByTime(msg); sendResponse(r); } catch (e) { sendResponse({ ok: false, error: String(e) }); }
+          return;
+        }
+        if (msg?.type === "cache:deletePost") {
+          try { const r = await dbDeletePost(msg.id); sendResponse(r); } catch (e) { sendResponse({ ok: false, error: String(e) }); }
+          return;
+        }
+        
+        // 导出数据
+        if (msg?.type === "exportAllData") {
+          try {
+            const blob = await exportAllData();
+            sendResponse({ ok: true, blob });
+          } catch (e) {
+            sendResponse({ ok: false, error: String(e) });
+          }
+          return;
+        }
+        
+        // 导入数据
+        if (msg?.type === "importAllData") {
+          try {
+            const r = await importAllData(msg.payload);
+            sendResponse({ ok: true, ...r });
+          } catch (e) {
+            sendResponse({ ok: false, error: String(e) });
+          }
+          return;
+        }
+      } catch (e) {
+        console.error('onMessage 处理错误:', e);
+        // 确保在错误情况下也发送响应
+        sendResponse({ ok: false, error: e?.message || String(e) });
       }
-
-
-      if (msg.type === "fetchTaskSummary") {
-        try {
-          const url = msg.url;
-          const r = await fetch(url, { credentials: "include", cache: "no-cache" });
-          const html = await r.text();
-          if (!r.ok) { sendResponse({ ok: false, status: r.status, snippet: snippetOf(html) }); return; }
+    })();
+    
+    // 返回true保持消息通道开放，直到sendResponse被调用
+    return true;
+  }
+          
 
           // 标题
           let title = "";
@@ -663,12 +937,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           }
 
 
-          sendResponse({ ok: true, title, status, priority, details });
-        } catch (e) {
-          sendResponse({ ok: false, error: e?.message || String(e) });
-        }
-        return;
-      }
+
 
 
 
@@ -737,301 +1006,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return true; // 关键：保持消息通道，等待异步 sendResponse
       }
 
-
-
-      if (msg.type === "postComment") {
-        const g = await fetch(msg.taskUrl, { credentials: "include", cache: "no-cache", redirect: "follow" });
-        const html = await g.text();
-        if (!g.ok) { sendResponse({ ok: false, status: g.status, error: "GET 任务页失败", snippet: snippetOf(html) }); return; }
-        const csrf = findInputValue(html, ["__csrf__", "_csrf_"]);
-        if (!csrf) { sendResponse({ ok: false, error: "未找到CSRF令牌", snippet: snippetOf(html) }); return; }
-        const draftVer = findInputValue(html, ["draft.version"]);
-        const id = msg.taskId;
-        const postUrl = `http://pha.tp-link.com.cn/maniphest/task/edit/${id}/comment/`;
-        const form = new URLSearchParams();
-        form.set("_csrf_", csrf);
-        form.set("__form__", "1");
-        form.set("__wflow__", "true");
-        form.set("__ajax__", "true");
-        form.set("__metablock__", "4");
-        if (draftVer) form.set("draft.version", draftVer);
-        let comment = msg.content;
-        if (typeof comment === "object") comment = JSON.stringify(comment);
-        form.set("comment", comment);
-        const r = await fetch(postUrl, {
-          method: "POST", credentials: "include",
-          headers: { "Content-Type": "application/x-www-form-urlencoded", "Accept": "*/*", "X-Phabricator-Csrf": csrf },
-          body: form.toString()
-        });
-        const rt = await r.text().catch(() => "");
-        sendResponse({ ok: r.ok, status: r.status, snippet: snippetOf(rt) });
-        return;
-      }
-
-      if (msg.type === "fetchGerritCommit") {
-        async function getCommitWithRetry(url, tries = 5) {
-          let last = {};
-          for (let i = 0; i < tries; i++) {
-            try {
-              const r = await fetch(url, { headers: { Accept: "application/json" }, credentials: "include" });
-              const raw = await r.text();
-              const text = stripXSSI(raw);
-              if (!r.ok) { last = { ok: false, status: r.status, snippet: text.slice(0, 400) }; }
-              else {
-                try {
-                  const j = JSON.parse(text);
-                  const message = j.message || (j.commit && j.commit.message) || j.subject || "";
-                  if (message) return { ok: true, status: r.status, message };
-                  last = { ok: false, status: r.status, snippet: text.slice(0, 400), error: "empty message" };
-                } catch (e) { last = { ok: false, status: r.status, error: "JSON parse failed", snippet: text.slice(0, 400) }; }
-              }
-            } catch (e) { last = { ok: false, error: e?.message || String(e) }; }
-            await sleep(500 * (i + 1));
-          }
-          return last;
-        }
-
-        const first = await getCommitWithRetry(msg.api);
-        if (first.ok) { sendResponse({ ok: true, message: first.message }); return; }
-
-        let tab;
-        const urlNoHash = msg.url.split("#")[0];
-        const tabs = await chrome.tabs.query({ url: urlNoHash + "*" });
-        if (tabs?.length) tab = tabs[0];
-        if (!tab) {
-          tab = await chrome.tabs.create({ url: msg.url, active: false });
-          await sleep(1500);
-        }
-        try {
-          const domRes = await chrome.tabs.sendMessage(tab.id, { type: "gerritGrabCommit" });
-          if (domRes?.ok && domRes.message) {
-            sendResponse({ ok: true, message: domRes.message }); return;
-          }
-        } catch (_) { }
-
-        sendResponse({ ok: false, error: first.error || "fallback DOM grab failed", status: first.status, snippet: first.snippet });
-        return;
-      }
-
-      // 处理Gerrit变更列表请求
-      if (msg.type === "fetchGerritChanges") {
-        try {
-          // 使用带凭据的请求获取Gerrit数据
-          const response = await fetch(msg.url, {
-            credentials: "include",
-            headers: {
-              "Accept": "application/json"
-            }
-          });
-          
-          const data = await response.text();
-          
-          sendResponse({
-            ok: response.ok,
-            status: response.status,
-            data: data
-          });
-        } catch (error) {
-          console.error('获取Gerrit变更列表失败:', error);
-          sendResponse({
-            ok: false,
-            error: error?.message || String(error)
-          });
-        }
-        return;
-      }
-
-      // onMessage 内：
-      if (msg.type === "sumWorkload") {
-        const reply = oneShot(sendResponse);
-        const guard = setTimeout(() => reply({ ok: false, error: "background timeout" }), 30000);
-
-        try {
-          const tab = await ensureTab(msg.url);
-          await waitComplete(tab.id);
-          await ensureCS(tab.id);                             // 确保注入并就绪
-          const res = await sendMsgWithTimeout(tab.id, {      // 展开并统计
-            type: "expandAndSumWorkload"
-          }, 25000);
-          clearTimeout(guard);
-          reply(res && typeof res === "object" ? res : { ok: false, error: "no response" });
-        } catch (e) {
-          clearTimeout(guard);
-          reply({ ok: false, error: e?.message || String(e) });
-        }
-        return true; // 异步回包
-      }
-
-
-      if (msg.type === "uploadFile") {
-        function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
-        async function openOrFocusPHA() {
-          const tabs = await chrome.tabs.query({ url: ["http://pha.tp-link.com.cn/*"] });
-          if (tabs && tabs.length) {
-            const ready = tabs.find(t => t.status === "complete") || tabs[0];
-            return ready.id;
-          }
-          const t = await chrome.tabs.create({ url: "http://pha.tp-link.com.cn/" });
-          return t.id;
-        }
-        async function waitTabComplete(tabId, tries = 40) {
-          for (let i = 0; i < tries; i++) {
-            try {
-              const t = await chrome.tabs.get(tabId);
-              if (t && t.status === "complete") return true;
-            } catch (_) { }
-            await delay(100);
-          }
-          return false;
-        }
-        async function ensureCS(tabId) {
-          try {
-            const pong = await chrome.tabs.sendMessage(tabId, { cs: "fetchText", url: "http://pha.tp-link.com.cn/" });
-            if (pong) return true;
-          } catch (_) { }
-          try {
-            await chrome.scripting.executeScript({ target: { tabId }, files: ["cs.js"] });
-            return true;
-          } catch (e) {
-            return false;
-          }
-        }
-        async function getCsrf(tabId) {
-          const r = await chrome.tabs.sendMessage(tabId, { cs: "fetchText", url: "http://pha.tp-link.com.cn/" }).catch(() => null);
-          if (!r?.ok) return null;
-          const m = (r.text || "").match(/name=['"](?:__csrf__|_csrf_)['"][^>]*value=['"]([^'"]+)['"]/i);
-          return m ? m[1] : null;
-        }
-
-        try {
-          const tabId = await openOrFocusPHA();
-          await waitTabComplete(tabId);
-          const csReady = await ensureCS(tabId);
-          if (!csReady) { sendResponse({ ok: false, error: "内容脚本未就绪" }); return; }
-
-          let csrf = await getCsrf(tabId);
-          if (!csrf) {
-            try { await chrome.tabs.reload(tabId); } catch (_) { }
-            await waitTabComplete(tabId);
-            await ensureCS(tabId);
-            csrf = await getCsrf(tabId);
-          }
-          if (!csrf) { sendResponse({ ok: false, error: "无法获取CSRF" }); return; }
-
-          const bytes = new Uint8Array(msg.bytes || []);
-          const mime = msg.mime || "application/octet-stream";
-          const fname = (msg.filename && msg.filename.trim()) || ("pasted_" + Date.now() + ".bin");
-
-          const q = new URLSearchParams();
-          q.set("name", fname);
-          q.set("length", String(bytes.length));
-          q.set("__upload__", "1");
-          q.set("__ajax__", "true");
-          q.set("__metablock__", "4");
-          const url = "http://pha.tp-link.com.cn/file/dropupload/?" + q.toString();
-          const headers = {
-            "Content-Type": mime,
-            "Accept": "*/*",
-            "X-Phabricator-Csrf": csrf,
-            "X-Requested-With": "XMLHttpRequest"
-          };
-          if (msg.via) headers["X-Phabricator-Via"] = msg.via;
-
-          const res = await chrome.tabs.sendMessage(tabId, { cs: "rawUpload", url, headers, bytes: Array.from(bytes) }).catch(err => ({ ok: false, error: String(err) }));
-          if (!res?.ok) { sendResponse({ ok: false, status: res?.status, error: res?.error || "rawUpload失败" }); return; }
-
-          let t = res.text || "";
-          t = stripXSSIPrefix(t);
-          let monogram = null, fUrl = null, err = null;
-          // 宽松解析
-          let data = relaxParseJSON(t);
-          if (data && data.error) { err = data.error.code + ": " + data.error.info; }
-          if (data) {
-            const f = (data.files && data.files[0]) || data.payload || data;
-            monogram = (f && (f.objectName || f.monogram)) || (f && f.id ? ("F" + f.id) : null) || null;
-            fUrl = (f && (f.uri || f.url)) || null;
-          }
-          // 兜底正则
-          if (!monogram || !fUrl) {
-            const g = grepIdAndUri(t);
-            if (!monogram && g.id) monogram = "F" + g.id;
-            if (!fUrl && g.uri) fUrl = g.uri;
-          }
-          if (monogram || fUrl) { sendResponse({ ok: true, status: res.status, monogram, url: fUrl, snippet: snippetOf(t) }); return; }
-          sendResponse({ ok: false, status: res.status, error: "dropupload未返回文件ID", snippet: snippetOf(t) });
-
-          return;
-        } catch (e) {
-          sendResponse({ ok: false, error: e.message }); return;
-        }
-      }
-
-      // 面板请求切换
-      if (msg?.type === "switchPanel") {
-        // 获取当前标签页ID
-        const tabId = await spGetStableTabId(sender);
-        
-        if (tabId) {
-          // 保存当前标签页的面板状态
-          await saveTabPanelState(tabId, msg.name);
-          
-          // 只对当前标签页应用面板切换
-          try {
-            await openPanelByName(msg.name, tabId, { fromSidePanel: false });
-            sendResponse({ ok: true, appliedTo: 1 });
-          } catch (error) {
-            console.warn(`为标签页 ${tabId} 设置面板失败:`, error);
-            sendResponse({ ok: false, error: error.message });
-          }
-        } else {
-          sendResponse({ ok: false, error: "无法获取当前标签页ID" });
-        }
-        return;
-      }
-
-      // 数据库相关操作
-      if (msg?.type === "cache:addPost") {
-        try { const r = await dbAddPost(msg); sendResponse(r); } catch (e) { sendResponse({ ok: false, error: String(e) }); }
-        return;
-      }
-      if (msg?.type === "cache:queryByTask") {
-        try { const r = await dbQueryByTask(msg); sendResponse(r); } catch (e) { sendResponse({ ok: false, error: String(e) }); }
-        return;
-      }
-      if (msg?.type === "cache:queryByTime") {
-        try { const r = await dbQueryByTime(msg); sendResponse(r); } catch (e) { sendResponse({ ok: false, error: String(e) }); }
-        return;
-      }
-      if (msg?.type === "cache:deletePost") {
-        try { const r = await dbDeletePost(msg.id); sendResponse(r); } catch (e) { sendResponse({ ok: false, error: String(e) }); }
-        return;
-      }
-
-      // 导出 / 导入
-      if (msg?.type === "exportAllData") {
-        try {
-          const blob = await exportAllData();
-          sendResponse({ ok: true, blob });
-        } catch (e) {
-          sendResponse({ ok: false, error: String(e) });
-        }
-        return;
-      }
-      if (msg?.type === "importAllData") {
-        try {
-          const r = await importAllData(msg.payload);
-          sendResponse({ ok: true, ...r });
-        } catch (e) {
-          sendResponse({ ok: false, error: String(e) });
-        }
-        return;
-      }
-
-    } catch (e) {
-      sendResponse({ ok: false, error: e.message });
-    }
-  })();
-  return true; // 异步
+      // sumWorkload已在async函数内部处理
+      
+      return true; // 异步
 });
 
 // ==== side panel router ====
@@ -1052,7 +1029,7 @@ async function openPanelByName(name, tabId, opts = {}) {
 
   try {
     // 获取当前标签页的面板配置
-    const currentOptions = await chrome.sidePanel.getOptions(tabId);
+    const currentOptions = await chrome.sidePanel.getOptions({ tabId: tabId });
     
     // 启用侧边栏（如果尚未启用）
     if (!currentOptions.enabled) {

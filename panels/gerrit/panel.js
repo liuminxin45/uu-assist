@@ -106,8 +106,8 @@ async function loadGerritChanges() {
     
     // URL编码查询
     const encodedQuery = encodeURIComponent(query);
-    // 添加 ALL_REVISIONS 和 ALL_FILES 参数以获取完整的文件信息
-    const url = `${gerritUrl}/gerrit/changes/?q=${encodedQuery}&n=50&o=DETAILED_ACCOUNTS&o=DETAILED_LABELS&o=ALL_REVISIONS&o=ALL_FILES`;
+    // 列表接口只获取必要的元信息
+    const url = `${gerritUrl}/gerrit/changes/?q=${encodedQuery}&n=50&o=DETAILED_ACCOUNTS&o=DETAILED_LABELS&o=CURRENT_REVISION`;
     
     setStatus('正在加载变更列表...');
     
@@ -131,7 +131,7 @@ async function loadGerritChanges() {
     
     if (response && response.ok) {
       // 移除前缀字符 )]}'
-      const cleanData = response.data.substring(response.data.indexOf('\n') + 1);
+      const cleanData = response.data.replace(/^\)\]\}'\n?/, '');
       gerritChanges = JSON.parse(cleanData);
       
       // 等待一小段时间确保DOM加载完成
@@ -151,35 +151,70 @@ async function loadGerritChanges() {
   }
 }
 
+// 添加统一键值生成函数
+function pathKey(s){ return encodeURIComponent(s); } // 唯一且与 URL 编码一致
+
+// 等待工具函数
+function wait(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+// 修改等待文件块函数，使用key列表
+async function waitForFileBlocks(paths, timeoutMs=3000) {
+  const start = Date.now();
+  const waitSet = new Set(paths.map(pathKey));
+  while (Date.now() - start < timeoutMs) {
+    document.querySelectorAll('.gerrit-detail-change[data-key]')
+      .forEach(el => waitSet.delete(el.getAttribute('data-key')));
+    if (waitSet.size === 0) return true;
+    await wait(50);
+  }
+  console.warn('超时仍未挂载的文件块(keys):', Array.from(waitSet));
+  return false;
+}
+
 // 获取文件变更详情
-async function fetchFileDiff(gerritUrl, changeId, revisionId, filePath) {
+async function fetchFileDiff(gerritUrl, changeNum, rev, filePath) {
+  const encodedFile = encodeURIComponent(filePath);
+  const url = `${gerritUrl}/gerrit/changes/${changeNum}/revisions/${rev}/files/${encodedFile}/diff?context=ALL&intraline&whitespace=IGNORE_NONE`;
+  console.debug('diff url', url); // 添加调试日志
+  let response;
   try {
-    const encodedFile = encodeURIComponent(filePath);
-    const url = `${gerritUrl}/gerrit/changes/${changeId}/revisions/${revisionId}/files/${encodedFile}/diff?context=ALL&intraline&whitespace=IGNORE_NONE`;
-    
-    let response;
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-      response = await chrome.runtime.sendMessage({
-        type: "fetchGerritDiff",
-        url: url,
-        gerritUrl: gerritUrl
-      });
+      response = await chrome.runtime.sendMessage({ type: "fetchGerritDiff", url, gerritUrl });
+      if (!response || !response.ok) {
+        // 后备：有些后台只实现了 fetchGerritChanges
+        response = await chrome.runtime.sendMessage({ type: "fetchGerritChanges", url, gerritUrl });
+      }
     } else {
       throw new Error('Chrome扩展环境不可用，无法获取diff数据');
     }
-    
-    if (response && response.ok) {
-      // 移除前缀字符 )]}'
-      let cleanData = response.data;
-      if (cleanData.startsWith(")]}'")) {
-        cleanData = cleanData.replace(")]}'", '').trim();
-      }
-      return JSON.parse(cleanData);
-    } else {
-      throw new Error(response?.error || '获取diff失败');
-    }
-  } catch (error) {
-    console.error(`获取文件diff失败 (${filePath}):`, error);
+  } catch (e) {
+    console.error('sendMessage失败', e);
+    showFileError(filePath, '网络请求失败');
+    return null;
+  }
+  
+  // 添加错误显示函数
+  function showFileError(path, msg) {
+    const key = pathKey(path);
+    const el = document.querySelector(`.gerrit-detail-change[data-key="${key}"] .gerrit-file-diff`);
+    if (el) el.innerHTML = `<div class="gerrit-diff-empty">${msg}</div>`;
+  }
+  
+  if (!response || !response.ok) {
+    console.warn('diff响应非OK', { url, resp: response && response.error, status: response && response.status });
+    showFileError(filePath, `diff失败: ${response && response.status || '网络错误'}`);
+    return null;
+  }
+  
+  let clean = response.data || '';
+  clean = clean.replace(/^\)\]\}'\n?/, '');
+  
+  try {
+    const json = JSON.parse(clean);
+    return json;
+  } catch (e) {
+    console.error('diff JSON 解析失败', { url, sample: clean.slice(0, 200) });
+    showFileError(filePath, 'diff解析失败');
     return null;
   }
 }
@@ -391,13 +426,15 @@ async function selectChange(change) {
     
     setStatus('正在加载变更详情...');
     
-    // 获取变更详情
+    // 获取变更详情，添加必要的选项参数
+    const detailedUrl = `${gerritUrl}/gerrit/changes/${change._number}/detail?o=DETAILED_LABELS&o=CURRENT_REVISION&o=CURRENT_COMMIT&o=CURRENT_FILES`;
+    
     let response;
     try {
       if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
         response = await chrome.runtime.sendMessage({ 
           type: "fetchGerritChanges", 
-          url: detailUrl,
+          url: detailedUrl,
           gerritUrl: gerritUrl
         });
       } else {
@@ -411,7 +448,7 @@ async function selectChange(change) {
     
     if (response && response.ok) {
       // 移除前缀字符 )]}'
-      const cleanData = response.data.substring(response.data.indexOf('\n') + 1);
+      const cleanData = response.data.replace(/^\)\]\}'\n?/, '');
       const detailedChange = JSON.parse(cleanData);
       
       // 先显示基本信息
@@ -434,99 +471,58 @@ async function selectChange(change) {
 // 加载文件变更详情
 async function loadFileChanges(gerritUrl, change) {
   try {
-    if (change.revisions && Object.keys(change.revisions).length > 0) {
-      const revisionId = Object.keys(change.revisions)[0];
-      const latestRevision = change.revisions[revisionId];
-      
-      if (latestRevision.files) {
-        setStatus(`正在加载 ${Object.keys(latestRevision.files).length} 个文件的变更详情...`);
-        
-        // 逐个加载文件的diff内容
-        for (const [filePath, fileInfo] of Object.entries(latestRevision.files)) {
-          const diffData = await fetchFileDiff(gerritUrl, change.id, revisionId, filePath);
-          if (diffData) {
-            fileInfo.diffContent = parseDiffContent(diffData);
-          }
-          
-          // 更新UI显示已加载的文件
-          updateFileDiffUI(filePath, fileInfo.diffContent);
-        }
-        
-        setStatus(`已加载所有文件变更详情`);
-      }
+    // 使用当前修订版本而不是随机选择
+    const rev = change.current_revision;
+    if (!rev) {
+      console.warn('未找到当前修订版本');
+      return;
     }
+    
+    const revision = change.revisions?.[rev];
+    if (!revision || !revision.files) {
+      console.warn('未找到文件信息');
+      return;
+    }
+    
+    const files = revision.files;
+    const pairs = Object.entries(files).filter(([p]) => p !== '/PATCHSET_LEVEL');
+    await waitForFileBlocks(pairs.map(([p]) => p)); // 等待文件块出现，使用过滤后的路径列表
+    setStatus(`正在加载 ${pairs.length} 个文件的变更详情...`);
+    
+    // 逐个加载文件的diff内容
+    for (const [path, info] of pairs) {
+      // 处理文件重命名情况
+      const reqPath = info.old_path && info.type === 'RENAMED' ? info.old_path : path;
+      const diffData = await fetchFileDiff(gerritUrl, change._number, rev, reqPath);
+      
+      // 处理二进制文件或过大文件
+      let content = null;
+      if (diffData?.binary) {
+        content = [{ type: 'separator', text: '(binary file)' }];
+      } else if (diffData?.intraline_status === 'ERROR') {
+        content = [{ type: 'separator', text: '(diff too large)' }];
+      } else if (diffData) {
+        content = parseDiffContent(diffData);
+      }
+      
+      // 更新UI显示已加载的文件
+      await updateFileDiffUI(path, content);
+    }
+    
+    setStatus(`已加载所有文件变更详情`);
   } catch (error) {
     console.error('加载文件变更详情失败:', error);
     setStatus(`加载文件变更详情失败: ${error.message}`);
   }
 }
 
-// 更新文件变更的UI显示
-function updateFileDiffUI(filePath, diffContent) {
-  // 使用XPath查找包含特定文本的元素
-  function getElementByTextContent(selector, text) {
-    const elements = document.querySelectorAll(selector);
-    for (const element of elements) {
-      if (element.textContent.trim() === text.trim()) {
-        return element;
-      }
-    }
-    return null;
-  }
-  
-  const fileElement = getElementByTextContent('.gerrit-detail-change-path', filePath);
-  if (!fileElement) return;
-  
-  const changeElement = fileElement.closest('.gerrit-detail-change');
-  if (!changeElement) return;
-  
-  // 如果已经有diff内容，先移除
-  let diffContainer = changeElement.querySelector('.gerrit-file-diff');
-  if (!diffContainer) {
-    diffContainer = document.createElement('div');
-    diffContainer.className = 'gerrit-file-diff';
-    changeElement.appendChild(diffContainer);
-  }
-  
-  // 显示diff内容
-  if (diffContent && diffContent.length > 0) {
-    let diffHtml = '<div class="gerrit-diff-content">';
-    
-    diffContent.forEach(line => {
-      let lineClass = 'gerrit-diff-context';
-      let linePrefix = ' ';
-      
-      if (line.type === 'delete') {
-        lineClass = 'gerrit-diff-delete';
-        linePrefix = '-';
-      } else if (line.type === 'add') {
-        lineClass = 'gerrit-diff-add';
-        linePrefix = '+';
-      } else if (line.type === 'separator') {
-        lineClass = 'gerrit-diff-separator';
-        diffHtml += `<div class="${lineClass}">${line.text}</div>`;
-        return;
-      }
-      
-      // 转义HTML特殊字符
-      const escapedText = line.text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-      
-      diffHtml += `<div class="${lineClass}"><span class="gerrit-diff-prefix">${linePrefix}</span>${escapedText}</div>`;
-    });
-    
-    diffHtml += '</div>';
-    diffContainer.innerHTML = diffHtml;
-  } else {
-    diffContainer.innerHTML = '<div class="gerrit-diff-empty">无法加载文件变更详情</div>';
-  }
-}
+// CSS简单转义函数
+function cssEscapeSimple(s) { return s.replace(/["\\]/g, '\\$&'); }
+
+
 
 // 渲染变更详情
+// 修复renderChangeDetail函数中的HTML标签闭合问题
 function renderChangeDetail(change) {
   const gerritUrl = gerritUrlInput.value.trim() || 'https://review.tp-link.net';
   // 从change.id中提取提交ID部分 (格式为: project~branch~commitId)
@@ -535,84 +531,89 @@ function renderChangeDetail(change) {
   const changeUrl = `${gerritUrl}/gerrit/q/${commitId}`;
   
   // 确定变更状态
-    let statusClass = 'gerrit-item-status-pending';
-    let statusText = '待评审';
+  let statusClass = 'gerrit-item-status-pending';
+  let statusText = '待评审';
+  
+  // 获取当前用户名
+  const currentUsername = gerritUsernameInput.value.trim();
+  
+  // 检查当前用户是否是owner
+  const isOwner = currentUsername && change.owner && 
+    (change.owner.name === currentUsername || change.owner.email === currentUsername);
+  
+  // 检查当前用户是否在评审人列表中
+  let isInReviewers = false;
+  if (currentUsername && change.reviewers) {
+    const allReviewers = [];
     
-    // 获取当前用户名
-    const currentUsername = gerritUsernameInput.value.trim();
-    
-    // 检查当前用户是否是owner
-    const isOwner = currentUsername && change.owner && 
-      (change.owner.name === currentUsername || change.owner.email === currentUsername);
+    // 合并所有类型的评审人
+    if (change.reviewers.REVIEWER) {
+      allReviewers.push(...change.reviewers.REVIEWER);
+    }
+    if (change.reviewers.CC) {
+      allReviewers.push(...change.reviewers.CC);
+    }
     
     // 检查当前用户是否在评审人列表中
-    let isInReviewers = false;
-    if (currentUsername && change.reviewers) {
-      const allReviewers = [];
-      
-      // 合并所有类型的评审人
-      if (change.reviewers.REVIEWER) {
-        allReviewers.push(...change.reviewers.REVIEWER);
-      }
-      if (change.reviewers.CC) {
-        allReviewers.push(...change.reviewers.CC);
-      }
-      
-      // 检查当前用户是否在评审人列表中
-      isInReviewers = allReviewers.some(reviewer => 
-        reviewer.name === currentUsername || reviewer.email === currentUsername
-      );
-    }
-    
-    // 应用分类规则
-    // 1. 如果owner是我自己，则显示为"我的变更"
-    if (currentUsername && isOwner) {
-      statusClass = 'gerrit-item-status-mine';
-      statusText = '我的变更';
-    }
-    // 2. 如果owner不是我，且我在评审人列表中，则是"待评审"
-    else if (currentUsername && !isOwner && isInReviewers) {
-      statusClass = 'gerrit-item-status-pending';
-      statusText = '待评审';
-    }
-    // 3. 其他情况则标签为"无须处理"
-    else {
-      statusClass = 'gerrit-item-status-ignore';
-      statusText = '无须处理';
-    }
-    
-    // 检查特殊状态
-    if (change.status === 'ABANDONED') {
-      statusClass = 'gerrit-item-status-abandoned';
-      statusText = '已放弃';
-    }
+    isInReviewers = allReviewers.some(reviewer => 
+      reviewer.name === currentUsername || reviewer.email === currentUsername
+    );
+  }
+  
+  // 应用分类规则
+  // 1. 如果owner是我自己，则显示为"我的变更"
+  if (currentUsername && isOwner) {
+    statusClass = 'gerrit-item-status-mine';
+    statusText = '我的变更';
+  }
+  // 2. 如果owner不是我，且我在评审人列表中，则是"待评审"
+  else if (currentUsername && !isOwner && isInReviewers) {
+    statusClass = 'gerrit-item-status-pending';
+    statusText = '待评审';
+  }
+  // 3. 其他情况则标签为"无须处理"
+  else {
+    statusClass = 'gerrit-item-status-ignore';
+    statusText = '无须处理';
+  }
+  
+  // 检查特殊状态
+  if (change.status === 'ABANDONED') {
+    statusClass = 'gerrit-item-status-abandoned';
+    statusText = '已放弃';
+  }
   
   // 渲染文件变更列表
   let changesHtml = '';
-  if (change.revisions && Object.keys(change.revisions).length > 0) {
-    const latestRevision = change.revisions[Object.keys(change.revisions)[0]];
-    if (latestRevision.files) {
-      changesHtml = Object.entries(latestRevision.files).map(([path, fileInfo]) => {
-        let icon = '📄';
-        if (fileInfo.type === 'DELETED') {
-          icon = '🗑️';
-        } else if (fileInfo.type === 'ADDED') {
-          icon = '✚';
-        } else if (fileInfo.type === 'MODIFIED') {
-          icon = '📝';
-        }
-        
-        return `
-          <div class="gerrit-detail-change">
-            <span class="gerrit-detail-change-icon">${icon}</span>
-            <span class="gerrit-detail-change-path">${path}</span>
-            <div class="gerrit-file-diff">
-              <div class="gerrit-diff-loading">加载中...</div>
-            </div>
+  if (change.current_revision && change.revisions && change.revisions[change.current_revision] && change.revisions[change.current_revision].files) {
+    const rev = change.current_revision;
+    const currentRevision = change.revisions[rev];
+    const files = currentRevision.files;
+    
+    changesHtml = Object.entries(files).map(([path, fileInfo]) => {
+      // 跳过Gerrit虚拟文件
+      if (path === '/PATCHSET_LEVEL') return '';
+      
+      let icon = '📄';
+      if (fileInfo.type === 'DELETED') {
+        icon = '🗑️';
+      } else if (fileInfo.type === 'ADDED') {
+        icon = '✚';
+      } else if (fileInfo.type === 'MODIFIED') {
+        icon = '📝';
+      }
+      
+      const key = pathKey(path);
+      return `
+        <div class="gerrit-detail-change" data-key="${key}">
+          <span class="gerrit-detail-change-icon">${icon}</span>
+          <span class="gerrit-detail-change-path">${path}</span>
+          <div class="gerrit-file-diff">
+            <div class="gerrit-diff-loading">加载中...</div>
           </div>
-        `;
-      }).join('');
-    }
+        </div>
+      `;
+    }).join('');
   }
   
   // 渲染评审人
@@ -719,7 +720,7 @@ function renderChangeDetail(change) {
       <div class="gerrit-detail-section">
         <div class="gerrit-detail-section-title">提交信息</div>
         <div class="gerrit-detail-message">
-          ${change.commitMessage || '无提交信息'}
+          ${change.current_revision && change.revisions && change.revisions[change.current_revision] && change.revisions[change.current_revision].commit && change.revisions[change.current_revision].commit.message || '无提交信息'}
         </div>
       </div>
       
@@ -750,6 +751,56 @@ function renderChangeDetail(change) {
       </div>
     </div>
   `;
+}
+
+// 更新文件变更的UI显示，使用key精确选择
+async function updateFileDiffUI(filePath, diffContent) {
+  const key = pathKey(filePath);
+  let el = null;
+  for (let i = 0; i < 10 && !el; i++) {
+    el = document.querySelector(`.gerrit-detail-change[data-key="${key}"]`);
+    if (!el) await wait(50);
+  }
+  
+  if (!el) {
+    console.warn('未找到文件块 path=', filePath, 'key=', key);
+    return;
+  }
+  
+  let box = el.querySelector('.gerrit-file-diff');
+  if (!box) {
+    box = document.createElement('div');
+    box.className = 'gerrit-file-diff';
+    el.appendChild(box);
+  }
+  
+  if (!diffContent || !diffContent.length) {
+    box.innerHTML = '<div class="gerrit-diff-empty">无法加载文件变更详情</div>';
+    return;
+  }
+  
+  let html = '<div class="gerrit-diff-content">';
+  for (const line of diffContent) {
+    if (line.type === 'separator') {
+      html += `<div class="gerrit-diff-separator">${line.text}</div>`;
+      continue;
+    }
+    
+    const cls = line.type === 'add' ? 'gerrit-diff-add'
+              : line.type === 'delete' ? 'gerrit-diff-delete'
+              : 'gerrit-diff-context';
+    
+    const prefix = line.type === 'add' ? '+' : line.type === 'delete' ? '-' : ' ';
+    
+    const esc = String(line.text)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+    
+    html += `<div class="${cls}"><span class="gerrit-diff-prefix">${prefix}</span>${esc}</div>`;
+  }
+  
+  html += '</div>';
+  box.innerHTML = html;
 }
 
 // 处理搜索
