@@ -257,14 +257,13 @@ function createTodoElement(todo) {
   const priorityTag = document.createElement('span');
   priorityTag.className = 'todo-item-priority ' + todo.priority;
   
-  // 显示所有优先级（高、中、低）
+  // 只显示高和低优先级，中优先级不显示文本
   if (todo.priority === 'high') {
     priorityTag.textContent = '高';
-  } else if (todo.priority === 'medium') {
-    priorityTag.textContent = '中';
-  } else {
+  } else if (todo.priority === 'low') {
     priorityTag.textContent = '低';
   }
+  // 中优先级不设置文本内容，保持空白
   
   // 为优先级标签添加点击事件，实现点击优先级筛选功能
   priorityTag.addEventListener('click', (e) => {
@@ -878,6 +877,23 @@ function addSubTaskInput(container, subTask = null) {
   if (subTask && subTask.id) {
     input.dataset.id = subTask.id;
   }
+  
+  // 添加回车事件处理
+  input.addEventListener('keypress', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      
+      // 如果当前输入框有内容，则创建新的子任务输入框
+      if (input.value.trim()) {
+        // 找到"添加子任务"按钮的父容器
+        const subTasksContainer = document.getElementById('sub-tasks-container');
+        if (subTasksContainer) {
+          // 添加新的子任务输入框
+          addSubTaskInput(subTasksContainer);
+        }
+      }
+    }
+  });
   
   const removeBtn = document.createElement('button');
   removeBtn.className = 'sub-task-remove-btn';

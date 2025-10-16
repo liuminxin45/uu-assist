@@ -197,6 +197,14 @@ chrome.runtime.onInstalled.addListener(() => {
     contexts: ["selection", "image"],
     documentUrlPatterns: ["<all_urls>"]
   });
+
+  // 添加添加到TODO的右键菜单
+  chrome.contextMenus.create({
+    id: "add-to-todo",
+    title: "添加到 TODO",
+    contexts: ["selection"],
+    documentUrlPatterns: ["<all_urls>"]
+  });
 });
 
 // 处理右键菜单点击事件
@@ -266,7 +274,41 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         }
       }
     } catch (error) {
-      console.error('添加到Notes失败:', error);
+        console.error('添加到Notes失败:', error);
+        await showToast(tab.id, '添加失败: ' + error.message);
+      }
+  } else if (info.menuItemId === "add-to-todo") {
+    try {
+      // 检查是否为受限制的域名
+      if (tab.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('edge://'))) {
+        console.warn('无法在受限制的域名上添加到TODO');
+        return;
+      }
+
+      // 准备要添加到TODO的数据
+      let todoData = {
+        text: info.selectionText || '',
+        url: tab.url,
+        title: tab.title
+      };
+
+      // 尝试直接保存TODO到数据库
+      const saveSuccess = await saveTodoDirectly(todoData);
+
+      if (saveSuccess) {
+        // 显示添加成功的toast提示
+        await showToast(tab.id, '添加到TODO成功');
+      } else {
+        // 如果直接保存失败，保存到待处理队列
+        await chrome.storage.local.set({
+          pending_todo_data: todoData
+        });
+
+        // 通知用户已保存待处理
+        await showToast(tab.id, '已保存待添加到TODO');
+      }
+    } catch (error) {
+      console.error('添加到TODO失败:', error);
       await showToast(tab.id, '添加失败: ' + error.message);
     }
   }
@@ -382,6 +424,49 @@ async function saveNoteDirectly(data) {
     return true;
   } catch (error) {
     console.error('直接保存笔记失败:', error);
+    return false;
+  }
+}
+
+// 直接保存TODO到数据库
+async function saveTodoDirectly(data) {
+  try {
+    // 从存储中加载现有TODO
+    const result = await chrome.storage.local.get('todos');
+    let todos = result.todos || [];
+
+    // 生成唯一ID
+    const generateId = () => {
+      return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    };
+
+    // 创建新TODO对象（与todo panel.js中格式保持一致）
+    const newTodo = {
+      id: generateId(),
+      content: data.text || '',
+      status: 'todo',
+      createdDate: new Date().toISOString(),
+      dueDate: '',
+      priority: 'medium',
+      tags: [],
+      subTasks: [],
+      note: ''
+    };
+
+    // 添加来源信息作为note
+    if (data.url && data.title) {
+      newTodo.note = `来源: [${data.title}](${data.url})`;
+    }
+
+    // 添加到TODO列表
+    todos.push(newTodo);
+
+    // 保存更新后的TODO列表
+    await chrome.storage.local.set({ 'todos': todos });
+    console.log('TODO已直接保存到数据库:', newTodo);
+    return true;
+  } catch (error) {
+    console.error('直接保存TODO失败:', error);
     return false;
   }
 }
