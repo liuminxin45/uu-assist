@@ -7,7 +7,8 @@ const addTodoBtn = document.getElementById('add-todo-btn');
 const todoLists = document.getElementById('todo-lists');
 const todoCount = document.getElementById('todo-count');
 const completedCount = document.getElementById('completed-count');
-const todoSearchInput = document.getElementById('todo-search-input'); // 新增：搜索框
+const todoSearchInput = document.getElementById('todo-search-input'); // 待办面板搜索框
+const todoSearchInputCompleted = document.getElementById('todo-search-input-completed'); // 已完成面板搜索框
 
 // 模态框元素
 const todoModal = document.getElementById('todo-modal');
@@ -203,17 +204,36 @@ function renderTodos() {
     }
   });
   
-  // 更新计数
-  todoCount.textContent = todosByStatus['todo'].length;
-  completedCount.textContent = todosByStatus['completed'].length;
+  // 计数显示已移除
   
   // 更新列表标题
   document.querySelector('.todo-list[data-status="todo"] .todo-list-title').textContent = '待办';
   document.querySelector('.todo-list[data-status="completed"] .todo-list-title').textContent = '已完成';
   
-  // 只渲染当前视图的待办事项
+  // 对当前视图的待办事项进行排序
+  // 1. 按优先级排序：高 > 中 > 低
+  // 2. 同优先级内按创建时间排序：新的在前，旧的在后
+  const sortedTodos = [...todosByStatus[currentView]].sort((a, b) => {
+    // 优先级排序权重
+    const priorityWeight = {
+      'high': 3,
+      'medium': 2,
+      'low': 1
+    };
+    
+    // 先按优先级排序
+    const priorityDiff = priorityWeight[b.priority] - priorityWeight[a.priority];
+    if (priorityDiff !== 0) {
+      return priorityDiff;
+    }
+    
+    // 同优先级内按创建时间降序排列（新的在前）
+    return new Date(b.createdDate) - new Date(a.createdDate);
+  });
+  
+  // 渲染排序后的待办事项
   const container = document.getElementById(`${currentView}-items`);
-  todosByStatus[currentView].forEach(todo => {
+  sortedTodos.forEach(todo => {
     const todoElement = createTodoElement(todo);
     container.appendChild(todoElement);
   });
@@ -268,13 +288,26 @@ function createTodoElement(todo) {
   // 为优先级标签添加点击事件，实现点击优先级筛选功能
   priorityTag.addEventListener('click', (e) => {
     e.stopPropagation(); // 阻止事件冒泡，避免触发其他事件
+    // 更新两个搜索框的值
     todoSearchInput.value = priorityTag.textContent;
+    if (todoSearchInputCompleted) {
+      todoSearchInputCompleted.value = priorityTag.textContent;
+    }
     currentSearchTerm = priorityTag.textContent;
     currentFilterType = 'priority'; // 设置为优先级筛选模式
     renderTodos();
   });
   
   contentText.appendChild(priorityTag);
+  
+  // 附件图标（如果有备注内容）- 移到任务名称最右边
+  if (todo.note && todo.note.trim()) {
+    const attachmentIcon = document.createElement('span');
+    attachmentIcon.className = 'todo-attachment-icon';
+    attachmentIcon.title = '有备注内容';
+    attachmentIcon.textContent = '📎';
+    contentText.appendChild(attachmentIcon);
+  }
   
   // 先添加任务名称到容器
   contentContainer.appendChild(contentText);
@@ -309,7 +342,11 @@ function createTodoElement(todo) {
       // 为标签添加点击事件，实现点击标签筛选功能
       tagElement.addEventListener('click', (e) => {
         e.stopPropagation(); // 阻止事件冒泡，避免触发其他事件
+        // 更新两个搜索框的值
         todoSearchInput.value = tag;
+        if (todoSearchInputCompleted) {
+          todoSearchInputCompleted.value = tag;
+        }
         currentSearchTerm = tag;
         currentFilterType = 'tag'; // 设置为标签筛选模式
         renderTodos();
@@ -357,13 +394,7 @@ function createTodoElement(todo) {
     contentContainer.appendChild(subTasksContainer);
   }
   
-  // 附件图标（如果有备注内容）
-  if (todo.note && todo.note.trim()) {
-    const attachmentIcon = document.createElement('div');
-    attachmentIcon.className = 'todo-attachment-icon';
-    attachmentIcon.title = '有备注内容';
-    contentContainer.appendChild(attachmentIcon);
-  }
+
   
   // 删除按钮
   const deleteBtn = document.createElement('button');
@@ -546,7 +577,18 @@ function setupEventListeners() {
   
   // 搜索框输入事件
   todoSearchInput.addEventListener('input', () => {
+    // 更新两个搜索框的值保持同步
+    todoSearchInputCompleted.value = todoSearchInput.value;
     currentSearchTerm = todoSearchInput.value.trim();
+    currentFilterType = 'search'; // 设置为通用搜索模式
+    renderTodos();
+  });
+  
+  // 已完成面板搜索框输入事件
+  todoSearchInputCompleted.addEventListener('input', () => {
+    // 更新两个搜索框的值保持同步
+    todoSearchInput.value = todoSearchInputCompleted.value;
+    currentSearchTerm = todoSearchInputCompleted.value.trim();
     currentFilterType = 'search'; // 设置为通用搜索模式
     renderTodos();
   });
@@ -555,41 +597,53 @@ function setupEventListeners() {
   setupNoteEditor();
   
   // 列表视图切换器 - 下拉框交互逻辑
-  const listViewSwitcherBtn = document.getElementById('list-view-switcher-btn');
-  const listViewSwitcherText = document.getElementById('list-view-switcher-text');
-  const listViewSwitcherDropdown = listViewSwitcherBtn?.nextElementSibling;
-  const listViewSwitcherItems = listViewSwitcherDropdown?.querySelectorAll('.dropdown-item');
-  
-  if (listViewSwitcherBtn && listViewSwitcherDropdown) {
-    // 切换下拉菜单显示状态
-    listViewSwitcherBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      listViewSwitcherDropdown.parentElement.classList.toggle('active');
-    });
+  const setupListViewSwitcher = (btnId, textId, isCompleted = false) => {
+    const btn = document.getElementById(btnId);
+    const text = document.getElementById(textId);
+    const dropdown = btn?.nextElementSibling;
+    const items = dropdown?.querySelectorAll('.dropdown-item');
     
-    // 点击下拉菜单项时切换视图
-    listViewSwitcherItems.forEach(item => {
-      item.addEventListener('click', () => {
-        const value = item.getAttribute('data-value');
-        if (value) {
-          currentView = value;
-          
-          // 更新按钮文本
-          listViewSwitcherText.textContent = item.textContent;
-          
-          // 更新选中状态
-          listViewSwitcherItems.forEach(i => i.classList.remove('active'));
-          item.classList.add('active');
-          
-          // 关闭下拉菜单
-          listViewSwitcherDropdown.parentElement.classList.remove('active');
-          
-          // 重新渲染待办事项
-          renderTodos();
-        }
+    if (btn && dropdown) {
+      // 切换下拉菜单显示状态
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.parentElement.classList.toggle('active');
       });
-    });
-  }
+      
+      // 点击下拉菜单项时切换视图
+      items.forEach(item => {
+        item.addEventListener('click', () => {
+          const value = item.getAttribute('data-value');
+          if (value) {
+            currentView = value;
+            
+            // 更新所有切换器的按钮文本和选中状态
+            document.querySelectorAll('[id^="list-view-switcher-text"]').forEach(t => {
+              t.textContent = value === 'todo' ? '待办' : '已完成';
+            });
+            
+            // 更新所有切换器的选中状态
+            document.querySelectorAll('.dropdown-item').forEach(i => {
+              const itemValue = i.getAttribute('data-value');
+              i.classList.toggle('active', itemValue === value);
+            });
+            
+            // 关闭所有下拉菜单
+            document.querySelectorAll('.dropdown').forEach(d => {
+              d.classList.remove('active');
+            });
+            
+            // 重新渲染待办事项
+            renderTodos();
+          }
+        });
+      });
+    }
+  };
+  
+  // 初始化两个面板的视图切换器
+  setupListViewSwitcher('list-view-switcher-btn', 'list-view-switcher-text');
+  setupListViewSwitcher('list-view-switcher-btn-completed', 'list-view-switcher-text-completed', true);
   
   // 面板切换下拉菜单的功能已由shared/dropdown-menu.js处理
   // 这里不再重复实现该功能

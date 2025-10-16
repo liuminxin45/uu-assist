@@ -39,8 +39,9 @@
     .todo-filters {
       display: flex;
       gap: var(--space-sm);
-      margin-bottom: var(--space-lg);
+      margin-bottom: var(--space-md);
       flex-wrap: wrap;
+      width: 100%;
     }
     
     .todo-filter-btn {
@@ -133,7 +134,7 @@
     }
     
     .todo-checkbox {
-      margin-top: 2px;
+      margin-top: 5px;
       flex-shrink: 0;
     }
     
@@ -141,6 +142,7 @@
       flex: 1;
       word-break: break-word;
       color: var(--text-primary);
+      font-size: 12px !important;
     }
     
     .todo-content.completed {
@@ -761,47 +763,64 @@
               <input type="text" id="todo-input" class="todo-input" placeholder="添加新的待办事项..." />
               <button id="add-todo-btn" class="todo-add-btn btn-primary">添加</button>
             </div>
-            
-            <!-- 搜索和面板切换 -->
-            <div class="todo-filters" style="display: flex; align-items: center;">
-              <!-- 搜索框 -->
-              <div style="margin-right: 10px;">
-                <input type="text" id="todo-search-input" class="todo-search-input" placeholder="搜索任务..." style="font-size: 14px; padding: 4px 8px; width: 150px;" />
-              </div>
-              <!-- 面板切换下拉框 - 使用共用下拉框样式 -->
-              <div style="margin-left: auto;">
-                <div class="dropdown">
-                  <button id="list-view-switcher-btn" class="dropdown-btn">
-                    <span id="list-view-switcher-text">待办</span>
-                    <span class="dropdown-arrow">▼</span>
-                  </button>
-                  <div class="dropdown-content">
-                    <div class="dropdown-item active" data-value="todo">待办</div>
-                    <div class="dropdown-item" data-value="completed">已完成</div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
           
           <!-- 待办事项列表区域 -->
           <div class="todo-lists" id="todo-lists">
             <!-- 待办列表 -->
             <div class="todo-list" data-status="todo">
+              <!-- 搜索和筛选区域 - 移动到标题栏上方 -->
+              <div class="todo-filters" style="display: flex; align-items: center; margin-bottom: var(--space-sm); width: 100%;">
+                <!-- 搜索框 -->
+                <div style="margin-right: 10px;">
+                  <input type="text" id="todo-search-input" class="todo-search-input" placeholder="搜索任务..." style="font-size: 14px; padding: 4px 8px; width: 150px;" />
+                </div>
+                <!-- 面板切换下拉框 - 使用共用下拉框样式 -->
+                <div style="margin-left: auto;">
+                  <div class="dropdown">
+                    <button id="list-view-switcher-btn" class="dropdown-btn">
+                      <span id="list-view-switcher-text">待办</span>
+                      <span class="dropdown-arrow">▼</span>
+                    </button>
+                    <div class="dropdown-content">
+                      <div class="dropdown-item active" data-value="todo">待办</div>
+                      <div class="dropdown-item" data-value="completed">已完成</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
               <div class="todo-list-header">
                 <span class="todo-list-title">待办</span>
-                <span class="todo-list-count" id="todo-count">0</span>
               </div>
               <div class="todo-items" id="todo-items"></div>
             </div>
             
-
-            
             <!-- 已完成列表 -->
             <div class="todo-list" data-status="completed">
+              <!-- 搜索和筛选区域 - 在已完成面板也显示 -->
+              <div class="todo-filters" style="display: flex; align-items: center; margin-bottom: var(--space-sm); width: 100%;">
+                <!-- 搜索框 -->
+                <div style="margin-right: 10px;">
+                  <input type="text" id="todo-search-input-completed" class="todo-search-input" placeholder="搜索任务..." style="font-size: 14px; padding: 4px 8px; width: 150px;" />
+                </div>
+                <!-- 面板切换下拉框 - 使用共用下拉框样式 -->
+                <div style="margin-left: auto;">
+                  <div class="dropdown">
+                    <button id="list-view-switcher-btn-completed" class="dropdown-btn">
+                      <span id="list-view-switcher-text-completed">已完成</span>
+                      <span class="dropdown-arrow">▼</span>
+                    </button>
+                    <div class="dropdown-content">
+                      <div class="dropdown-item" data-value="todo">待办</div>
+                      <div class="dropdown-item active" data-value="completed">已完成</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
               <div class="todo-list-header">
                 <span class="todo-list-title">已完成</span>
-                <span class="todo-list-count" id="completed-count">0</span>
               </div>
               <div class="todo-items" id="completed-items"></div>
             </div>
