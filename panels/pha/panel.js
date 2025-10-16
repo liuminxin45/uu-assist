@@ -91,12 +91,20 @@ function handleTextOptimizeWithTone(action, actionText, toneType) {
   
   // 构建带动态语气类型的prompt
   const prompt = `请将以下文本改写为更${toneType}的语气：
-「${content}」`;
+「${content}」
+
+重要说明：
+1. 对于类似"{F13822848, size=full, layout=center}"这种格式的字符串，是图片和文件引用，请务必保持其原始格式，不要修改。
+2. 你可以在回复中使用markdown语法来增强内容的格式和可读性。`;
   
   // 使用aiSummarize消息类型发送请求
   const aiRequest = {
     type: "aiSummarize",
-    prompt: "你是助手。请根据用户的请求进行文本处理。请直接返回处理后的文本内容，以严格JSON返回：{\"title\":\"...\", \"reply\":\"...\"}",
+    prompt: `你是助手。请根据用户的请求进行文本处理。
+重要说明：
+1. 对于类似"{F13822848, size=full, layout=center}"这种格式的字符串，是图片和文件引用，请务必保持其原始格式，不要修改。
+2. 你可以在回复中使用markdown语法来增强内容的格式和可读性。
+请直接返回处理后的文本内容，以严格JSON返回：{"title":"...", "reply":"..."}`,
     content: prompt
   };
   
@@ -125,10 +133,18 @@ function handleTextOptimizeWithTone(action, actionText, toneType) {
     // 注意：sw.js返回的是title和reply字段，不是AITitle和AIReply
     const { title, reply } = res;
     if (reply && typeof reply === 'string' && reply.trim()) {
-      // 将AI生成的内容插入到文本框中
-      ta.value = reply;
-      setStatus(`${actionText}完成，已改为${toneType}语气`);
-      console.log("[文本优化-语气] 成功处理并更新文本框");
+      // 使用execCommand插入文本，支持浏览器撤销功能
+      ta.focus();
+      document.execCommand('selectAll'); // 全选当前内容
+      if (document.execCommand('insertText', false, reply)) {
+        setStatus(`${actionText}完成，已改为${toneType}语气`);
+        console.log("[文本优化-语气] 成功处理并更新文本框（支持撤销）");
+      } else {
+        // 降级方案
+        ta.value = reply;
+        setStatus(`${actionText}完成，已改为${toneType}语气`);
+        console.log("[文本优化-语气] 成功处理并更新文本框（降级方案）");
+      }
     } else {
       console.error("[文本优化-语气] 无效的reply:", reply);
       console.log("[文本优化-语气] 完整响应:", res);
@@ -162,27 +178,51 @@ function handleTextOptimize(action, actionText) {
   switch (action) {
     case 'improve':
       prompt = `请改进以下文本，使其逻辑更清晰、语言更流畅、表达更自然，不改变核心含义：
-「${content}」`;
+「${content}」
+
+重要说明：
+1. 对于类似"{F13822848, size=full, layout=center}"这种格式的字符串，是图片和文件引用，请务必保持其原始格式，不要修改。
+2. 你可以在回复中使用markdown语法来增强内容的格式和可读性。`;
       break;
     case 'continue':
       prompt = `请根据以下文本的情节和语气，自然续写下一段，保持风格一致：
-「${content}」`;
+「${content}」
+
+重要说明：
+1. 对于类似"{F13822848, size=full, layout=center}"这种格式的字符串，是图片和文件引用，请务必保持其原始格式，不要修改。
+2. 你可以在回复中使用markdown语法来增强内容的格式和可读性。`;
       break;
     case 'correct':
       prompt = `请纠正以下文本中的语法、拼写、标点或逻辑错误，保持原意：
-「${content}」`;
+「${content}」
+
+重要说明：
+1. 对于类似"{F13822848, size=full, layout=center}"这种格式的字符串，是图片和文件引用，请务必保持其原始格式，不要修改。
+2. 你可以在回复中使用markdown语法来增强内容的格式和可读性。`;
       break;
     case 'compress':
       prompt = `请将以下文本压缩为原文的约 1/3 长度，保留主要信息和语气：
-「${content}」`;
+「${content}」
+
+重要说明：
+1. 对于类似"{F13822848, size=full, layout=center}"这种格式的字符串，是图片和文件引用，请务必保持其原始格式，不要修改。
+2. 你可以在回复中使用markdown语法来增强内容的格式和可读性。`;
       break;
     case 'expand':
       prompt = `请在保持原意的前提下，扩展以下文本，增加细节、示例或情感描述：
-「${content}」`;
+「${content}」
+
+重要说明：
+1. 对于类似"{F13822848, size=full, layout=center}"这种格式的字符串，是图片和文件引用，请务必保持其原始格式，不要修改。
+2. 你可以在回复中使用markdown语法来增强内容的格式和可读性。`;
       break;
     case 'simplify':
       prompt = `请将以下文本改写得更简洁易懂，删除冗余或复杂表达：
-「${content}」`;
+「${content}」
+
+重要说明：
+1. 对于类似"{F13822848, size=full, layout=center}"这种格式的字符串，是图片和文件引用，请务必保持其原始格式，不要修改。
+2. 你可以在回复中使用markdown语法来增强内容的格式和可读性。`;
       break;
     case 'tone':
       // 这个case现在由handleTextOptimizeWithTone函数处理
@@ -190,15 +230,27 @@ function handleTextOptimize(action, actionText) {
       break;
     case 'outline':
       prompt = `请为以下文本提炼一个结构化大纲，分层列出主要观点与逻辑：
-「${content}」`;
+「${content}」
+
+重要说明：
+1. 对于类似"{F13822848, size=full, layout=center}"这种格式的字符串，是图片和文件引用，请务必保持其原始格式，不要修改。
+2. 你可以在回复中使用markdown语法来增强内容的格式和可读性。`;
       break;
     case 'brainstorm':
       prompt = `请基于以下文本内容，生成若干创意、标题或行动方案：
-「${content}」`;
+「${content}」
+
+重要说明：
+1. 对于类似"{F13822848, size=full, layout=center}"这种格式的字符串，是图片和文件引用，请务必保持其原始格式，不要修改。
+2. 你可以在回复中使用markdown语法来增强内容的格式和可读性。`;
       break;
     case 'blog':
       prompt = `请将以下文本改写为一篇适合博客发布的内容，包含引入、正文和结尾：
-「${content}」`;
+「${content}」
+
+重要说明：
+1. 对于类似"{F13822848, size=full, layout=center}"这种格式的字符串，是图片和文件引用，请务必保持其原始格式，不要修改。
+2. 你可以在回复中使用markdown语法来增强内容的格式和可读性。`;
       break;
     default:
       prompt = content;
@@ -207,7 +259,11 @@ function handleTextOptimize(action, actionText) {
   // 使用aiSummarize消息类型发送请求
   const aiRequest = {
     type: "aiSummarize",
-    prompt: "你是助手。请根据用户的请求进行文本处理。请直接返回处理后的文本内容，以严格JSON返回：{\"title\":\"...\", \"reply\":\"...\"}",
+    prompt: `你是助手。请根据用户的请求进行文本处理。
+重要说明：
+1. 对于类似"{F13822848, size=full, layout=center}"这种格式的字符串，是图片和文件引用，请务必保持其原始格式，不要修改。
+2. 你可以在回复中使用markdown语法来增强内容的格式和可读性。
+请直接返回处理后的文本内容，以严格JSON返回：{"title":"...", "reply":"..."}`,
     content: prompt
   };
   
@@ -236,10 +292,18 @@ function handleTextOptimize(action, actionText) {
     // 注意：sw.js返回的是title和reply字段，不是AITitle和AIReply
     const { title, reply } = res;
     if (reply && typeof reply === 'string' && reply.trim()) {
-      // 将AI生成的内容插入到文本框中
-      ta.value = reply;
-      setStatus(`${actionText}完成`);
-      console.log("[文本优化] 成功处理并更新文本框");
+      // 使用execCommand插入文本，支持浏览器撤销功能
+      ta.focus();
+      document.execCommand('selectAll'); // 全选当前内容
+      if (document.execCommand('insertText', false, reply)) {
+        setStatus(`${actionText}完成`);
+        console.log("[文本优化] 成功处理并更新文本框（支持撤销）");
+      } else {
+        // 降级方案
+        ta.value = reply;
+        setStatus(`${actionText}完成`);
+        console.log("[文本优化] 成功处理并更新文本框（降级方案）");
+      }
     } else {
       console.error("[文本优化] 无效的reply:", reply);
       console.log("[文本优化] 完整响应:", res);
