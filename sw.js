@@ -1,5 +1,20 @@
 /* sw.js v0.7.3 */
-const stripXSSI = t => t.replace(/^\)\]\}'[^\n]*\n?/, "").trim();
+const stripXSSI = t => String(t || "")
+  .replace(/^\uFEFF/, "")                         // BOM
+  .replace(/^\)\]\}'[^\n]*\n?/, "")               // Gerrit: )]}'
+  .replace(/^\s*for\s*\(\s*;;\s*\)\s*;?\s*/i, "") // Phabricator: for (;;);
+  .trim();
+// 统一解析辅助：返回 { ok, status, data } 或 { ok:false, status, error, snippet }
+async function parseJsonResponse(resp) {
+  const txt = await resp.text();
+  const clean = stripXSSI(txt);
+  try {
+    const data = JSON.parse(clean);
+    return { ok: true, status: resp.status, data };
+  } catch (e) {
+    return { ok: false, status: resp.status, error: "JSON解析失败", snippet: clean.slice(0, 300) };
+  }
+}
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const oneShot = (sendResponse) => { let done = false; return (p) => { if (!done) { done = true; try { sendResponse(p); } catch (_) { } } }; };
@@ -85,19 +100,19 @@ async function spGetStableTabId(sender) {
 }
 
 // 初始化与持续更新
-chrome.tabs.onActivated.addListener(async ({ tabId }) => { 
+chrome.tabs.onActivated.addListener(async ({ tabId }) => {
   await spSetLastTab(tabId);
-  
+
   // 恢复标签页的面板状态，但避免不必要的重置
   if (tabId) {
     try {
       const panelName = await getCurrentTabPanelState(tabId);
-      
+
       // 检查当前标签页是否已经有相同的面板打开
       try {
         const currentOptions = await chrome.sidePanel.getOptions({ tabId: tabId });
         const currentPanelName = Object.keys(PANEL_PATHS).find(key => PANEL_PATHS[key] === currentOptions.path) || "pha-panel";
-        
+
         // 只有当当前面板名称与存储的不同时，才切换面板
         if (currentPanelName !== panelName) {
           await openPanelByName(panelName, tabId, { fromSidePanel: false });
@@ -117,16 +132,16 @@ chrome.windows.onFocusChanged.addListener(async (winId) => {
   const [tab] = await chrome.tabs.query({ active: true, windowId: winId });
   if (tab?.id) {
     await spSetLastTab(tab.id);
-    
+
     // 恢复标签页的面板状态，但避免不必要的重置
     try {
       const panelName = await getCurrentTabPanelState(tab.id);
-      
+
       // 检查当前标签页是否已经有相同的面板打开
       try {
         const currentOptions = await chrome.sidePanel.getOptions({ tabId: tab.id });
         const currentPanelName = Object.keys(PANEL_PATHS).find(key => PANEL_PATHS[key] === currentOptions.path) || "pha-panel";
-        
+
         // 只有当当前面板名称与存储的不同时，才切换面板
         if (currentPanelName !== panelName) {
           await openPanelByName(panelName, tab.id, { fromSidePanel: false });
@@ -146,7 +161,7 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
     lastTabId = null;
     try { await chrome.storage.session.remove('__uu_assist_last_tab_id'); } catch (_) { }
   }
-  
+
   // 清理已关闭标签页的面板状态
   await cleanupTabPanelState(tabId);
 });
@@ -174,7 +189,7 @@ chrome.runtime.onInstalled.addListener(() => {
   if (chrome.sidePanel?.setPanelBehavior) {
     chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => { });
   }
-  
+
   // 创建右键菜单
   chrome.contextMenus.create({
     id: "add-to-notes",
@@ -194,20 +209,20 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         // 对于受限制域名，我们不能直接在页面上显示toast，但可以记录日志并返回
         return;
       }
-      
+
       // 准备要添加到笔记的数据
       let noteData = { type: 'text', text: '', imageUrl: null };
-      
+
       // 添加来源信息
       noteData.url = tab.url;
       noteData.title = tab.title;
-      
+
       // 处理图片
       if (info.mediaType === 'image' && info.srcUrl) {
         noteData.imageUrl = info.srcUrl;
         noteData.type = 'image';
       }
-      
+
       // 处理选中文本
       if (info.selectionText) {
         noteData.text = info.selectionText;
@@ -217,14 +232,14 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
           noteData.type = 'text_image';
         }
       }
-      
+
       // 首先尝试直接保存笔记到数据库（不依赖面板状态）
       const saveSuccess = await saveNoteDirectly(noteData);
-      
+
       if (saveSuccess) {
         // 显示添加成功的toast提示
         await showToast(tab.id, '添加成功');
-        
+
         // 同时尝试通知已打开的Notes面板（如果有的话）
         // 这样用户如果已经打开了面板，也能看到新添加的笔记
         try {
@@ -236,7 +251,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       } else {
         // 如果直接保存失败，再尝试发送到Notes面板
         const panelSuccess = await sendToNotesPanel(noteData);
-        
+
         if (panelSuccess) {
           // 显示添加成功的toast提示
           await showToast(tab.id, '添加成功');
@@ -245,7 +260,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
           await chrome.storage.local.set({
             pending_note_data: noteData
           });
-          
+
           // 通知用户已保存待处理
           await showToast(tab.id, '已保存待添加到Notes');
         }
@@ -262,12 +277,12 @@ async function sendToNotesPanel(data) {
   try {
     // 在Service Worker中，我们不能直接访问视图
     // 尝试通过消息传递给所有打开的标签页和面板
-    
+
     // 使用Promise来处理消息发送，设置超时时间
     return new Promise((resolve) => {
       // 标记是否收到了响应
       let responseReceived = false;
-      
+
       // 尝试发送消息到Notes面板（通过runtime.sendMessage）
       chrome.runtime.sendMessage({
         type: 'add-note-from-context',
@@ -275,7 +290,7 @@ async function sendToNotesPanel(data) {
       }, (response) => {
         // 处理响应
         responseReceived = true;
-        
+
         // 检查响应是否成功
         if (response && response.ok === true) {
           resolve(true);
@@ -284,13 +299,13 @@ async function sendToNotesPanel(data) {
           resolve(false);
         }
       });
-      
+
       // 处理消息发送失败的情况（如面板未打开）
       if (chrome.runtime.lastError) {
         console.warn('直接发送消息失败，可能Notes面板未打开:', chrome.runtime.lastError.message);
         resolve(false);
       }
-      
+
       // 设置300毫秒超时，如果没有收到响应，视为发送失败
       setTimeout(() => {
         if (!responseReceived) {
@@ -311,7 +326,7 @@ async function saveNoteDirectly(data) {
     // 从存储中加载现有笔记
     const result = await chrome.storage.local.get('notes_data');
     let notes = result.notes_data || [];
-    
+
     // 创建新笔记对象（与panel.js中格式保持一致）
     const newNote = {
       id: Date.now().toString(),
@@ -319,19 +334,19 @@ async function saveNoteDirectly(data) {
       content: data.text || '',
       isArchived: false
     };
-    
+
     // 添加来源信息
     if (data.url && data.title) {
       newNote.sourceUrl = data.url;
       newNote.sourceTitle = data.title;
     }
-    
+
     // 处理图片数据
     if (data.imageUrl) {
       try {
         // 尝试将图片转换为base64（简化版，实际可能需要更复杂的处理）
         const base64Data = await fetchImageAsDataURL(data.imageUrl);
-        
+
         // 设置图片相关属性
         newNote.imagesData = [base64Data];
         newNote.isMultipleImages = true;
@@ -350,17 +365,17 @@ async function saveNoteDirectly(data) {
       newNote.hasImage = false;
       newNote.isMultipleImages = false;
     }
-    
+
     // 添加到笔记列表开头
     notes.unshift(newNote);
-    
+
     // 排序笔记（先显示未归档的，再显示归档的，按时间戳倒序）
     notes.sort((a, b) => {
       if (a.isArchived && !b.isArchived) return 1;
       if (!a.isArchived && b.isArchived) return -1;
       return b.timestamp - a.timestamp;
     });
-    
+
     // 保存更新后的笔记列表
     await chrome.storage.local.set({ 'notes_data': notes });
     console.log('笔记已直接保存到数据库:', newNote);
@@ -379,7 +394,7 @@ async function fetchImageAsDataURL(url) {
       resolve(url);
       return;
     }
-    
+
     // 对于普通URL，尝试获取图片（在Service Worker中，我们不能直接使用canvas）
     // 这里简化处理，直接返回URL，让面板在加载时处理
     resolve(url);
@@ -396,7 +411,7 @@ async function showToast(tabId, message) {
       // 对于受限制域名，我们不能直接在页面上显示toast
       return;
     }
-    
+
     // 对于非受限制域名，正常显示toast
     chrome.scripting.executeScript({
       target: { tabId: tabId },
@@ -416,25 +431,25 @@ async function showToast(tabId, message) {
         toast.style.opacity = '0';
         toast.style.transition = 'opacity 0.3s ease';
         toast.textContent = msg;
-        
+
         document.body.appendChild(toast);
-        
+
         // 显示toast
         setTimeout(() => {
           toast.style.opacity = '1';
         }, 10);
-        
+
         // 3秒后自动消失
-      setTimeout(() => {
-        toast.style.opacity = '0';
         setTimeout(() => {
-          if (document.body.contains(toast)) {
-            document.body.removeChild(toast);
-          }
-        }, 300);
-      }, 3000);
-  }
-});
+          toast.style.opacity = '0';
+          setTimeout(() => {
+            if (document.body.contains(toast)) {
+              document.body.removeChild(toast);
+            }
+          }, 300);
+        }, 3000);
+      }
+    });
   } catch (error) {
     console.error('显示toast失败:', error);
   }
@@ -484,7 +499,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           const text = await r.text();
           sendResponse({ ok: r.ok, status: r.status, data: text });
         }
-      
+
         // 处理rocket:statusLog消息
         if (msg.type === "rocket:statusLog") {
           // 查找所有打开的rocket-panel标签页
@@ -502,7 +517,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           }
           sendResponse({ ok: true });
         }
-      
+
         // 处理rocket:aiReply消息
         if (msg.type === "rocket:aiReply") {
           // 查找所有打开的rocket-panel标签页
@@ -520,14 +535,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           }
           sendResponse({ ok: true });
         }
-        
+
         // 处理fetchListPage消息
         if (msg.type === "fetchListPage") {
           const { ok, status, text } = await fetchText(msg.url);
           sendResponse({ ok, status, text, snippet: snippetOf(text) });
           return;
         }
-        
+
         // 处理guessTaskFromGerrit消息
         if (msg.type === "guessTaskFromGerrit") {
           try {
@@ -542,7 +557,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             sendResponse({ ok: false, error: e?.message || String(e) });
           }
         }
-        
+
         // 处理fetchTaskSummary消息
         if (msg.type === "fetchTaskSummary") {
           try {
@@ -558,7 +573,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             sendResponse({ ok: false, error: e?.message || String(e) });
           }
         }
-        
+
         // 处理postComment消息
         if (msg.type === "postComment") {
           try {
@@ -576,23 +591,49 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             form.set("__wflow__", "true");
             form.set("__ajax__", "true");
             form.set("__metablock__", "4");
+            form.set("render", "1");
             if (draftVer) form.set("draft.version", draftVer);
             let comment = msg.content;
             if (typeof comment === "object") comment = JSON.stringify(comment);
+            comment = String(comment || "").trim();
+            if (!comment) { sendResponse({ ok: false, status: 400, error: "评论内容为空" }); return; }
             form.set("comment", comment);
             const r = await fetch(postUrl, {
               method: "POST",
               credentials: "include",
-              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "X-Requested-With": "XMLHttpRequest",         // 必须
+                "X-Phabricator-Csrf": csrf,                    // 必须
+                "Referer": msg.taskUrl                         // 有助于通过校验
+              },
               body: form
             });
-            const j = await r.json();
-            sendResponse({ ok: r.ok, status: r.status, data: j });
+            const pr = await parseJsonResponse(r);
+            if (!pr.ok) { sendResponse({ ok: false, status: pr.status, error: pr.error, snippet: pr.snippet }); return; }
+            const data = pr.data || {};
+            // 成功判据：error 为 null 或未给出，且出现以下任一信号
+            const redirected = data?.payload?.redirect || data?.workflow?.redirectURI || data?.redirect || null;
+            const logicalOk =
+              (data?.error == null) && (
+                redirected ||
+                data?.payload?.objectPHID ||
+                (Array.isArray(data?.transactions)) ||
+                (Array.isArray(data?.payload?.transactions)) ||
+                !!data?.markup
+              );
+            if (!logicalOk) {
+              sendResponse({ ok: false, status: pr.status, error: "服务器未确认写入", snippet: JSON.stringify(data).slice(0, 300) });
+              return;
+            }
+            sendResponse({ ok: true, status: pr.status, data, redirect: redirected });
+
+
           } catch (e) {
             sendResponse({ ok: false, error: e?.message || String(e) });
           }
         }
-        
+
         // 处理fetchGerritCommit消息
         if (msg.type === "fetchGerritCommit") {
           try {
@@ -601,23 +642,28 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               for (let i = 0; i < tries; i++) {
                 try {
                   const r = await fetch(url, { headers: { Accept: "application/json" }, credentials: "include" });
-                  if (r.ok) return await r.json();
-                  last = { ok: r.ok, status: r.status, error: await r.text() };
+                  if (r.ok) {
+                    const pr = await parseJsonResponse(r);
+                    if (pr.ok) return pr.data;
+                    last = { ok: false, status: pr.status, error: pr.error, snippet: pr.snippet };
+                  } else {
+                    last = { ok: r.ok, status: r.status, error: await r.text() };
+                  }
                 } catch (e) { last = { error: String(e) }; }
                 if (i < tries - 1) await new Promise(r => setTimeout(r, 1000 * (i + 1)));
               }
               throw last;
             }
-            
+
             const first = await getCommitWithRetry(msg.api);
             if (first.status === 404) { sendResponse({ ok: false, status: 404 }); return; }
-            
+
             // 检查是否需要获取父提交
             if (!first.commit || !first.commit.parents || first.commit.parents.length === 0) {
               sendResponse({ ok: true, commit: first, parent: null });
               return;
             }
-            
+
             // 获取第一个父提交
             const parentApi = msg.api.replace(/\/\d+$/, "/" + (parseInt(msg.api.split("/")?.pop() || "1") - 1));
             const parent = await getCommitWithRetry(parentApi);
@@ -735,11 +781,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           try {
             // 获取当前标签页ID
             const tabId = await spGetStableTabId(sender);
-            
+
             if (tabId) {
               // 保存当前标签页的面板状态
               await saveTabPanelState(tabId, msg.name);
-              
+
               // 只对当前标签页应用面板切换
               try {
                 await openPanelByName(msg.name, tabId, { fromSidePanel: false });
@@ -774,7 +820,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           try { const r = await dbDeletePost(msg.id); sendResponse(r); } catch (e) { sendResponse({ ok: false, error: String(e) }); }
           return;
         }
-        
+
         // 导出数据
         if (msg?.type === "exportAllData") {
           try {
@@ -785,7 +831,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           }
           return;
         }
-        
+
         // 导入数据
         if (msg?.type === "importAllData") {
           try {
@@ -802,213 +848,213 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sendResponse({ ok: false, error: e?.message || String(e) });
       }
     })();
-    
+
     // 返回true保持消息通道开放，直到sendResponse被调用
     return true;
   }
-          
-
-          // 标题
-          let title = "";
-          const mTitle = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-          if (mTitle) title = mTitle[1].replace(/\s+/g, " ").trim();
-
-          const strip = s => String(s || "")
-            .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-            .replace(/<[^>]+>/g, " ")
-            .replace(/\u00a0/g, " ")
-            .replace(/\s+/g, " ")
-            .trim();
-
-          let status = "", priority = "";
-
-          // ① 页眉副标题（权威）
-          const mSub = html.match(/<div[^>]*class=["'][^"']*phui-header-subheader[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
-          if (mSub) {
-            // 取第一个 phui-tag-core 的文本
-            let coreText = "";
-            const coreRe = /<span[^>]*class=["'][^"']*phui-tag-core[^"']*["'][^>]*>([\s\S]*?)<\/span>/ig;
-            let mm;
-            while ((mm = coreRe.exec(mSub[1])) !== null) {
-              const t = strip(mm[1]);
-              if (t) { coreText = t; break; }
-            }
-            const headerText = coreText || strip(mSub[1]);
-
-            // 分段后分别提取状态/优先级
-            const parts = headerText.split(/[，,]/).map(s => s.trim()).filter(Boolean);
-            const statusRe = /(进行中(?:\(不加入统计\))?|已完成(?:\(不加入统计\))?|已解决|已关闭|开放|待办|已指派|已验证|已取消|已暂停|未开始|in\s*progress|open|resolved|closed)/i;
-
-            // 状态：从右往左找，优先采用最后出现的状态词
-            for (const seg of parts.slice().reverse()) {
-              const m = seg.match(statusRe);
-              if (m) { status = m[1].replace(/\s+/g, ""); break; }
-            }
-            // 优先级：找到第一个 P\d
-            if (!priority) {
-              for (const seg of parts) {
-                const mp = seg.match(/\bP\d\b/i);
-                if (mp) { priority = mp[0].toUpperCase(); break; }
-              }
-            }
-          }
 
 
+  // 标题
+  let title = "";
+  const mTitle = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (mTitle) title = mTitle[1].replace(/\s+/g, " ").trim();
 
-          // ② 任务图“只针对当前TID”的兜底（防止误取父/兄弟任务）
-          if (!status) {
-            const tidMatch = url.match(/\/T(\d+)\b/i);
-            const tid = tidMatch && tidMatch[1];
-            if (tid) {
-              // 找到包含 <span class="object-name">T{tid}</span> 的那一行
-              const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/ig;
-              let tr;
-              while ((tr = trRe.exec(html)) !== null) {
-                if (new RegExp(`<span[^>]*class=["'][^"']*object-name[^"']*["'][^>]*>\\s*T${tid}\\s*<\\/span>`, "i").test(tr[1])) {
-                  const mGraph = tr[1].match(/<td[^>]*class=["'][^"']*graph-status[^"']*["'][^>]*>([\s\S]*?)<\/td>/i);
-                  if (mGraph) {
-                    const t = strip(mGraph[1]);
-                    const ms = t.match(/(已完成(?:\(不加入统计\))?|进行中(?:\(不加入统计\))?|暂停|未开始)/);
-                    if (ms) { status = ms[1]; }
-                  }
-                  break;
-                }
-              }
-            }
-          }
+  const strip = s => String(s || "")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\u00a0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
-          // ③ 时间线兜底：优先找“将此任务关闭为 …”，否则找“修改为 …”的最后一条
-          if (!status) {
-            let lastClose = "";
-            const closeRe = /<div[^>]*class=["'][^"']*phui-timeline-title[^"']*["'][^>]*>[\s\S]*?将此任务关闭为[\s\S]*?<span[^>]*class=["'][^"']*phui-timeline-value[^"']*["'][^>]*>([\s\S]*?)<\/span>[\s\S]*?<\/div>/ig;
-            let m;
-            while ((m = closeRe.exec(html)) !== null) { lastClose = strip(m[1]); }
-            if (lastClose) status = lastClose;
-            else {
-              // 最近一次“修改为 …”的目标状态
-              let lastChange = "";
-              const changeRe = /<div[^>]*class=["'][^"']*phui-timeline-title[^"']*["'][^>]*>[\s\S]*?修改为[\s\S]*?<span[^>]*class=["'][^"']*phui-timeline-value[^"']*["'][^>]*>([\s\S]*?)<\/span>[\s\S]*?<\/div>/ig;
-              while ((m = changeRe.exec(html)) !== null) { lastChange = strip(m[1]); }
-              if (lastChange) status = lastChange;
-            }
-          }
+  let status = "", priority = "";
 
-          // ④ 解析属性列表 <dl>（补充 details / 末位兜底）
-          const details = [];
-          const dlRe = /<dl[^>]*class=["'][^"']*phui-property-list-properties[^"']*["'][^>]*>([\s\S]*?)<\/dl>/ig;
-          let dlm;
-          while ((dlm = dlRe.exec(html)) !== null) {
-            const body = dlm[1];
-            const kvRe = /<dt[^>]*class=["'][^"']*phui-property-list-key[^"']*["'][^>]*>([\s\S]*?)<\/dt>\s*<dd[^>]*class=["'][^"']*phui-property-list-value[^"']*["'][^>]*>([\s\S]*?)<\/dd>/ig;
-            let m;
-            while ((m = kvRe.exec(body)) !== null) {
-              details.push({ k: strip(m[1]), v: strip(m[2]) });
-            }
-          }
+  // ① 页眉副标题（权威）
+  const mSub = html.match(/<div[^>]*class=["'][^"']*phui-header-subheader[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
+  if (mSub) {
+    // 取第一个 phui-tag-core 的文本
+    let coreText = "";
+    const coreRe = /<span[^>]*class=["'][^"']*phui-tag-core[^"']*["'][^>]*>([\s\S]*?)<\/span>/ig;
+    let mm;
+    while ((mm = coreRe.exec(mSub[1])) !== null) {
+      const t = strip(mm[1]);
+      if (t) { coreText = t; break; }
+    }
+    const headerText = coreText || strip(mSub[1]);
 
-          // 先从 details 里兜底
-          if (!status) {
-            const kv = details.find(d => /^(状态|Status)$/i.test(d.k));
-            if (kv) status = kv.v.replace(/\s+/g, "");
-          }
-          if (!priority) {
-            const kv = details.find(d => /^(优先级|Priority)$/i.test(d.k));
-            if (kv) priority = (kv.v.match(/\bP\d\b/i)?.[0] || kv.v).toUpperCase();
-          }
+    // 分段后分别提取状态/优先级
+    const parts = headerText.split(/[，,]/).map(s => s.trim()).filter(Boolean);
+    const statusRe = /(进行中(?:\(不加入统计\))?|已完成(?:\(不加入统计\))?|已解决|已关闭|开放|待办|已指派|已验证|已取消|已暂停|未开始|in\s*progress|open|resolved|closed)/i;
 
-          // 最末从纯文本兜底一次（只匹配“状态/优先级：”或独立的 Pn）
-          if (!status || !priority) {
-            const text = html
-              .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-              .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-              .replace(/<[^>]+>/g, "\n")
-              .replace(/\u00a0/g, " ")
-              .replace(/[ \t]+\n/g, "\n");
-
-            if (!status) {
-              const ms = text.match(/(?:^|\n)\s*(?:状态|Status)\s*[:：]\s*([^\n\r]+)/i);
-              if (ms) status = ms[1].trim().replace(/\s+/g, "");
-            }
-            if (!priority) {
-              const mp = text.match(/(?:^|\n)\s*(?:优先级|Priority)\s*[:：]\s*([^\n\r]+)/i) || text.match(/(?:^|\n)\s*(P\d)\b/i);
-              if (mp) priority = (mp[1] || mp[0]).toUpperCase().trim();
-            }
-          }
-
-
-
-
-
-
-
-
-      if (msg.type === "aiSummarize") {
-        (async () => {
-          const def = { aiCfg: null };
-          const got = await chrome.storage.local.get(def).catch(() => def);
-          const ai = got.aiCfg || {};
-          const base = (ai.base || "https://api.deepseek.com/v1").replace(/\/+$/, "");
-          const model = ai.model || "deepseek-chat";
-          const key = ai.key || "";
-          const sysPrompt = msg.prompt || ai.prompt || "你是助手。请根据给定正文：1) 生成≤40字的小标题；2) 生成简洁回复。以严格JSON返回：{\"title\":\"...\", \"reply\":\"...\"}";
-          const userContent = msg.content || "";
-
-          // 添加日志：显示当前使用的AI配置
-          console.log("[AI Request] 使用的配置:", { base, model, key: key ? "[REDACTED]" : "未设置" });
-          
-          if (!key) { sendResponse({ ok: false, error: "缺少API Key" }); return; }
-          const url = base + "/chat/completions";
-          const payload = {
-            model,
-            messages: [
-              { role: "system", content: sysPrompt },
-              { role: "user", content: userContent }
-            ]
-          };
-
-          try {
-            const r = await fetch(url, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", "Authorization": "Bearer " + key },
-              body: JSON.stringify(payload)
-            });
-            const txt = await r.text();
-
-            if (!r.ok) {
-              const snip = (typeof snippetOf === "function") ? snippetOf(txt) : (txt || "").slice(0, 400);
-              sendResponse({ ok: false, status: r.status, error: "AI接口错误", snippet: snip });
-              return;
-            }
-
-            let data = null; try { data = JSON.parse(txt); } catch (_) { if (typeof relaxParseJSON === "function") data = relaxParseJSON(txt); }
-            const content = data?.choices?.[0]?.message?.content || "";
-            const jsonText = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "");
-            let obj = null; try { obj = JSON.parse(jsonText); } catch (_) { if (typeof relaxParseJSON === "function") obj = relaxParseJSON(jsonText); }
-
-            const title = obj?.title ? String(obj.title) : "";
-            const reply = obj?.reply ? String(obj.reply) : "";
-
-            // usage 与 model 回传，便于面板统计
-            const usage = data?.usage || null;           // {prompt_tokens, completion_tokens, total_tokens}
-            const usedModel = data?.model || model;
-
-            // 添加日志：显示实际使用的模型
-            console.log("[AI Response] 实际使用的模型:", usedModel);
-            
-            sendResponse({ ok: true, title, reply, usage, model: usedModel });
-            return;
-          } catch (e) {
-            sendResponse({ ok: false, error: e?.message || String(e) });
-            return;
-          }
-        })();
-        return true; // 关键：保持消息通道，等待异步 sendResponse
+    // 状态：从右往左找，优先采用最后出现的状态词
+    for (const seg of parts.slice().reverse()) {
+      const m = seg.match(statusRe);
+      if (m) { status = m[1].replace(/\s+/g, ""); break; }
+    }
+    // 优先级：找到第一个 P\d
+    if (!priority) {
+      for (const seg of parts) {
+        const mp = seg.match(/\bP\d\b/i);
+        if (mp) { priority = mp[0].toUpperCase(); break; }
       }
+    }
+  }
 
-      // sumWorkload已在async函数内部处理
-      
-      return true; // 异步
+
+
+  // ② 任务图“只针对当前TID”的兜底（防止误取父/兄弟任务）
+  if (!status) {
+    const tidMatch = url.match(/\/T(\d+)\b/i);
+    const tid = tidMatch && tidMatch[1];
+    if (tid) {
+      // 找到包含 <span class="object-name">T{tid}</span> 的那一行
+      const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/ig;
+      let tr;
+      while ((tr = trRe.exec(html)) !== null) {
+        if (new RegExp(`<span[^>]*class=["'][^"']*object-name[^"']*["'][^>]*>\\s*T${tid}\\s*<\\/span>`, "i").test(tr[1])) {
+          const mGraph = tr[1].match(/<td[^>]*class=["'][^"']*graph-status[^"']*["'][^>]*>([\s\S]*?)<\/td>/i);
+          if (mGraph) {
+            const t = strip(mGraph[1]);
+            const ms = t.match(/(已完成(?:\(不加入统计\))?|进行中(?:\(不加入统计\))?|暂停|未开始)/);
+            if (ms) { status = ms[1]; }
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  // ③ 时间线兜底：优先找“将此任务关闭为 …”，否则找“修改为 …”的最后一条
+  if (!status) {
+    let lastClose = "";
+    const closeRe = /<div[^>]*class=["'][^"']*phui-timeline-title[^"']*["'][^>]*>[\s\S]*?将此任务关闭为[\s\S]*?<span[^>]*class=["'][^"']*phui-timeline-value[^"']*["'][^>]*>([\s\S]*?)<\/span>[\s\S]*?<\/div>/ig;
+    let m;
+    while ((m = closeRe.exec(html)) !== null) { lastClose = strip(m[1]); }
+    if (lastClose) status = lastClose;
+    else {
+      // 最近一次“修改为 …”的目标状态
+      let lastChange = "";
+      const changeRe = /<div[^>]*class=["'][^"']*phui-timeline-title[^"']*["'][^>]*>[\s\S]*?修改为[\s\S]*?<span[^>]*class=["'][^"']*phui-timeline-value[^"']*["'][^>]*>([\s\S]*?)<\/span>[\s\S]*?<\/div>/ig;
+      while ((m = changeRe.exec(html)) !== null) { lastChange = strip(m[1]); }
+      if (lastChange) status = lastChange;
+    }
+  }
+
+  // ④ 解析属性列表 <dl>（补充 details / 末位兜底）
+  const details = [];
+  const dlRe = /<dl[^>]*class=["'][^"']*phui-property-list-properties[^"']*["'][^>]*>([\s\S]*?)<\/dl>/ig;
+  let dlm;
+  while ((dlm = dlRe.exec(html)) !== null) {
+    const body = dlm[1];
+    const kvRe = /<dt[^>]*class=["'][^"']*phui-property-list-key[^"']*["'][^>]*>([\s\S]*?)<\/dt>\s*<dd[^>]*class=["'][^"']*phui-property-list-value[^"']*["'][^>]*>([\s\S]*?)<\/dd>/ig;
+    let m;
+    while ((m = kvRe.exec(body)) !== null) {
+      details.push({ k: strip(m[1]), v: strip(m[2]) });
+    }
+  }
+
+  // 先从 details 里兜底
+  if (!status) {
+    const kv = details.find(d => /^(状态|Status)$/i.test(d.k));
+    if (kv) status = kv.v.replace(/\s+/g, "");
+  }
+  if (!priority) {
+    const kv = details.find(d => /^(优先级|Priority)$/i.test(d.k));
+    if (kv) priority = (kv.v.match(/\bP\d\b/i)?.[0] || kv.v).toUpperCase();
+  }
+
+  // 最末从纯文本兜底一次（只匹配“状态/优先级：”或独立的 Pn）
+  if (!status || !priority) {
+    const text = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+      .replace(/<[^>]+>/g, "\n")
+      .replace(/\u00a0/g, " ")
+      .replace(/[ \t]+\n/g, "\n");
+
+    if (!status) {
+      const ms = text.match(/(?:^|\n)\s*(?:状态|Status)\s*[:：]\s*([^\n\r]+)/i);
+      if (ms) status = ms[1].trim().replace(/\s+/g, "");
+    }
+    if (!priority) {
+      const mp = text.match(/(?:^|\n)\s*(?:优先级|Priority)\s*[:：]\s*([^\n\r]+)/i) || text.match(/(?:^|\n)\s*(P\d)\b/i);
+      if (mp) priority = (mp[1] || mp[0]).toUpperCase().trim();
+    }
+  }
+
+
+
+
+
+
+
+
+  if (msg.type === "aiSummarize") {
+    (async () => {
+      const def = { aiCfg: null };
+      const got = await chrome.storage.local.get(def).catch(() => def);
+      const ai = got.aiCfg || {};
+      const base = (ai.base || "https://api.deepseek.com/v1").replace(/\/+$/, "");
+      const model = ai.model || "deepseek-chat";
+      const key = ai.key || "";
+      const sysPrompt = msg.prompt || ai.prompt || "你是助手。请根据给定正文：1) 生成≤40字的小标题；2) 生成简洁回复。以严格JSON返回：{\"title\":\"...\", \"reply\":\"...\"}";
+      const userContent = msg.content || "";
+
+      // 添加日志：显示当前使用的AI配置
+      console.log("[AI Request] 使用的配置:", { base, model, key: key ? "[REDACTED]" : "未设置" });
+
+      if (!key) { sendResponse({ ok: false, error: "缺少API Key" }); return; }
+      const url = base + "/chat/completions";
+      const payload = {
+        model,
+        messages: [
+          { role: "system", content: sysPrompt },
+          { role: "user", content: userContent }
+        ]
+      };
+
+      try {
+        const r = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + key },
+          body: JSON.stringify(payload)
+        });
+        const txt = await r.text();
+
+        if (!r.ok) {
+          const snip = (typeof snippetOf === "function") ? snippetOf(txt) : (txt || "").slice(0, 400);
+          sendResponse({ ok: false, status: r.status, error: "AI接口错误", snippet: snip });
+          return;
+        }
+
+        let data = null; try { data = JSON.parse(txt); } catch (_) { if (typeof relaxParseJSON === "function") data = relaxParseJSON(txt); }
+        const content = data?.choices?.[0]?.message?.content || "";
+        const jsonText = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "");
+        let obj = null; try { obj = JSON.parse(jsonText); } catch (_) { if (typeof relaxParseJSON === "function") obj = relaxParseJSON(jsonText); }
+
+        const title = obj?.title ? String(obj.title) : "";
+        const reply = obj?.reply ? String(obj.reply) : "";
+
+        // usage 与 model 回传，便于面板统计
+        const usage = data?.usage || null;           // {prompt_tokens, completion_tokens, total_tokens}
+        const usedModel = data?.model || model;
+
+        // 添加日志：显示实际使用的模型
+        console.log("[AI Response] 实际使用的模型:", usedModel);
+
+        sendResponse({ ok: true, title, reply, usage, model: usedModel });
+        return;
+      } catch (e) {
+        sendResponse({ ok: false, error: e?.message || String(e) });
+        return;
+      }
+    })();
+    return true; // 关键：保持消息通道，等待异步 sendResponse
+  }
+
+  // sumWorkload已在async函数内部处理
+
+  return true; // 异步
 });
 
 // ==== side panel router ====
@@ -1030,12 +1076,12 @@ async function openPanelByName(name, tabId, opts = {}) {
   try {
     // 获取当前标签页的面板配置
     const currentOptions = await chrome.sidePanel.getOptions({ tabId: tabId });
-    
+
     // 启用侧边栏（如果尚未启用）
     if (!currentOptions.enabled) {
       await chrome.sidePanel.setOptions({ tabId, enabled: true });
     }
-    
+
     // 只有当面板路径不同时才设置新路径，避免不必要的重置
     if (currentOptions.path !== path) {
       await chrome.sidePanel.setOptions({ tabId, path });
@@ -1075,8 +1121,8 @@ async function saveTabPanelState(tabId, panelName) {
   if (!tabId) return;
   tabPanelStates.set(tabId, panelName);
   try {
-    await chrome.storage.session.set({ 
-      [`__uu_assist_tab_panel_${tabId}`]: panelName 
+    await chrome.storage.session.set({
+      [`__uu_assist_tab_panel_${tabId}`]: panelName
     });
   } catch (_) { }
 }

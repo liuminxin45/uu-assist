@@ -138,7 +138,7 @@ async function restoreTaskBinding() {
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
     restoreTaskBinding().catch(e => console.warn("恢复任务绑定过程中的错误:", e));
-    
+
     // 重新调整txtContent的高度
     const txtContent = $("#txtContent");
     if (txtContent) {
@@ -253,7 +253,7 @@ function syncSelectToTask() {
   const abs = href ? new URL('http://pha.tp-link.com.cn' + href).href : '';
   setTaskLink(abs);
   try { chrome.storage.local.set({ 'phaPanelSelectedItem': href }); } catch (_) { }
-  
+
   // 更新评论持久化绑定
   updateCommentPersistence().catch(e => console.warn('更新评论持久化失败:', e));
 }
@@ -338,16 +338,16 @@ function bindMarkdownBar() {
 // 自动调整textarea高度的函数
 function adjustTextareaHeight(textarea) {
   if (!textarea) return;
-  
+
   // 重置高度以获取正确的滚动高度
   textarea.style.height = 'auto';
-  
+
   // 获取内容所需的实际高度
   const scrollHeight = textarea.scrollHeight;
-  
+
   // 设置最大高度
   const maxHeight = 280; // 与CSS中的max-height保持一致
-  
+
   // 根据内容调整高度，但不超过最大高度
   if (scrollHeight > maxHeight) {
     textarea.style.height = maxHeight + 'px';
@@ -361,26 +361,26 @@ function adjustTextareaHeight(textarea) {
 document.addEventListener("DOMContentLoaded", async () => {
   // 初始配置
   try { await loadConfig(); } catch (e) { setStatus("配置加载失败: " + (e?.message || e)); }
-  
+
   // 初始化txtContent的自动高度调整和自动保存
   try {
     const ta = $("#txtContent");
     if (ta) {
       // 初始调整高度
       adjustTextareaHeight(ta);
-      
+
       // 添加输入事件监听器，实现输入时自动调整高度和自动保存
       let saveTimeout = null;
       ta.addEventListener('input', () => {
         adjustTextareaHeight(ta);
-        
+
         // 防抖保存，避免频繁保存
         if (saveTimeout) clearTimeout(saveTimeout);
         saveTimeout = setTimeout(() => {
           saveCommentForCurrentTask().catch(e => console.warn('自动保存失败:', e));
         }, 1000); // 1秒后自动保存
       });
-      
+
       // 失去焦点时立即保存
       ta.addEventListener('blur', () => {
         saveCommentForCurrentTask().catch(e => console.warn('失焦保存失败:', e));
@@ -428,7 +428,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const btnClear = $("btnClear");
     const sel = $("selItems");
     const link = $("taskLink");
-    
+
     // 始终使用固定的URL
     const FIXED_LIST_URL = "http://pha.tp-link.com.cn/maniphest/query/ITSeQjt2W8tk/#R";
 
@@ -720,10 +720,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             aiReply: String(AIResponse || ""),
             time: Date.now()
           });
-          setStatus("提交成功，状态码 " + resp.status);
-        } else {
-          setStatus("提交失败: " + (resp?.error || ("HTTP " + (resp?.status || ""))) + (resp?.snippet ? ("\n" + resp.snippet) : ""));
+          setStatus("提交成功");
         }
+        else { setStatus("提交失败: " + (resp?.error || ("HTTP " + (resp?.status || ""))) + (resp?.snippet ? ("\n" + resp.snippet) : "")); }
       };
     }
   } catch (e) { console.warn("send bind fail:", e); }
@@ -1057,7 +1056,7 @@ async function saveCommentForCurrentTask() {
   try {
     const ta = $('txtContent');
     if (!ta || !currentTaskId) return;
-    
+
     const commentsByTask = await getCommentsByTask();
     commentsByTask[currentTaskId] = ta.value;
     await chrome.storage.local.set({ 'phaPanelCommentsByTask': commentsByTask });
@@ -1082,7 +1081,7 @@ async function loadCommentForTask(taskId) {
   try {
     const ta = $('txtContent');
     if (!ta || !taskId) return;
-    
+
     const commentsByTask = await getCommentsByTask();
     ta.value = commentsByTask[taskId] || '';
     currentTaskId = taskId;
@@ -1095,11 +1094,11 @@ async function loadCommentForTask(taskId) {
 async function updateCommentPersistence() {
   const sel = $('selItems');
   if (!sel) return;
-  
+
   // 获取当前选中的任务ID
   const href = sel.value || '';
   const taskId = (href.match(/\/T(\d+)/) || [])[1];
-  
+
   // 如果任务ID发生变化，先保存当前评论，再加载新任务的评论
   if (taskId && taskId !== currentTaskId) {
     await saveCommentForCurrentTask();
@@ -1115,7 +1114,7 @@ async function saveTxtContentToStorage() {
   try {
     const ta = $('txtContent');
     if (!ta) return;
-    
+
     // 使用setAndPersist确保内容被保存到全局持久化系统
     if (window.setAndPersist) {
       window.setAndPersist(ta, 'pha:txtContent', ta.value);
@@ -1141,10 +1140,10 @@ async function restoreTxtContentFromStorage() {
   try {
     const ta = $('txtContent');
     if (!ta) return;
-    
+
     // 首先尝试使用全局持久化系统的值
     if (ta.value) return; // 如果已经有值，不覆盖
-    
+
     // 尝试从通用存储恢复
     if (typeof chrome !== 'undefined' && chrome.storage) {
       const result = await chrome.storage.local.get('phaPanelTxtContent');
@@ -1161,7 +1160,7 @@ async function restoreTxtContentFromStorage() {
 // 在DOMContentLoaded时恢复内容
 document.addEventListener('DOMContentLoaded', async () => {
   await restoreTxtContentFromStorage();
-  
+
   // 为txtContent添加实时保存
   const ta = $('txtContent');
   if (ta) {
@@ -1171,7 +1170,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       clearTimeout(saveTimeout);
       saveTimeout = setTimeout(saveTxtContentToStorage, 500); // 500ms防抖
     });
-    
+
     // 添加失焦事件监听器，立即保存
     ta.addEventListener('blur', saveTxtContentToStorage);
   }
