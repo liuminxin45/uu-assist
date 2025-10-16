@@ -85,11 +85,12 @@
       <!-- 头部 -->
       <div class="header">
         <div class="header-top">
-          <h2>Rocket</h2>
+          <h2 style="visibility: hidden;">Rocket</h2>
           <div class="header-controls">
             <!-- 下拉菜单按钮 -->
             <div class="dropdown">
               <button id="panelSwitchBtn" class="dropdown-btn">
+                <span class="panel-name" style="font-weight: bold; font-size: larger;">🚀 Rocket</span>
                 <span class="dropdown-arrow">▼</span>
               </button>
               <div id="panelDropdown" class="dropdown-content">
@@ -113,7 +114,6 @@
             <div class="form-group">
               <label for="msgLimit">消息数量限制</label>
               <input id="msgLimit" type="number" min="1" max="200" step="1" value="20" />
-              <div class="hint">设置要处理的消息数量上限</div>
             </div>
             
             <div class="form-group">
@@ -134,7 +134,7 @@
         </div>
         
         <!-- 状态日志卡片 -->
-        <div class="row">
+        <div class="row" style="display: none;">
           <div class="card">
             <label for="status">状态日志</label>
             <div id="status" class="status"></div>
@@ -142,7 +142,7 @@
         </div>
         
         <!-- AI回复卡片 -->
-        <div class="row">
+        <div class="row" style="display: none;">
           <div class="card">
             <label for="aiReply">AI 输出</label>
             <textarea id="aiReply" class="status" readonly placeholder="AI 输出结果将显示在这里"></textarea>

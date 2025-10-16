@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>设置</title>
   <script src="../../shared/theme.js" defer></script>
   <link rel="stylesheet" href="../../shared/styles.css">
@@ -13,6 +13,16 @@
       color: var(--text-muted);
       margin-top: var(--space-xs);
     }
+    
+    /* 确保header高度与rocket页面一致 */
+    .header {
+      padding: var(--space-md) var(--space-lg);
+    }
+    
+    .dropdown-btn {
+      padding: var(--space-sm) var(--space-md);
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -21,11 +31,12 @@
       <!-- 头部 -->
       <div class="header">
         <div class="header-top">
-          <h2>设置</h2>
+          <h2 style="visibility: hidden;">设置</h2>
           <div class="header-controls">
             <!-- 下拉菜单按钮 -->
             <div class="dropdown">
               <button id="panelSwitchBtn" class="dropdown-btn">
+                <span class="panel-name" style="font-weight: bold; font-size: larger;">⚙️ 设置</span>
                 <span class="dropdown-arrow">▼</span>
               </button>
               <div id="panelDropdown" class="dropdown-content">

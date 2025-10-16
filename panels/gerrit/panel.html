@@ -17,12 +17,23 @@
       min-height: 0;
     }
     
-    /* 头部样式 */
+    /* 确保header高度与其他页面一致 */
+    .header {
+      padding: var(--space-md) var(--space-lg);
+    }
+    
+    .dropdown-btn {
+      padding: var(--space-sm) var(--space-md);
+      font-size: 14px;
+    }
+    
+    /* 头部h2样式 */
     .header h2 {
-      font-size: 16px;
-      font-weight: 500;
+      font-size: 18px;
+      font-weight: 600;
       color: var(--text-primary);
       margin: 0;
+      flex: 1;
     }
     
     .gerrit-header {
@@ -492,31 +503,36 @@
     }
   </style>
 </head>
-<body class="panel">
-  <div class="header">
-    <div class="header-top">
-      <h2>Gerrit</h2>
-      <div class="header-controls">
-        <!-- 下拉菜单按钮 -->
-        <div class="dropdown">
-          <button id="panelSwitchBtn" class="dropdown-btn">
-            <span class="dropdown-arrow">▼</span>
-          </button>
-          <div id="panelDropdown" class="dropdown-content">
-            <a href="#" data-target="pha-panel" class="dropdown-item">👁️ PHA</a>
-            <a href="#" data-target="rocket-panel" class="dropdown-item">🚀 Rocket</a>
-            <a href="#" data-target="notes-panel" class="dropdown-item">📝 笔记</a>
-            <a href="#" data-target="todo-panel" class="dropdown-item">📋 TODO</a>
-            <a href="#" data-target="gerrit-panel" class="dropdown-item active">🔍 Gerrit</a>
-            <a href="#" data-target="settings-panel" class="dropdown-item">⚙️ 设置</a>
+<body>
+  <div class="container">
+    <div class="content-wrapper">
+      <!-- 头部 -->
+      <div class="header">
+        <div class="header-top">
+          <h2 style="visibility: hidden;">Gerrit</h2>
+          <div class="header-controls">
+            <!-- 下拉菜单按钮 -->
+            <div class="dropdown">
+              <button id="panelSwitchBtn" class="dropdown-btn">
+                <span class="panel-name" style="font-weight: bold; font-size: larger;">🔍 Gerrit</span>
+                <span class="dropdown-arrow">▼</span>
+              </button>
+              <div id="panelDropdown" class="dropdown-content">
+                <a href="#" data-target="pha-panel" class="dropdown-item">👁️ PHA</a>
+                <a href="#" data-target="rocket-panel" class="dropdown-item">🚀 Rocket</a>
+                <a href="#" data-target="notes-panel" class="dropdown-item">📝 笔记</a>
+                <a href="#" data-target="todo-panel" class="dropdown-item">📋 TODO</a>
+                <a href="#" data-target="gerrit-panel" class="dropdown-item active">🔍 Gerrit</a>
+                <a href="#" data-target="settings-panel" class="dropdown-item">⚙️ 设置</a>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  </div>
-
-  <div class="gerrit-container">
-    <div class="inner-pad">
+      
+      <!-- 主内容 -->
+      <div class="inner-pad">
+        <div class="gerrit-container">
       <div class="gerrit-header">
         <div class="gerrit-search-container">
           <input type="text" id="gerrit-search-input" class="gerrit-search-input" placeholder="搜索变更...">
@@ -669,5 +685,7 @@
 
   <script defer src="../../rail.js"></script>
   <script src="panel.js"></script>
+  </div>
+  </div>
 </body>
 </html>
