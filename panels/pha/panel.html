@@ -168,9 +168,54 @@
       display: inline-block;
     }
     
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      background-color: var(--bg-primary);
+      min-width: 120px;
+      box-shadow: var(--shadow-md);
+      z-index: 1000;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-default);
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .dropdown-menu.dropdown-up {
+      bottom: 100%;
+      margin-bottom: 4px;
+    }
+    
+    .dropdown-menu.dropdown-down {
+      top: 100%;
+      margin-top: 4px;
+    }
+    
+    .dropdown.active .dropdown-menu {
+      display: block;
+    }
+    
+    .dropdown-item {
+      color: var(--text-primary);
+      padding: 8px 12px;
+      text-decoration: none;
+      display: block;
+      cursor: pointer;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      font-size: 14px;
+    }
+    
+    .dropdown-item:hover {
+      background-color: var(--bg-secondary);
+    }
+    
     /* 响应式设计 */
     @media (max-width: 640px) {
-      .dropdown-content {
+      .dropdown-content,
+      .dropdown-menu {
         min-width: 100px;
         right: auto;
         left: 50%;
@@ -841,6 +886,23 @@
             <button id="btnSumWL" class="btn-common" title="统计工作量">
               统计
             </button>
+            <div class="dropdown" style="display: inline-flex; align-items: center;">
+              <button id="textOptimizeBtn" class="btn-common" title="文本优化">
+                文本优化
+              </button>
+              <div id="textOptimizeDropdown" class="dropdown-menu dropdown-up">
+                <a href="#" class="dropdown-item" data-action="improve">改善</a>
+                <a href="#" class="dropdown-item" data-action="continue">续写</a>
+                <a href="#" class="dropdown-item" data-action="correct">纠正</a>
+                <a href="#" class="dropdown-item" data-action="compress">压缩</a>
+                <a href="#" class="dropdown-item" data-action="expand">扩展</a>
+                <a href="#" class="dropdown-item" data-action="simplify">简化</a>
+                <a href="#" class="dropdown-item" data-action="tone">改变语气</a>
+                <a href="#" class="dropdown-item" data-action="outline">大纲</a>
+                <a href="#" class="dropdown-item" data-action="brainstorm">头脑风暴</a>
+                <a href="#" class="dropdown-item" data-action="blog">博客</a>
+              </div>
+            </div>
             <button id="btnWeekly" class="btn-common" title="周报生成">
               周报
             </button>

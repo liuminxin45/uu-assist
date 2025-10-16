@@ -3,6 +3,255 @@ const PANEL_NAME = "pha-panel";
 /* panel.js v0.8.3-clean */
 const $ = id => document.getElementById(id);
 
+// 文本优化下拉菜单交互
+function initTextOptimizeDropdown() {
+  const textOptimizeBtn = $("textOptimizeBtn");
+  const textOptimizeDropdown = $("textOptimizeDropdown");
+  
+  if (!textOptimizeBtn || !textOptimizeDropdown) {
+    return; // 如果元素不存在，不执行后续逻辑
+  }
+  
+  // 切换下拉菜单显示状态
+  textOptimizeBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    textOptimizeDropdown.parentElement.classList.toggle('active');
+  });
+  
+  // 点击下拉菜单项时的处理
+  const dropdownItems = textOptimizeDropdown.querySelectorAll('.dropdown-item');
+  dropdownItems.forEach(item => {
+    item.addEventListener('click', function(e) {
+      e.preventDefault();
+      
+      // 关闭下拉菜单
+      textOptimizeDropdown.parentElement.classList.remove('active');
+      
+      // 获取选择的操作
+      const action = this.getAttribute('data-action');
+      const actionText = this.textContent.trim();
+      
+      // 处理文本优化请求
+      if (action === 'tone') {
+        // 对于改变语气选项，显示对话框让用户选择语气类型
+        const toneOptions = ["正式", "口语化", "鼓舞人心", "幽默", "专业", "友好", "权威"];
+        const toneSelect = prompt(`请选择语气类型:\n${toneOptions.map((t, i) => `${i+1}. ${t}`).join('\n')}\n\n请输入序号或直接输入自定义语气:`, "1");
+        
+        if (toneSelect === null) {
+          // 用户取消操作
+          return;
+        }
+        
+        // 处理用户输入
+        let toneType = "正式"; // 默认值
+        const num = parseInt(toneSelect);
+        if (!isNaN(num) && num >= 1 && num <= toneOptions.length) {
+          toneType = toneOptions[num - 1];
+        } else if (toneSelect.trim()) {
+          toneType = toneSelect.trim();
+        }
+        
+        // 调用处理函数并传递语气类型
+        handleTextOptimizeWithTone(action, actionText, toneType);
+      } else {
+        handleTextOptimize(action, actionText);
+      }
+    });
+  });
+  
+  // 点击页面其他地方关闭下拉菜单
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.dropdown') && 
+        textOptimizeDropdown.parentElement.classList.contains('active')) {
+      textOptimizeDropdown.parentElement.classList.remove('active');
+    }
+  });
+  
+  // 防止下拉菜单内部的点击事件冒泡
+  textOptimizeDropdown.addEventListener('click', function(e) {
+    e.stopPropagation();
+  });
+}
+
+// 带语气类型的文本优化处理函数
+function handleTextOptimizeWithTone(action, actionText, toneType) {
+  const ta = $("txtContent");
+  if (!ta) {
+    setStatus("未找到正文输入框");
+    return;
+  }
+  
+  const content = ta.value.trim();
+  if (!content) {
+    setStatus("请先输入需要优化的文本");
+    return;
+  }
+  
+  setStatus(`正在将文本改为${toneType}语气...`);
+  
+  // 构建带动态语气类型的prompt
+  const prompt = `请将以下文本改写为更${toneType}的语气：
+「${content}」`;
+  
+  // 使用aiSummarize消息类型发送请求
+  const aiRequest = {
+    type: "aiSummarize",
+    prompt: "你是助手。请根据用户的请求进行文本处理。请直接返回处理后的文本内容，以严格JSON返回：{\"title\":\"...\", \"reply\":\"...\"}",
+    content: prompt
+  };
+  
+  // 增加详细日志
+  console.log("[文本优化-语气] 发送AI请求:", { action, actionText, toneType, promptLength: prompt.length });
+  
+  chrome.runtime.sendMessage(aiRequest).then(res => {
+    console.log("[文本优化-语气] 收到AI响应:", res);
+    
+    if (!res || !res.ok) {
+      const errorMsg = `AI处理失败: ${res?.error || "未知错误"}`;
+      console.error("[文本优化-语气] 错误详情:", res);
+      setStatus(errorMsg);
+      return;
+    }
+    
+    // 详细检查响应结构
+    console.log("[文本优化-语气] 响应结构:", {
+      hasAITitle: res.AITitle !== undefined,
+      hasAIReply: res.AIReply !== undefined,
+      AITitleType: typeof res.AITitle,
+      AIReplyType: typeof res.AIReply
+    });
+    
+    // 处理成功响应
+    // 注意：sw.js返回的是title和reply字段，不是AITitle和AIReply
+    const { title, reply } = res;
+    if (reply && typeof reply === 'string' && reply.trim()) {
+      // 将AI生成的内容插入到文本框中
+      ta.value = reply;
+      setStatus(`${actionText}完成，已改为${toneType}语气`);
+      console.log("[文本优化-语气] 成功处理并更新文本框");
+    } else {
+      console.error("[文本优化-语气] 无效的reply:", reply);
+      console.log("[文本优化-语气] 完整响应:", res);
+      setStatus("未收到有效回复");
+    }
+  }).catch(e => {
+    const errorMsg = `请求错误: ${e?.message || String(e)}`;
+    console.error("[文本优化-语气] 请求异常:", e);
+    setStatus(errorMsg);
+  });
+}
+
+// 处理文本优化请求
+function handleTextOptimize(action, actionText) {
+  const ta = $("txtContent");
+  if (!ta) {
+    setStatus("未找到正文输入框");
+    return;
+  }
+  
+  const content = ta.value.trim();
+  if (!content) {
+    setStatus("请先输入需要优化的文本");
+    return;
+  }
+  
+  setStatus(`正在进行${actionText}...`);
+  
+  // 构建对应的prompt
+  let prompt = '';
+  switch (action) {
+    case 'improve':
+      prompt = `请改进以下文本，使其逻辑更清晰、语言更流畅、表达更自然，不改变核心含义：
+「${content}」`;
+      break;
+    case 'continue':
+      prompt = `请根据以下文本的情节和语气，自然续写下一段，保持风格一致：
+「${content}」`;
+      break;
+    case 'correct':
+      prompt = `请纠正以下文本中的语法、拼写、标点或逻辑错误，保持原意：
+「${content}」`;
+      break;
+    case 'compress':
+      prompt = `请将以下文本压缩为原文的约 1/3 长度，保留主要信息和语气：
+「${content}」`;
+      break;
+    case 'expand':
+      prompt = `请在保持原意的前提下，扩展以下文本，增加细节、示例或情感描述：
+「${content}」`;
+      break;
+    case 'simplify':
+      prompt = `请将以下文本改写得更简洁易懂，删除冗余或复杂表达：
+「${content}」`;
+      break;
+    case 'tone':
+      // 这个case现在由handleTextOptimizeWithTone函数处理
+      prompt = content;
+      break;
+    case 'outline':
+      prompt = `请为以下文本提炼一个结构化大纲，分层列出主要观点与逻辑：
+「${content}」`;
+      break;
+    case 'brainstorm':
+      prompt = `请基于以下文本内容，生成若干创意、标题或行动方案：
+「${content}」`;
+      break;
+    case 'blog':
+      prompt = `请将以下文本改写为一篇适合博客发布的内容，包含引入、正文和结尾：
+「${content}」`;
+      break;
+    default:
+      prompt = content;
+  }
+  
+  // 使用aiSummarize消息类型发送请求
+  const aiRequest = {
+    type: "aiSummarize",
+    prompt: "你是助手。请根据用户的请求进行文本处理。请直接返回处理后的文本内容，以严格JSON返回：{\"title\":\"...\", \"reply\":\"...\"}",
+    content: prompt
+  };
+  
+  // 增加详细日志
+  console.log("[文本优化] 发送AI请求:", { action, actionText, promptLength: prompt.length });
+  
+  chrome.runtime.sendMessage(aiRequest).then(res => {
+    console.log("[文本优化] 收到AI响应:", res);
+    
+    if (!res || !res.ok) {
+      const errorMsg = `AI处理失败: ${res?.error || "未知错误"}`;
+      console.error("[文本优化] 错误详情:", res);
+      setStatus(errorMsg);
+      return;
+    }
+    
+    // 详细检查响应结构
+    console.log("[文本优化] 响应结构:", {
+      hasAITitle: res.AITitle !== undefined,
+      hasAIReply: res.AIReply !== undefined,
+      AITitleType: typeof res.AITitle,
+      AIReplyType: typeof res.AIReply
+    });
+    
+    // 处理成功响应
+    // 注意：sw.js返回的是title和reply字段，不是AITitle和AIReply
+    const { title, reply } = res;
+    if (reply && typeof reply === 'string' && reply.trim()) {
+      // 将AI生成的内容插入到文本框中
+      ta.value = reply;
+      setStatus(`${actionText}完成`);
+      console.log("[文本优化] 成功处理并更新文本框");
+    } else {
+      console.error("[文本优化] 无效的reply:", reply);
+      console.log("[文本优化] 完整响应:", res);
+      setStatus("未收到有效回复");
+    }
+  }).catch(e => {
+    const errorMsg = `请求错误: ${e?.message || String(e)}`;
+    console.error("[文本优化] 请求异常:", e);
+    setStatus(errorMsg);
+  });
+}
+
 // ----- status helpers -----
 const setStatus = s => { const el = $("status"); if (el) { el.textContent = s; el.scrollTop = el.scrollHeight; } };
 const log = s => { const el = $("status"); if (el) { el.textContent = (el.textContent ? el.textContent + "\n" : "") + s; el.scrollTop = el.scrollHeight; } };
@@ -1267,3 +1516,6 @@ window.addEventListener('beforeunload', async (e) => {
     console.warn('卸载前保存失败:', err);
   }
 });
+
+// 初始化文本优化下拉菜单
+initTextOptimizeDropdown();
