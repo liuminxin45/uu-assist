@@ -853,142 +853,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 
-
-  // 标题
-  let title = "";
-  const mTitle = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  if (mTitle) title = mTitle[1].replace(/\s+/g, " ").trim();
-
-  const strip = s => String(s || "")
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\u00a0/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  let status = "", priority = "";
-
-  // ① 页眉副标题（权威）
-  const mSub = html.match(/<div[^>]*class=["'][^"']*phui-header-subheader[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
-  if (mSub) {
-    // 取第一个 phui-tag-core 的文本
-    let coreText = "";
-    const coreRe = /<span[^>]*class=["'][^"']*phui-tag-core[^"']*["'][^>]*>([\s\S]*?)<\/span>/ig;
-    let mm;
-    while ((mm = coreRe.exec(mSub[1])) !== null) {
-      const t = strip(mm[1]);
-      if (t) { coreText = t; break; }
-    }
-    const headerText = coreText || strip(mSub[1]);
-
-    // 分段后分别提取状态/优先级
-    const parts = headerText.split(/[，,]/).map(s => s.trim()).filter(Boolean);
-    const statusRe = /(进行中(?:\(不加入统计\))?|已完成(?:\(不加入统计\))?|已解决|已关闭|开放|待办|已指派|已验证|已取消|已暂停|未开始|in\s*progress|open|resolved|closed)/i;
-
-    // 状态：从右往左找，优先采用最后出现的状态词
-    for (const seg of parts.slice().reverse()) {
-      const m = seg.match(statusRe);
-      if (m) { status = m[1].replace(/\s+/g, ""); break; }
-    }
-    // 优先级：找到第一个 P\d
-    if (!priority) {
-      for (const seg of parts) {
-        const mp = seg.match(/\bP\d\b/i);
-        if (mp) { priority = mp[0].toUpperCase(); break; }
-      }
-    }
-  }
-
-
-
-  // ② 任务图“只针对当前TID”的兜底（防止误取父/兄弟任务）
-  if (!status) {
-    const tidMatch = url.match(/\/T(\d+)\b/i);
-    const tid = tidMatch && tidMatch[1];
-    if (tid) {
-      // 找到包含 <span class="object-name">T{tid}</span> 的那一行
-      const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/ig;
-      let tr;
-      while ((tr = trRe.exec(html)) !== null) {
-        if (new RegExp(`<span[^>]*class=["'][^"']*object-name[^"']*["'][^>]*>\\s*T${tid}\\s*<\\/span>`, "i").test(tr[1])) {
-          const mGraph = tr[1].match(/<td[^>]*class=["'][^"']*graph-status[^"']*["'][^>]*>([\s\S]*?)<\/td>/i);
-          if (mGraph) {
-            const t = strip(mGraph[1]);
-            const ms = t.match(/(已完成(?:\(不加入统计\))?|进行中(?:\(不加入统计\))?|暂停|未开始)/);
-            if (ms) { status = ms[1]; }
-          }
-          break;
-        }
-      }
-    }
-  }
-
-  // ③ 时间线兜底：优先找“将此任务关闭为 …”，否则找“修改为 …”的最后一条
-  if (!status) {
-    let lastClose = "";
-    const closeRe = /<div[^>]*class=["'][^"']*phui-timeline-title[^"']*["'][^>]*>[\s\S]*?将此任务关闭为[\s\S]*?<span[^>]*class=["'][^"']*phui-timeline-value[^"']*["'][^>]*>([\s\S]*?)<\/span>[\s\S]*?<\/div>/ig;
-    let m;
-    while ((m = closeRe.exec(html)) !== null) { lastClose = strip(m[1]); }
-    if (lastClose) status = lastClose;
-    else {
-      // 最近一次“修改为 …”的目标状态
-      let lastChange = "";
-      const changeRe = /<div[^>]*class=["'][^"']*phui-timeline-title[^"']*["'][^>]*>[\s\S]*?修改为[\s\S]*?<span[^>]*class=["'][^"']*phui-timeline-value[^"']*["'][^>]*>([\s\S]*?)<\/span>[\s\S]*?<\/div>/ig;
-      while ((m = changeRe.exec(html)) !== null) { lastChange = strip(m[1]); }
-      if (lastChange) status = lastChange;
-    }
-  }
-
-  // ④ 解析属性列表 <dl>（补充 details / 末位兜底）
-  const details = [];
-  const dlRe = /<dl[^>]*class=["'][^"']*phui-property-list-properties[^"']*["'][^>]*>([\s\S]*?)<\/dl>/ig;
-  let dlm;
-  while ((dlm = dlRe.exec(html)) !== null) {
-    const body = dlm[1];
-    const kvRe = /<dt[^>]*class=["'][^"']*phui-property-list-key[^"']*["'][^>]*>([\s\S]*?)<\/dt>\s*<dd[^>]*class=["'][^"']*phui-property-list-value[^"']*["'][^>]*>([\s\S]*?)<\/dd>/ig;
-    let m;
-    while ((m = kvRe.exec(body)) !== null) {
-      details.push({ k: strip(m[1]), v: strip(m[2]) });
-    }
-  }
-
-  // 先从 details 里兜底
-  if (!status) {
-    const kv = details.find(d => /^(状态|Status)$/i.test(d.k));
-    if (kv) status = kv.v.replace(/\s+/g, "");
-  }
-  if (!priority) {
-    const kv = details.find(d => /^(优先级|Priority)$/i.test(d.k));
-    if (kv) priority = (kv.v.match(/\bP\d\b/i)?.[0] || kv.v).toUpperCase();
-  }
-
-  // 最末从纯文本兜底一次（只匹配“状态/优先级：”或独立的 Pn）
-  if (!status || !priority) {
-    const text = html
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-      .replace(/<[^>]+>/g, "\n")
-      .replace(/\u00a0/g, " ")
-      .replace(/[ \t]+\n/g, "\n");
-
-    if (!status) {
-      const ms = text.match(/(?:^|\n)\s*(?:状态|Status)\s*[:：]\s*([^\n\r]+)/i);
-      if (ms) status = ms[1].trim().replace(/\s+/g, "");
-    }
-    if (!priority) {
-      const mp = text.match(/(?:^|\n)\s*(?:优先级|Priority)\s*[:：]\s*([^\n\r]+)/i) || text.match(/(?:^|\n)\s*(P\d)\b/i);
-      if (mp) priority = (mp[1] || mp[0]).toUpperCase().trim();
-    }
-  }
-
-
-
-
-
-
-
-
+  // 删除引用未定义html变量的错误代码段
   if (msg.type === "aiSummarize") {
     (async () => {
       const def = { aiCfg: null };
@@ -1106,8 +971,10 @@ chrome.action.onClicked.addListener(async (tab) => {
   const tid = tab?.id || await spGetStableTabId();
   if (tid) {
     await spSetLastTab(tid);
+
     // 获取当前标签页的面板状态
-    const panelName = await getCurrentTabPanelState(tid);
+    const panelName = await getCurrentTabPanelState(tab.id);
+
     await openPanelByName(panelName, tid, { fromSidePanel: false });
   }
 });

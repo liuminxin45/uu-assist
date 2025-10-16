@@ -694,19 +694,62 @@ document.addEventListener("DOMContentLoaded", async () => {
         // AI summarize + 模板渲染
         try {
           const cfgNow = await loadAICfg();
-          // 弹窗让用户选择是否使用AI辅助分析
-          const useAI = confirm('是否使用AI辅助分析？');
+          console.log("[AI Debug] 加载的AI配置:", cfgNow);
+          
+          // 检查API密钥是否已配置
+          if (!cfgNow.key || cfgNow.key.trim() === "") {
+            console.warn("[AI Debug] API密钥未配置");
+            setStatus("AI 配置不完整，请先配置API密钥");
+            // 显示配置提示对话框
+            if (confirm('AI功能需要先配置API密钥，是否现在去配置？')) {
+              // 打开AI配置对话框
+              openAIConfigDialog();
+            }
+            // 不执行AI调用
+          } else {
+            // 将用户确认移到后面，先声明变量
+          }
+          // 在try块内部、else语句外部定义timestamp和useAI变量
           const timestamp = formatDate("[YYYY-MM-DD HH:mm:ss]");
-          if (useAI) {
+          let useAI = false;
+          if (cfgNow.key && cfgNow.key.trim() !== "") {
+            // 弹窗让用户选择是否使用AI辅助分析
+            useAI = confirm('是否使用AI辅助分析？');
+          }
+          if (cfgNow.key && cfgNow.key.trim() !== "" && useAI) {
+            console.log("[AI Debug] 用户确认使用AI，开始调用...");
             const ask = { type: "aiSummarize", content: bodyContent, prompt: cfgNow.prompt || "" };
             setStatus("AI 预处理中…");
+            console.log("[AI Debug] 发送的AI请求消息:", ask);
             const ai = await chrome.runtime.sendMessage(ask);
-            if (ai?.ok) { AITitle = ai.title || ""; AIResponse = ai.reply || ""; setStatus("AI 处理完成"); }
-            else { setStatus("AI 处理失败: " + (ai?.error || "")); }
+            console.log("[AI Debug] 收到的AI响应:", ai);
+            if (ai?.ok) { 
+              AITitle = ai.title || "";
+              AIResponse = ai.reply || "";
+              setStatus("AI 处理完成");
+              console.log("[AI Debug] AI处理成功，标题:", AITitle, "回复:", AIResponse);
+            }
+            else { 
+              const errorMsg = ai?.error || "未知错误";
+              setStatus("AI 处理失败: " + errorMsg);
+              console.error("[AI Debug] AI处理失败:", errorMsg);
+              // 如果是缺少API密钥错误，提示用户去配置
+              if (errorMsg.includes("API Key")) {
+                if (confirm('API密钥配置无效，是否去重新配置？')) {
+                  openAIConfigDialog();
+                }
+              }
+            }
+          } else {
+            console.log("[AI Debug] 用户取消使用AI");
           }
+          // 删除重复的时间戳声明
           const tpl = $("tplArea")?.value || "> {{timestamp}}\n### {{AITitle}}\n\n{{AIResponse}}\n\n--------\n\n{{正文}}";
           content = substituteTemplate(tpl, { timestamp, AITitle, AIResponse, body: bodyContent });
-        } catch (e) { console.warn("AI/template compose fail:", e); }
+        } catch (e) { 
+          console.warn("[AI Debug] AI/template compose fail:", e);
+          setStatus("AI 处理异常: " + (e?.message || "未知错误"));
+        }
 
         setStatus("提交评论中…");
         const resp = await chrome.runtime.sendMessage({ type: "postComment", taskId: id, taskUrl: abs, content });
