@@ -38,8 +38,37 @@ async function insertGerritCommitByUrl(inputUrl) {
   const res = await chrome.runtime.sendMessage({ type: "fetchGerritCommit", api: parsed.api, url: parsed.canonical }).catch(() => null);
   if (!res?.ok) { setStatus("获取失败: " + (res?.error || "")); return; }
 
-  const msg = (res.message || "").trim();
-  if (!msg) { setStatus("未读到提交说明"); return; }
+  // 尝试从多个可能的字段中提取提交说明
+  let msg = "";
+  if (res.message) {
+    msg = res.message.trim();
+  } else if (res.commit?.message) {
+    msg = res.commit.message.trim();
+  } else if (typeof res.data === 'string') {
+    msg = res.data.trim();
+  } else if (res.data?.message) {
+    msg = res.data.message.trim();
+  }
+  
+  // 如果仍然没有获取到提交说明，尝试从整个响应中查找
+  if (!msg && typeof res === 'object') {
+    // 记录完整的响应结构以便调试
+    console.log("[Gerrit Debug] 完整响应结构:", res);
+    // 尝试从响应对象中查找可能的提交说明字段
+    for (const key in res) {
+      if (typeof res[key] === 'string' && res[key].length > 20) {
+        msg = res[key].trim();
+        console.log("[Gerrit Debug] 从字段", key, "提取到提交说明");
+        break;
+      }
+    }
+  }
+  
+  if (!msg) { 
+    setStatus("未读到提交说明"); 
+    console.warn("[Gerrit Debug] 无法从响应中提取提交说明:", res);
+    return; 
+  }
 
   const block =
     `\n**[Gerrit]**\n${parsed.canonical}\n\n**提交说明**\n\`\`\` lines=10\n${msg}\n\`\`\`\n`;
