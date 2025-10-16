@@ -628,8 +628,8 @@ function setupEventListeners() {
               i.classList.toggle('active', itemValue === value);
             });
             
-            // 关闭所有下拉菜单
-            document.querySelectorAll('.dropdown').forEach(d => {
+            // 关闭所有下拉菜单，但不关闭面板切换下拉菜单
+            document.querySelectorAll('.dropdown:not(#panelDropdown)').forEach(d => {
               d.classList.remove('active');
             });
             
@@ -649,8 +649,13 @@ function setupEventListeners() {
   // 这里不再重复实现该功能
   
   // 点击文档其他地方关闭下拉菜单
-  document.addEventListener('click', () => {
-    const dropdowns = document.querySelectorAll('.dropdown');
+  document.addEventListener('click', (e) => {
+    // 确保不处理来自面板切换下拉菜单的事件
+    if (e.target.closest('#panelDropdown') || e.target.closest('#panelSwitchBtn')) {
+      return;
+    }
+    
+    const dropdowns = document.querySelectorAll('.dropdown:not(#panelDropdown)');
     dropdowns.forEach(dropdown => {
       dropdown.classList.remove('active');
     });

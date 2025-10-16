@@ -29,48 +29,33 @@
         
         // 只有当data-target属性存在时才进行面板切换
         if (targetPanel) {
-          // 如果rail.js存在并且有switchToPanel函数，则使用它
+          // 强制使用window.switchToPanel进行面板切换，这是最可靠的方式
           if (window.switchToPanel) {
             window.switchToPanel(targetPanel);
           } else {
-            // 更新下拉菜单中选中项的状态
-            dropdownItems.forEach(i => i.classList.remove('active'));
-            this.classList.add('active');
-            
-            // 简单的页面跳转
-            let panelUrl;
-            switch(targetPanel) {
-              case 'pha-panel':
-                panelUrl = '../pha/panel.html';
-                break;
-              case 'rocket-panel':
-                panelUrl = '../rocket/panel.html';
-                break;
-              case 'notes-panel':
-                panelUrl = '../notes/panel.html';
-                break;
-              case 'settings-panel':
-                panelUrl = '../settings/panel.html';
-                break;
-              case 'todo-panel':
-                panelUrl = '../todo/panel.html';
-                break;
-              case 'gerrit-panel':
-                panelUrl = '../gerrit/panel.html';
-                break;
-              default:
-                panelUrl = '../pha/panel.html';
+            // 如果switchToPanel函数不可用，尝试直接使用chrome.runtime.sendMessage
+            try {
+              chrome.runtime.sendMessage({ type: "switchPanel", name: targetPanel });
+            } catch (e) {
+              console.error("无法切换面板:", e);
             }
-            
-            // 跳转到相应的面板
-            window.location.href = panelUrl;
           }
+          
+          // 更新下拉菜单中选中项的状态
+          dropdownItems.forEach(i => i.classList.remove('active'));
+          this.classList.add('active');
         }
       });
     });
     
     // 点击页面其他地方关闭下拉菜单
-    document.addEventListener('click', function() {
+    document.addEventListener('click', function(e) {
+      // 避免与panel.js中的事件监听器冲突
+      // 如果事件来自panel.js中处理的下拉菜单，则不执行操作
+      if (e.target.closest('.todo-filters')) {
+        return;
+      }
+      
       if (panelDropdown.parentElement.classList.contains('active')) {
         panelDropdown.parentElement.classList.remove('active');
       }
