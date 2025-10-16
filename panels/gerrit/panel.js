@@ -2,19 +2,21 @@
 const PANEL_NAME = "gerrit-panel";
 
 // DOM 元素
-const gerritList = document.getElementById('gerrit-list');
-const gerritDetail = document.getElementById('gerrit-detail');
-const gerritSearchInput = document.getElementById('gerrit-search-input');
-const refreshBtn = document.getElementById('refresh-btn');
-const settingsBtn = document.getElementById('settings-btn');
-const settingsModal = document.getElementById('settings-modal');
-const closeSettingsModal = document.getElementById('close-settings-modal');
-const saveSettingsBtn = document.getElementById('save-settings-btn');
-const gerritUrlInput = document.getElementById('gerrit-url');
-const gerritUsernameInput = document.getElementById('gerrit-username');
-const gerritHostInput = document.getElementById('gerrit-host');
-const filterButtons = document.querySelectorAll('.gerrit-filter-btn');
-const statusElement = document.getElementById('status');
+  const gerritList = document.getElementById('gerrit-list');
+  const gerritDetail = document.getElementById('gerrit-detail-content');
+  const gerritDetailModal = document.getElementById('gerrit-detail-modal');
+  const closeDetailModal = document.getElementById('gerrit-detail-close');
+  const gerritSearchInput = document.getElementById('gerrit-search-input');
+  const refreshBtn = document.getElementById('refresh-btn');
+  const settingsBtn = document.getElementById('settings-btn');
+  const filterButtons = document.querySelectorAll('.gerrit-filter-btn');
+  const settingsModal = document.getElementById('settings-modal');
+  const closeSettingsModal = document.getElementById('close-settings-modal');
+  const saveSettingsBtn = document.getElementById('save-settings-btn');
+  const gerritUrlInput = document.getElementById('gerrit-url');
+  const gerritUsernameInput = document.getElementById('gerrit-username');
+  const gerritHostInput = document.getElementById('gerrit-host');
+  const statusElement = document.getElementById('status');
 
 // 状态变量
 let gerritChanges = [];
@@ -417,8 +419,10 @@ async function selectChange(change) {
     item.classList.toggle('active', item.dataset.id === change.id);
   });
   
-  // 显示加载状态
-  gerritDetail.innerHTML = '<div class="gerrit-loading">加载详情</div>';
+  // 加载详情到模态框
+  gerritDetail.innerHTML = '<div id="gerrit-detail-loading" class="ai-insight-loading"><div class="loading-spinner"></div><p>加载中...</p></div>';
+  // 显示模态框
+  gerritDetailModal.style.display = 'flex';
   
   try {
     const gerritUrl = gerritUrlInput.value.trim() || 'https://review.tp-link.net';
@@ -836,6 +840,15 @@ function setupEventListeners() {
     settingsModal.style.display = 'none';
   });
   
+  // 关闭详情模态框
+  closeDetailModal.addEventListener('click', () => {
+    gerritDetailModal.style.display = 'none';
+    currentSelectedChange = null;
+    // 移除选择高亮
+    const selectedItems = document.querySelectorAll('.gerrit-item.active');
+    selectedItems.forEach(item => item.classList.remove('active'));
+  });
+  
   // 保存设置
   saveSettingsBtn.addEventListener('click', saveSettings);
   
@@ -843,6 +856,38 @@ function setupEventListeners() {
   window.addEventListener('click', (e) => {
     if (e.target === settingsModal) {
       settingsModal.style.display = 'none';
+    } else if (e.target === gerritDetailModal) {
+      gerritDetailModal.style.display = 'none';
+      currentSelectedChange = null;
+      // 移除选择高亮
+      const selectedItems = document.querySelectorAll('.gerrit-item.active');
+      selectedItems.forEach(item => item.classList.remove('active'));
+    }
+  });
+
+  // 阻止事件冒泡
+  if (gerritDetailModal) {
+    const modalContent = gerritDetailModal.querySelector('.ai-insight-modal-content');
+    if (modalContent) {
+      modalContent.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+    }
+  }
+  
+  // ESC键关闭模态框
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (settingsModal.style.display === 'block') {
+        settingsModal.style.display = 'none';
+      } else if (gerritDetailModal.style.display === 'flex') {
+        gerritDetailModal.style.display = 'none';
+        // 清除选中状态
+        currentSelectedChange = null;
+        // 移除选择高亮
+        const selectedItems = document.querySelectorAll('.gerrit-item.active');
+        selectedItems.forEach(item => item.classList.remove('active'));
+      }
     }
   });
   

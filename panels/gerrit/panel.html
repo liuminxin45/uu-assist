@@ -339,16 +339,102 @@
       min-height: 0;
     }
     
-    .gerrit-list-container {
-      width: 40%;
+    .gerrit-list-container-full {
+      width: 100%;
       display: flex;
       flex-direction: column;
       min-height: 0;
     }
     
-    .gerrit-detail-container {
-      width: 60%;
-      min-height: 0;
+    /* 模态框样式扩展 */
+    /* 复用AI洞察弹窗样式，确保在最上层 */
+  .ai-insight-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 20px;
+  }
+  
+  .ai-insight-modal-content {
+    background: white;
+    border-radius: var(--radius);
+    width: 100%;
+    max-width: 800px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  }
+  
+  .ai-insight-modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .ai-insight-modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  
+  .ai-insight-close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+  }
+  
+  .ai-insight-close-btn:hover {
+    background: var(--bg-muted);
+    color: var(--text);
+  }
+  
+  .ai-insight-modal-body {
+    padding: 20px;
+    flex: 1;
+    overflow-y: auto;
+  }
+  
+  .ai-insight-loading {
+    text-align: center;
+    padding: 40px 20px;
+  }
+  
+  .loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-top: 3px solid var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 16px;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+    
+    .gerrit-detail-modal {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-lg);
     }
     
     .gerrit-empty {
@@ -560,7 +646,7 @@
     </div>
 
     <div class="gerrit-split-view">
-      <div class="gerrit-list-container">
+      <div class="gerrit-list-container-full">
         <div id="gerrit-list" class="gerrit-list">
           <div class="gerrit-empty">
             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.2; margin-bottom: 16px;">
@@ -578,22 +664,25 @@
           </div>
         </div>
       </div>
-      
-      <div class="gerrit-detail-container">
-        <div id="gerrit-detail" class="gerrit-detail">
-          <div class="gerrit-empty">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.2; margin-bottom: 16px;">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="16" y1="13" x2="8" y2="13"></line>
-              <line x1="16" y1="17" x2="8" y2="17"></line>
-              <polyline points="10 9 9 9 8 9"></polyline>
-            </svg>
-            <p>选择一个变更查看详情</p>
+    </div>
+    
+    <!-- 提交详情模态框 -->
+  <div id="gerrit-detail-modal" class="ai-insight-modal" style="display:none;">
+    <div class="ai-insight-modal-content">
+      <div class="ai-insight-modal-header">
+        <h3 id="gerrit-detail-title">提交详情</h3>
+        <button id="gerrit-detail-close" class="ai-insight-close-btn">&times;</button>
+      </div>
+      <div class="ai-insight-modal-body">
+        <div id="gerrit-detail-content" class="gerrit-detail-content">
+          <div id="gerrit-detail-loading" class="ai-insight-loading">
+            <div class="loading-spinner"></div>
+            <p>加载中...</p>
           </div>
         </div>
       </div>
     </div>
+  </div>
   </div>
 
   <!-- 底部状态栏 -->
